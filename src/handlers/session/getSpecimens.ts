@@ -1,0 +1,66 @@
+import { FastifyRequest, FastifyReply } from 'fastify';
+import { findSessionById, handleError } from './common';
+import { Specimen } from '../../db/models';
+
+export const schema = {
+  params: {
+    type: 'object',
+    properties: {
+      session_id: { type: 'number' }
+    }
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        specimens: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              specimenId: { type: 'string' },
+              imageUrl: { type: ['string', 'null'] },
+              species: { type: ['string', 'null'] },
+              sex: { type: ['string', 'null'] },
+              abdomenStatus: { type: ['string', 'null'] }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+export async function getSessionSpecimens(
+  request: FastifyRequest<{ Params: { session_id: number } }>,
+  reply: FastifyReply
+): Promise<void> {
+  try {
+    const { session_id } = request.params;
+
+    const session = await findSessionById(session_id);
+    if (!session) {
+      return reply.code(404).send({ error: 'Session not found' });
+    }
+
+    // Get all specimens for this session
+    const specimens = await Specimen.findAll({
+      where: { sessionId: session_id },
+      order: [['createdAt', 'DESC']],
+    });
+
+    reply.send({
+      specimens: specimens.map(specimen => ({
+        id: specimen.id,
+        specimenId: specimen.specimenId,
+        imageUrl: specimen.imageUrl ? `/specimens/${specimen.id}/images` : null,
+        species: specimen.species,
+        sex: specimen.sex,
+        abdomenStatus: specimen.abdomenStatus,
+      })),
+    });
+  } catch (error) {
+    handleError(error, request, reply, 'Failed to get session specimens');
+  }
+} 

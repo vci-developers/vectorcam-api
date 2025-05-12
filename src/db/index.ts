@@ -1,8 +1,8 @@
+import pino from 'pino';
 import { Sequelize } from 'sequelize';
 import { config } from '../config/environment';
-import pino from 'pino';
-import initModels from './models';
 
+// Initialize logger
 const logger = pino();
 
 // Initialize Sequelize with database configuration
@@ -20,9 +20,6 @@ const sequelize = new Sequelize({
   },
 });
 
-// Initialize models
-const models = initModels(sequelize);
-
 // Test database connection
 export const testConnection = async (): Promise<void> => {
   try {
@@ -34,5 +31,4 @@ export const testConnection = async (): Promise<void> => {
   }
 };
 
-export { models };
 export default sequelize; 

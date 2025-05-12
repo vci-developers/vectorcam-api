@@ -1,63 +1,58 @@
-import { Model, DataTypes, Optional, Sequelize } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../index';
 
-export default (sequelize: Sequelize) => {
-  class Site extends Model {
-    declare id: string;
-    declare healthCenterId: string;
-    declare latitude: number | null;
-    declare longitude: number | null;
-    declare houseNumber: number | null;
-    declare villageName: string | null;
-    declare createdAt: Date;
-    declare updatedAt: Date;
-  }
+class Site extends Model {
+  declare id: number;
+  declare healthCenterId: number;
+  declare latitude: number | null;
+  declare longitude: number | null;
+  declare houseNumber: number | null;
+  declare villageName: string | null;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
 
-  // Initialize Site model
-  Site.init(
-    {
-      id: {
-        type: DataTypes.STRING(255),
-        primaryKey: true,
-      },
-      healthCenterId: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        references: {
-          model: 'healthcenters',
-          key: 'id',
-        },
-      },
-      latitude: {
-        type: DataTypes.FLOAT,
-        allowNull: true,
-      },
-      longitude: {
-        type: DataTypes.FLOAT,
-        allowNull: true,
-      },
-      houseNumber: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      villageName: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
-      createdAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
-      updatedAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
+Site.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
-    {
-      sequelize,
-      tableName: 'sites',
-      timestamps: true,
-    }
-  );
+    healthCenterId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'healthcenters',
+        key: 'id',
+      },
+      field: 'health_center_id',
+    },
+    latitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    longitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    houseNumber: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'house_number',
+    },
+    villageName: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'village_name',
+    },
+  },
+  {
+    sequelize,
+    tableName: 'sites',
+    underscored: true,
+    timestamps: true,
+  }
+);
 
-  return Site;
-}; 
+export default Site; 

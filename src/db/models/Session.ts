@@ -1,57 +1,69 @@
-import { Model, DataTypes, Optional, Sequelize } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../index';
 
-export default (sequelize: Sequelize) => {
-  class Session extends Model {
-    declare id: string;
-    declare deviceId: string;
-    declare siteId: string;
-    declare createdAt: Date;
-    declare submittedAt: Date | null;
-    declare updatedAt: Date;
-  }
+// Imports for associations
+import Site from './Site';
+import Specimen from './Specimen';
+import SurveillanceForm from './SurveillanceForm';
 
-  // Initialize Session model
-  Session.init(
-    {
-      id: {
-        type: DataTypes.STRING(255),
-        primaryKey: true,
-      },
-      deviceId: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        references: {
-          model: 'devices',
-          key: 'id',
-        },
-      },
-      siteId: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        references: {
-          model: 'sites',
-          key: 'id',
-        },
-      },
-      createdAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
-      submittedAt: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
-      updatedAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
+class Session extends Model {
+  // Static association declarations will be created at runtime
+
+  declare id: number;
+  declare deviceId: number;
+  declare siteId: number;
+  declare createdAt: Date;
+  declare submittedAt: Date;
+  declare updatedAt: Date;
+}
+
+Session.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
-    {
-      sequelize,
-      tableName: 'sessions',
-      timestamps: true,
-    }
-  );
+    deviceId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'devices',
+        key: 'id',
+      },
+      field: 'device_id',
+    },
+    siteId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'sites',
+        key: 'id',
+      },
+      field: 'site_id',
+    },
+    submittedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      field: 'submitted_at',
+    },
+  },
+  {
+    sequelize,
+    tableName: 'sessions',
+    underscored: true,
+    timestamps: true,
+  }
+);
 
-  return Session;
-}; 
+// Set up associations
+Session.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+Site.hasMany(Session, { foreignKey: 'site_id', as: 'sessions' });
+
+Session.hasMany(Specimen, { foreignKey: 'session_id', as: 'specimens' });
+Specimen.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });
+
+Session.hasOne(SurveillanceForm, { foreignKey: 'session_id', as: 'surveillanceForm' });
+SurveillanceForm.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });
+
+export default Session; 

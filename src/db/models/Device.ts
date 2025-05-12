@@ -1,43 +1,47 @@
-import { Model, DataTypes, Optional, Sequelize } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../index';
 
-export default (sequelize: Sequelize) => {
-  class Device extends Model {
-    declare id: string;
-    declare siteId: string;
-    declare createdAt: Date;
-    declare updatedAt: Date;
-  }
+// Import models needed for associations
+import Site from './Site';
+import Session from './Session';
 
-  // Initialize Device model
-  Device.init(
-    {
-      id: {
-        type: DataTypes.STRING(255),
-        primaryKey: true,
-      },
-      siteId: {
-        type: DataTypes.STRING(255),
-        allowNull: false,
-        references: {
-          model: 'sites',
-          key: 'id',
-        },
-      },
-      createdAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
-      updatedAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
+class Device extends Model {
+  declare id: number;
+  declare siteId: number;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+Device.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
-    {
-      sequelize,
-      tableName: 'devices',
-      timestamps: true,
-    }
-  );
+    siteId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'sites',
+        key: 'id',
+      },
+      field: 'site_id',
+    },
+  },
+  {
+    sequelize,
+    tableName: 'devices',
+    underscored: true,
+    timestamps: true,
+  }
+);
 
-  return Device;
-}; 
+// Setup associations
+Device.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
+Site.hasMany(Device, { foreignKey: 'site_id', as: 'devices' });
+
+Device.hasMany(Session, { foreignKey: 'device_id', as: 'sessions' });
+Session.belongsTo(Device, { foreignKey: 'device_id', as: 'device' });
+
+export default Device; 

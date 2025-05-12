@@ -1,4 +1,4 @@
-import sequelize, { models } from './index';
+import sequelize from './index';
 import pino from 'pino';
 
 const logger = pino();
@@ -26,14 +26,6 @@ async function syncDatabase(options = { force: false, alter: false }) {
     await sequelize.sync(options);
     
     logger.info('Database sync completed successfully');
-
-    // Log the tables that were created/updated
-    logger.info('The following models were synchronized:');
-    const modelNames = Object.keys(models);
-    modelNames.forEach(modelName => {
-      logger.info(`  - ${modelName}`);
-    });
-
     return true;
   } catch (error) {
     logger.error('Error syncing database:', error);

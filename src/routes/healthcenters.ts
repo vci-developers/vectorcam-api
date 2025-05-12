@@ -1,137 +1,36 @@
 import { FastifyInstance } from 'fastify';
 import { 
-  registerHealthCenter,
+  createHealthCenter,
   getHealthCenterDetails,
   updateHealthCenter,
   deleteHealthCenter 
 } from '../handlers/healthcenter';
 
+// Import schemas from handler files
+import { schema as createSchema } from '../handlers/healthcenter/post';
+import { schema as getSchema } from '../handlers/healthcenter/get';
+import { schema as updateSchema } from '../handlers/healthcenter/put';
+import { schema as deleteSchema } from '../handlers/healthcenter/delete';
+
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Register a new health center
   fastify.post('/register', {
-    schema: {
-      body: {
-        type: 'object',
-        required: ['parish', 'subcounty', 'district', 'country'],
-        properties: {
-          latitude: { type: 'number' },
-          longitude: { type: 'number' },
-          parish: { type: 'string' },
-          subcounty: { type: 'string' },
-          district: { type: 'string' },
-          country: { type: 'string' }
-        }
-      },
-      response: {
-        201: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-            healthCenter: {
-              type: 'object',
-              properties: {
-                healthCenterId: { type: 'string' },
-                latitude: { type: 'number' },
-                longitude: { type: 'number' },
-                parish: { type: 'string' },
-                subcounty: { type: 'string' },
-                district: { type: 'string' },
-                country: { type: 'string' }
-              }
-            }
-          }
-        }
-      }
-    }
-  }, registerHealthCenter);
+    schema: createSchema
+  }, createHealthCenter);
 
   // Get health center details
   fastify.get('/:healthcenter_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          healthcenter_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            healthCenterId: { type: 'string' },
-            latitude: { type: 'number' },
-            longitude: { type: 'number' },
-            parish: { type: 'string' },
-            subcounty: { type: 'string' },
-            district: { type: 'string' },
-            country: { type: 'string' }
-          }
-        }
-      }
-    }
+    schema: getSchema
   }, getHealthCenterDetails);
 
   // Update an existing health center
   fastify.put('/:healthcenter_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          healthcenter_id: { type: 'string' }
-        }
-      },
-      body: {
-        type: 'object',
-        properties: {
-          latitude: { type: 'number' },
-          longitude: { type: 'number' },
-          parish: { type: 'string' },
-          subcounty: { type: 'string' },
-          district: { type: 'string' },
-          country: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-            healthCenter: {
-              type: 'object',
-              properties: {
-                healthCenterId: { type: 'string' },
-                latitude: { type: 'number' },
-                longitude: { type: 'number' },
-                parish: { type: 'string' },
-                subcounty: { type: 'string' },
-                district: { type: 'string' },
-                country: { type: 'string' }
-              }
-            }
-          }
-        }
-      }
-    }
+    schema: updateSchema
   }, updateHealthCenter);
 
   // Delete a health center
   fastify.delete('/:healthcenter_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          healthcenter_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' }
-          }
-        }
-      }
-    }
+    schema: deleteSchema
   }, deleteHealthCenter);
 
   done();

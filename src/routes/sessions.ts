@@ -7,310 +7,72 @@ import {
   getSessionPaginated,
   getSessionsByUser,
   getSessionsBySite,
-  getSessionSurvey,
   getSessionSpecimens,
+  getSessionSurvey,
   exportSessionsCSV
 } from '../handlers/session';
+
+// Import schemas from handler files
+import { schema as submitSchema } from '../handlers/session/post';
+import { schema as getSchema } from '../handlers/session/get';
+import { schema as updateSchema } from '../handlers/session/put';
+import { schema as deleteSchema } from '../handlers/session/delete';
+import { schema as getAllSchema } from '../handlers/session/getAll';
+import { schema as getByUserSchema } from '../handlers/session/getByUser';
+import { schema as getBySiteSchema } from '../handlers/session/getBySite';
+import { schema as getSpecimensSchema } from '../handlers/session/getSpecimens';
+import { schema as getSurveySchema } from '../handlers/session/getSurvey';
+import { schema as exportSessionsCSVSchema } from '../handlers/session/export';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Submit a new session
   fastify.post('/', {
-    schema: {
-      body: {
-        type: 'object',
-        required: ['deviceId', 'siteId', 'createdAt'],
-        properties: {
-          deviceId: { type: 'string' },
-          siteId: { type: 'string' },
-          createdAt: { type: 'string', format: 'date-time' }
-        }
-      },
-      response: {
-        201: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-            session: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                deviceId: { type: 'string' },
-                siteId: { type: 'string' },
-                createdAt: { type: 'string', format: 'date-time' },
-                submittedAt: { type: ['string', 'null'], format: 'date-time' }
-              }
-            }
-          }
-        }
-      }
-    }
+    schema: submitSchema
   }, submitSession);
 
   // Get session details by ID
   fastify.get('/:session_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          session_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            sessionId: { type: 'string' },
-            deviceId: { type: 'string' },
-            siteId: { type: 'string' },
-            createdAt: { type: 'string', format: 'date-time' },
-            submittedAt: { type: ['string', 'null'], format: 'date-time' }
-          }
-        }
-      }
-    }
+    schema: getSchema
   }, getSessionDetails);
 
   // Update an existing session
   fastify.put('/:session_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          session_id: { type: 'string' }
-        }
-      },
-      body: {
-        type: 'object',
-        properties: {
-          siteId: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' },
-            session: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string' },
-                deviceId: { type: 'string' },
-                siteId: { type: 'string' },
-                createdAt: { type: 'string', format: 'date-time' },
-                submittedAt: { type: ['string', 'null'], format: 'date-time' }
-              }
-            }
-          }
-        }
-      }
-    }
+    schema: updateSchema
   }, updateSession);
 
   // Delete a session
   fastify.delete('/:session_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          session_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            message: { type: 'string' }
-          }
-        }
-      }
-    }
+    schema: deleteSchema
   }, deleteSession);
 
   // Get paginated list of sessions
   fastify.get('/', {
-    schema: {
-      querystring: {
-        type: 'object',
-        properties: {
-          page: { type: 'string' },
-          size: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            totalItems: { type: 'number' },
-            totalPages: { type: 'number' },
-            currentPage: { type: 'number' },
-            sessions: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  sessionId: { type: 'string' },
-                  deviceId: { type: 'string' },
-                  siteId: { type: 'string' },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  submittedAt: { type: ['string', 'null'], format: 'date-time' }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    schema: getAllSchema
   }, getSessionPaginated);
 
   // Get sessions by user
   fastify.get('/users/:user_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          user_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            sessions: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  sessionId: { type: 'string' },
-                  deviceId: { type: 'string' },
-                  siteId: { type: 'string' },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  submittedAt: { type: ['string', 'null'], format: 'date-time' }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    schema: getByUserSchema
   }, getSessionsByUser);
 
   // Get sessions by site
   fastify.get('/sites/:site_id', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          site_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            sessions: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  sessionId: { type: 'string' },
-                  deviceId: { type: 'string' },
-                  siteId: { type: 'string' },
-                  createdAt: { type: 'string', format: 'date-time' },
-                  submittedAt: { type: ['string', 'null'], format: 'date-time' }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    schema: getBySiteSchema
   }, getSessionsBySite);
 
-  // Get the surveillance form associated with a session
-  fastify.get('/:session_id/survey', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          session_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            formId: { type: 'string' },
-            sessionId: { type: 'string' },
-            collectionDate: { type: ['string', 'null'] },
-            officerName: { type: ['string', 'null'] },
-            officerTitle: { type: ['string', 'null'] },
-            peopleInHouse: { type: ['number', 'null'] },
-            isBednetAvailable: { type: ['boolean', 'null'] },
-            numberOfBednetsAvailable: { type: ['number', 'null'] },
-            numberOfPeopleSleptUnderBednet: { type: ['number', 'null'] },
-            bednetType: { type: ['string', 'null'] },
-            bednetBrand: { type: ['string', 'null'] },
-            isIrsSprayed: { type: ['boolean', 'null'] },
-            irsDate: { type: ['string', 'null'] }
-          }
-        }
-      }
-    }
-  }, getSessionSurvey);
-
-  // Get all specimens from a session
+  // Get specimens for a session
   fastify.get('/:session_id/specimens', {
-    schema: {
-      params: {
-        type: 'object',
-        properties: {
-          session_id: { type: 'string' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            specimens: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  specimenId: { type: 'string' },
-                  sessionId: { type: 'string' },
-                  species: { type: ['string', 'null'] },
-                  sex: { type: ['string', 'null'] },
-                  abdomenStatus: { type: ['string', 'null'] },
-                  imageUrl: { type: ['string', 'null'] },
-                  yoloBox: {
-                    type: ['object', 'null'],
-                    properties: {
-                      yoloBoxId: { type: 'string' },
-                      topLeftX: { type: 'number' },
-                      topLeftY: { type: 'number' },
-                      width: { type: 'number' },
-                      height: { type: 'number' }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+    schema: getSpecimensSchema
   }, getSessionSpecimens);
 
-  // Export all session data as CSV
-  fastify.get('/export', {
-    schema: {
-      querystring: {
-        type: 'object',
-        properties: {
-          format: { type: 'string', enum: ['csv'] }
-        }
-      }
-    }
+  // Get session surveillance form
+  fastify.get('/:session_id/survey', {
+    schema: getSurveySchema
+  }, getSessionSurvey);
+
+  // Export sessions as CSV
+  fastify.get('/export/csv', {
+    schema: exportSessionsCSVSchema
   }, exportSessionsCSV);
 
   done();

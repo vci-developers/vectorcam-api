@@ -1,64 +1,63 @@
-import { Model, DataTypes, Optional, Sequelize } from 'sequelize';
+import { Model, DataTypes } from 'sequelize';
+import sequelize from '../index';
 
-export default (sequelize: Sequelize) => {
-  class HealthCenter extends Model {
-    declare id: string;
-    declare latitude: number;
-    declare longitude: number;
-    declare parish: string;
-    declare subcounty: string;
-    declare district: string;
-    declare country: string;
-    declare createdAt: Date;
-    declare updatedAt: Date;
-  }
+// Import models needed for associations
+import Site from './Site';
 
-  // Initialize HealthCenter model
-  HealthCenter.init(
-    {
-      id: {
-        type: DataTypes.STRING(255),
-        primaryKey: true,
-      },
-      latitude: {
-        type: DataTypes.FLOAT,
-        allowNull: true,
-      },
-      longitude: {
-        type: DataTypes.FLOAT,
-        allowNull: true,
-      },
-      parish: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
-      subcounty: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
-      district: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
-      country: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
-      createdAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
-      updatedAt: {
-        type: DataTypes.DATE,
-        allowNull: false,
-      },
+class HealthCenter extends Model {
+  declare id: number;
+  declare latitude: number | null;
+  declare longitude: number | null;
+  declare parish: string | null;
+  declare subcounty: string | null;
+  declare district: string | null;
+  declare country: string | null;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+HealthCenter.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
-    {
-      sequelize,
-      tableName: 'healthcenters',
-      timestamps: true,
-    }
-  );
+    latitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    longitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    parish: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    subcounty: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    district: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    country: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'healthcenters',
+    underscored: true,
+    timestamps: true,
+  }
+);
 
-  return HealthCenter;
-}; 
+// Setup associations
+HealthCenter.hasMany(Site, { foreignKey: 'health_center_id', as: 'sites' });
+Site.belongsTo(HealthCenter, { foreignKey: 'health_center_id', as: 'healthCenter' });
+
+export default HealthCenter; 
