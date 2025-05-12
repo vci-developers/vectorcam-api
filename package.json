@@ -14,7 +14,8 @@
     "start:test": "NODE_ENV=test node dist/server.js",
     "db:init": "ts-node scripts/init-db.ts",
     "db:init:force": "ts-node scripts/init-db.ts --force",
-    "db:init:alter": "ts-node scripts/init-db.ts --alter"
+    "db:init:alter": "ts-node scripts/init-db.ts --alter",
+    "ci": "npm ci"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.465.0",
