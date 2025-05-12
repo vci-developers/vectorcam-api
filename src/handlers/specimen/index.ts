@@ -3,4 +3,4 @@ export { getSpecimenDetails } from './get';
 export { updateSpecimen } from './put';
 export { uploadImage } from './uploadImage';
 export { getImages } from './getImages';
-export { getImageMetadata } from './getImageMetadata'; 
+export { getImage } from './getImage';

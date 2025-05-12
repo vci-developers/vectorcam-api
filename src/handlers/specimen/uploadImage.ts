@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { uploadFileStream } from '../../services/s3.service';
 import { findSpecimen, handleError } from './common';
+import { SpecimenImage } from '../../db/models';
 
 export const schema = {
   params: {
@@ -14,6 +15,7 @@ export const schema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
+        imageId: { type: 'number' },
         imageUrl: { type: 'string' }
       }
     }
@@ -30,7 +32,7 @@ export async function uploadImage(
       return reply.code(400).send({ error: 'Request is not multipart' });
     }
 
-    // Get specimenId from form data
+    // Get file from form data
     const data = await request.file();
     if (!data) {
       return reply.code(400).send({ error: 'No file provided' });
@@ -57,14 +59,24 @@ export async function uploadImage(
     const fileStream = data.file;
     
     // Stream directly to S3 without buffering entire file in memory
-    const imagePath = await uploadFileStream(fileName, fileStream, contentType);
+    const imageKey = await uploadFileStream(fileName, fileStream, contentType);
 
-    // Update specimen with image path
-    await specimen.update({ imageUrl: imagePath });
+    // Create new SpecimenImage record
+    const newImage = await SpecimenImage.create({
+      specimenId: specimen.id,
+      imageKey
+    });
+
+    // If there's no current thumbnail
+    if (!specimen.thumbnailImageId) {
+      // Update specimen to use this as the thumbnail
+      await specimen.update({ thumbnailImageId: newImage.id });
+    }
 
     reply.code(201).send({
       message: 'Image uploaded successfully',
-      imageUrl: `/specimens/${specimen.id}/images`,
+      imageId: newImage.id,
+      imageUrl: `/specimens/${specimen.specimenId}/images/${newImage.id}`
     });
   } catch (error) {
     handleError(error, request, reply, 'Failed to upload specimen image');

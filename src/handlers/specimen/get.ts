@@ -18,7 +18,18 @@ export const schema = {
         species: { type: ['string', 'null'] },
         sex: { type: ['string', 'null'] },
         abdomenStatus: { type: ['string', 'null'] },
-        imageUrl: { type: ['string', 'null'] },
+        thumbnailUrl: { type: ['string', 'null'] },
+        thumbnailImageId: { type: ['number', 'null'] },
+        images: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              url: { type: 'string' }
+            }
+          }
+        },
         yoloBox: {
           type: ['object', 'null'],
           properties: {

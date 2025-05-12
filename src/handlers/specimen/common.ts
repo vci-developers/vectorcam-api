@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, YoloBox } from '../../db/models';
+import { Specimen, Session, YoloBox, SpecimenImage } from '../../db/models';
 
 // Specimen response format interface
 export interface SpecimenResponse {
@@ -9,7 +9,12 @@ export interface SpecimenResponse {
   species: string | null;
   sex: string | null;
   abdomenStatus: string | null;
-  imageUrl: string | null;
+  thumbnailUrl: string | null;
+  thumbnailImageId: number | null;
+  images: Array<{
+    id: number;
+    url: string;
+  }>;
   yoloBox?: {
     yoloBoxId: number;
     topLeftX: number;
@@ -23,6 +28,27 @@ export interface SpecimenResponse {
 export async function formatSpecimenResponse(specimen: Specimen): Promise<SpecimenResponse> {
   const yoloBox = specimen.yoloBoxId ? await YoloBox.findByPk(specimen.yoloBoxId) : null;
   
+  // Get all images for this specimen
+  const images = await SpecimenImage.findAll({
+    where: { specimenId: specimen.id },
+    order: [['created_at', 'DESC']]
+  });
+
+  // Format the images
+  const formattedImages = images.map(img => ({
+    id: img.id,
+    url: `/specimens/${specimen.specimenId}/images/${img.id}`
+  }));
+
+  // Get the thumbnail URL
+  let thumbnailUrl = null;
+  if (specimen.thumbnailImageId) {
+    const thumbnail = images.find(img => img.id === specimen.thumbnailImageId);
+    if (thumbnail) {
+      thumbnailUrl = `/specimens/${specimen.specimenId}/images/${thumbnail.id}`;
+    }
+  }
+  
   return {
     id: specimen.id,
     specimenId: specimen.specimenId,
@@ -30,7 +56,9 @@ export async function formatSpecimenResponse(specimen: Specimen): Promise<Specim
     species: specimen.species,
     sex: specimen.sex,
     abdomenStatus: specimen.abdomenStatus,
-    imageUrl: specimen.imageUrl ? `/specimens/${specimen.id}/images` : null,
+    thumbnailUrl,
+    thumbnailImageId: specimen.thumbnailImageId,
+    images: formattedImages,
     yoloBox: yoloBox ? {
       yoloBoxId: yoloBox.id,
       topLeftX: yoloBox.topLeftX,

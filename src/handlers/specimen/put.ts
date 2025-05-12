@@ -6,14 +6,14 @@ import {
   handleError, 
   findYoloBoxById 
 } from './common';
-import { Specimen, YoloBox } from '../../db/models';
+import { Specimen, YoloBox, SpecimenImage } from '../../db/models';
 
 interface UpdateSpecimenRequest {
   specimenId?: string;
   species?: string;
   sex?: string;
   abdomenStatus?: string;
-  imageUrl?: string;
+  thumbnailImageId?: number;
   yoloBox?: {
     topLeftX: number;
     topLeftY: number;
@@ -36,7 +36,7 @@ export const schema = {
       species: { type: 'string' },
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
-      imageUrl: { type: 'string' },
+      thumbnailImageId: { type: 'number' },
       yoloBox: {
         type: 'object',
         properties: {
@@ -62,7 +62,18 @@ export const schema = {
             species: { type: ['string', 'null'] },
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
-            imageUrl: { type: ['string', 'null'] },
+            thumbnailUrl: { type: ['string', 'null'] },
+            thumbnailImageId: { type: ['number', 'null'] },
+            images: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'number' },
+                  url: { type: 'string' }
+                }
+              }
+            },
             yoloBox: {
               type: ['object', 'null'],
               properties: {
@@ -86,7 +97,7 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, species, sex, abdomenStatus, imageUrl, yoloBox } = request.body;
+    const { specimenId, species, sex, abdomenStatus, thumbnailImageId, yoloBox } = request.body;
     
     const specimen = await findSpecimen(specimen_id);
     if (!specimen) {
@@ -104,6 +115,20 @@ export async function updateSpecimen(
       
       if (idExists) {
         return reply.code(409).send({ error: 'A specimen with this id already exists' });
+      }
+    }
+
+    // Check if thumbnailImageId is valid
+    if (thumbnailImageId !== undefined) {
+      const imageExists = await SpecimenImage.findOne({
+        where: {
+          id: thumbnailImageId,
+          specimenId: specimen.id
+        }
+      });
+
+      if (!imageExists) {
+        return reply.code(400).send({ error: 'The specified image does not exist or does not belong to this specimen' });
       }
     }
 
@@ -138,7 +163,8 @@ export async function updateSpecimen(
       species: species !== undefined ? species : specimen.species,
       sex: sex !== undefined ? sex : specimen.sex,
       abdomenStatus: abdomenStatus !== undefined ? abdomenStatus : specimen.abdomenStatus,
-      imageUrl: imageUrl !== undefined ? imageUrl : specimen.imageUrl,
+      thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
+      yoloBoxId: yoloBoxData ? yoloBoxData.id : specimen.yoloBoxId
     });
 
     // Get the updated specimen

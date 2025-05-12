@@ -3,13 +3,14 @@ import sequelize from '../index';
 
 // Import models needed for associations
 import YoloBox from './YoloBox';
+import SpecimenImage from './SpecimenImage';
 
 class Specimen extends Model {
   declare id: number;
   declare specimenId: string;
   declare sessionId: number;
   declare yoloBoxId: number | null;
-  declare imageUrl: string | null;
+  declare thumbnailImageId: number | null;
   declare species: string | null;
   declare sex: string | null;
   declare abdomenStatus: string | null;
@@ -47,11 +48,15 @@ Specimen.init(
       },
       field: 'yolo_box_id',
     },
-    imageUrl: {
-      type: DataTypes.TEXT,
+    thumbnailImageId: {
+      type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: null,
-      field: 'image_url',
+      field: 'thumbnail_image_id',
+      references: {
+        model: 'specimen_images',
+        key: 'id',
+      },
     },
     species: {
       type: DataTypes.STRING(255),
@@ -78,5 +83,10 @@ Specimen.init(
 // Setup associations
 Specimen.belongsTo(YoloBox, { foreignKey: 'yolo_box_id', as: 'yoloBox' });
 YoloBox.hasOne(Specimen, { foreignKey: 'yolo_box_id', as: 'specimen' });
+
+// Setup associations with SpecimenImage
+Specimen.belongsTo(SpecimenImage, { foreignKey: 'thumbnail_image_id', as: 'thumbnailImage' });
+Specimen.hasMany(SpecimenImage, { foreignKey: 'specimen_id', as: 'images' });
+SpecimenImage.belongsTo(Specimen, { foreignKey: 'specimen_id', as: 'specimen' });
 
 export default Specimen; 

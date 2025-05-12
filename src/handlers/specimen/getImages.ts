@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { getFileStream } from '../../services/s3.service';
 import { findSpecimen, handleError } from './common';
+import { SpecimenImage } from '../../db/models';
 
 export const schema = {
   params: {
@@ -8,8 +8,25 @@ export const schema = {
     properties: {
       specimen_id: { type: 'string' }
     }
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        images: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'number' },
+              url: { type: 'string' }
+            }
+          }
+        },
+        thumbnailUrl: { type: ['string', 'null'] }
+      }
+    }
   }
-  // No response schema as this returns a binary stream
 };
 
 export async function getImages(
@@ -24,30 +41,40 @@ export async function getImages(
       return reply.code(404).send({ error: 'Specimen not found' });
     }
 
-    // If the specimen has no image, return error
-    if (!specimen.imageUrl) {
-      return reply.code(404).send({ error: 'No image found for this specimen' });
+    // Find all images for this specimen
+    const images = await SpecimenImage.findAll({
+      where: { specimenId: specimen.id },
+      order: [['created_at', 'DESC']]
+    });
+
+    if (images.length === 0) {
+      return reply.code(200).send({ 
+        images: [],
+        thumbnailUrl: null,
+        thumbnailImageId: null
+      });
     }
 
-    // The imageUrl now contains just the S3 key
-    const key = specimen.imageUrl;
-    
-    try {
-      // Get the file stream and content type from S3
-      const { stream, contentType } = await getFileStream(key);
-      
-      // Set appropriate headers
-      reply.header('Content-Type', contentType);
-      reply.header('Cache-Control', 'public, max-age=3600');
-      
-      // Pipe the stream to the response using Fastify's send method
-      return reply.send(stream);
-      
-    } catch (error) {
-      // If the file doesn't exist in S3, return error
-      request.log.error(`Failed to get image from S3: ${key}`, error);
-      reply.code(404).send({ error: 'Image not found' });
+    // Format the response
+    const formattedImages = images.map(img => ({
+      id: img.id,
+      url: `/specimens/${specimen.specimenId}/images/${img.id}`
+    }));
+
+    // Get the thumbnail URL
+    let thumbnailUrl = null;
+    if (specimen.thumbnailImageId) {
+      const thumbnail = images.find(img => img.id === specimen.thumbnailImageId);
+      if (thumbnail) {
+        thumbnailUrl = `/specimens/${specimen.specimenId}/images/${thumbnail.id}`;
+      }
     }
+
+    reply.code(200).send({
+      images: formattedImages,
+      thumbnailUrl,
+      thumbnailImageId: specimen.thumbnailImageId
+    });
   } catch (error) {
     handleError(error, request, reply, 'Failed to get specimen images');
   }
