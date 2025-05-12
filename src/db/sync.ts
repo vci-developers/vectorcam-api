@@ -1,6 +1,8 @@
 import sequelize from './index';
 import pino from 'pino';
 
+require('./models');
+
 const logger = pino();
 
 /**

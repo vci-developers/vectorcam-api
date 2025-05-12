@@ -20,7 +20,8 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               specimenId: { type: 'string' },
-              imageUrl: { type: ['string', 'null'] },
+              thumbnailUrl: { type: ['string', 'null'] },
+              thumbnailImageId: { type: ['number', 'null'] },
               species: { type: ['string', 'null'] },
               sex: { type: ['string', 'null'] },
               abdomenStatus: { type: ['string', 'null'] }
@@ -54,7 +55,8 @@ export async function getSessionSpecimens(
       specimens: specimens.map(specimen => ({
         id: specimen.id,
         specimenId: specimen.specimenId,
-        imageUrl: specimen.imageUrl ? `/specimens/${specimen.id}/images` : null,
+        thumbnailUrl: specimen.thumbnailImageId ? `/specimens/${specimen.id}/images/${specimen.thumbnailImageId}` : null,
+        thumbnailImageId: specimen.thumbnailImageId,
         species: specimen.species,
         sex: specimen.sex,
         abdomenStatus: specimen.abdomenStatus,

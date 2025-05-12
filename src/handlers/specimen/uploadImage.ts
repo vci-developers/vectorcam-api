@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { uploadFileStream } from '../../services/s3.service';
 import { findSpecimen, handleError } from './common';
 import { SpecimenImage } from '../../db/models';
+import { createHash } from 'crypto';
+import { Readable } from 'stream';
 
 export const schema = {
   params: {
@@ -51,12 +53,20 @@ export async function uploadImage(
       return reply.code(400).send({ error: 'Only image files are allowed' });
     }
 
-    // Generate a unique file name
+    // Get file extension
     const fileExtension = contentType.split('/')[1];
-    const fileName = `specimens/${specimen.id}/${Date.now()}.${fileExtension}`;
-
-    // Create a readable stream from the file
-    const fileStream = data.file;
+    
+    // Convert the file to buffer once to avoid multiple stream consumptions
+    const fileBuffer = await data.toBuffer();
+    
+    // Calculate MD5 hash from the buffer
+    const md5Hash = createHash('md5').update(fileBuffer).digest('hex');
+    
+    // Generate a file name using the MD5 hash
+    const fileName = `specimens/${specimen.specimenId}/${md5Hash}.${fileExtension}`;
+    
+    // Create a fresh readable stream from the buffer for upload
+    const fileStream = Readable.from(fileBuffer);
     
     // Stream directly to S3 without buffering entire file in memory
     const imageKey = await uploadFileStream(fileName, fileStream, contentType);
