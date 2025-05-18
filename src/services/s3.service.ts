@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } from '@aws-sdk/client-s3';
 import { config } from '../config/environment';
 import pino from 'pino';
 import { Readable } from 'stream';
@@ -7,7 +7,7 @@ import { Upload } from '@aws-sdk/lib-storage';
 const logger = pino();
 
 // Initialize S3 client
-const s3Client = new S3Client({
+export const s3Client = new S3Client({
   region: config.aws.region,
   credentials: {
     accessKeyId: config.aws.accessKeyId || '',
@@ -121,6 +121,83 @@ export const uploadFileStream = async (
     return key;
   } catch (error) {
     logger.error('Error streaming file to S3:', error);
+    throw error;
+  }
+};
+
+export const initiateMultipartUpload = async (
+  key: string,
+  contentType: string = 'application/octet-stream'
+): Promise<{ uploadId: string; key: string }> => {
+  try {
+    const command = new CreateMultipartUploadCommand({
+      Bucket: config.aws.s3BucketName,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    const { UploadId } = await s3Client.send(command);
+    if (!UploadId) {
+      throw new Error('Failed to get upload ID from S3');
+    }
+
+    logger.info(`Multipart upload initiated: ${key}`);
+    return { uploadId: UploadId, key };
+  } catch (error) {
+    logger.error('Error initiating multipart upload:', error);
+    throw error;
+  }
+};
+
+export const uploadPart = async (
+  key: string,
+  uploadId: string,
+  partNumber: number,
+  body: Readable,
+  contentLength?: number
+): Promise<string> => {
+  try {
+    const command = new UploadPartCommand({
+      Bucket: config.aws.s3BucketName,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+      Body: body,
+      ContentLength: contentLength
+    });
+
+    const { ETag } = await s3Client.send(command);
+    if (!ETag) {
+      throw new Error('Failed to get ETag from S3');
+    }
+
+    logger.info(`Part ${partNumber} uploaded successfully for ${key}`);
+    return ETag;
+  } catch (error) {
+    logger.error(`Error uploading part ${partNumber}:`, error);
+    throw error;
+  }
+};
+
+export const completeMultipartUpload = async (
+  key: string,
+  uploadId: string,
+  parts: { PartNumber: number; ETag: string }[]
+): Promise<void> => {
+  try {
+    const command = new CompleteMultipartUploadCommand({
+      Bucket: config.aws.s3BucketName,
+      Key: key,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: parts,
+      },
+    });
+
+    await s3Client.send(command);
+    logger.info(`Multipart upload completed: ${key}`);
+  } catch (error) {
+    logger.error('Error completing multipart upload:', error);
     throw error;
   }
 };

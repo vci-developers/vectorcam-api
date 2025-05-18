@@ -1,6 +1,23 @@
-export { createSpecimen } from './post';
-export { getSpecimenDetails } from './get';
-export { updateSpecimen } from './put';
-export { uploadImage } from './uploadImage';
-export { getImages } from './getImages';
-export { getImage } from './getImage';
+import { createSpecimen } from './post';
+import { getSpecimenDetails } from './get';
+import { updateSpecimen } from './put';
+import { uploadImage } from './uploadImage';
+import { getImages } from './getImages';
+import { getImage } from './getImage';
+import {
+  initiateUpload,
+  appendUpload,
+  completeUpload,
+} from './upload';
+
+export {
+  createSpecimen,
+  getSpecimenDetails,
+  updateSpecimen,
+  uploadImage,
+  getImages,
+  getImage,
+  initiateUpload,
+  appendUpload,
+  completeUpload,
+};

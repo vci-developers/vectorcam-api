@@ -6,6 +6,9 @@ import {
   uploadImage,
   getImages,
   getImage,
+  initiateUpload,
+  appendUpload,
+  completeUpload,
 } from '../handlers/specimen';
 import fastifyMultipart from '@fastify/multipart';
 
@@ -16,6 +19,10 @@ import { schema as updateSchema } from '../handlers/specimen/put';
 import { schema as uploadImageSchema } from '../handlers/specimen/uploadImage';
 import { schema as getImagesSchema } from '../handlers/specimen/getImages';
 import { schema as getImageSchema } from '../handlers/specimen/getImage';
+import { schema as initiateUploadSchema } from '../handlers/specimen/upload/initiate'
+import { schema as appendUploadSchema } from '../handlers/specimen/upload/append'
+import { schema as completeUploadSchema } from '../handlers/specimen/upload/complete'
+
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Register multipart support for file uploads
@@ -50,6 +57,21 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.get('/:specimen_id/images', {
     schema: getImagesSchema
   }, getImages);
+
+  // Initiate multipart upload
+  fastify.post('/:specimen_id/images/uploads', {
+    schema: initiateUploadSchema
+  }, initiateUpload);
+
+  // Append bytes to upload
+  fastify.put('/:specimen_id/images/uploads/:upload_id', {
+    schema: appendUploadSchema
+  }, appendUpload);
+
+  // Complete multipart upload
+  fastify.post('/:specimen_id/images/uploads/:upload_id/complete', {
+    schema: completeUploadSchema
+  }, completeUpload);
 
   done();
 } 

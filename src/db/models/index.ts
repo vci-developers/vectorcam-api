@@ -6,6 +6,7 @@ import SurveillanceForm from './SurveillanceForm';
 import Specimen from './Specimen';
 import YoloBox from './YoloBox';
 import SpecimenImage from './SpecimenImage';
+import MultipartUpload from './MultipartUpload';
 
 export {
   HealthCenter,
@@ -15,5 +16,6 @@ export {
   SurveillanceForm,
   Specimen,
   YoloBox,
-  SpecimenImage
+  SpecimenImage,
+  MultipartUpload
 };
