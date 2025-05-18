@@ -3,6 +3,8 @@ import { findSpecimen, handleError } from './common';
 import { SpecimenImage } from '../../db/models';
 
 export const schema = {
+  tags: ['Specimen Images'],
+  description: 'Get all specimen images',
   params: {
     type: 'object',
     properties: {

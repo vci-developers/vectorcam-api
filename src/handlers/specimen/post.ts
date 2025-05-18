@@ -21,6 +21,8 @@ interface CreateSpecimenRequest {
 }
 
 export const schema = {
+  tags: ['Specimens'],
+  description: 'Create a new specimen',
   body: {
     type: 'object',
     required: ['sessionId', 'specimenId'],

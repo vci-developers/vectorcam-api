@@ -14,6 +14,8 @@ interface CreateSiteRequest {
 }
 
 export const schema = {
+  tags: ['Sites'],
+  description: 'Register a new site',
   body: {
     type: 'object',
     required: ['healthCenterId'],

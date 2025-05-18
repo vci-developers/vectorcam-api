@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { handleError } from './common';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Get sessions by user',
   params: {
     type: 'object',
     properties: {

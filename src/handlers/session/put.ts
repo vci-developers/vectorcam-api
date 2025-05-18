@@ -6,6 +6,8 @@ interface UpdateSessionRequest {
 }
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Update session details',
   params: {
     type: 'object',
     properties: {

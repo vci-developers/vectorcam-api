@@ -3,6 +3,8 @@ import { formatSessionResponse, getPaginationParams, handleError } from './commo
 import { Session } from '../../db/models';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Get paginated list of sessions',
   querystring: {
     type: 'object',
     properties: {

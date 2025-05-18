@@ -7,6 +7,8 @@ import { findSpecimen } from '../common';
 const ACCEPTED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 export const schema = {
+  tags: ['Specimen Images'],
+  description: 'Initiate multipart upload for specimen image',
   params: {
     type: 'object',
     required: ['specimen_id'],

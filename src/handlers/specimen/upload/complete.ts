@@ -6,6 +6,8 @@ import { createHash } from 'crypto';
 import { findSpecimen } from '../common';
 
 export const schema = {
+  tags: ['Specimen Images'],
+  description: 'Complete multipart upload',
   params: {
     type: 'object',
     required: ['specimen_id', 'upload_id'],

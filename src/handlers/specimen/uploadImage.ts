@@ -6,6 +6,8 @@ import { createHash } from 'crypto';
 import { Readable } from 'stream';
 
 export const schema = {
+  tags: ['Specimen Images'],
+  description: 'Upload a specimen image',
   params: {
     type: 'object',
     properties: {

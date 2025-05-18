@@ -167,9 +167,54 @@ You can switch between environments using the corresponding npm scripts or by se
 
 ## API Endpoints
 
+### Health Endpoints
 - `GET /`: Welcome endpoint
 - `GET /health`: Health check endpoint (shows current environment)
 - `GET /health/db`: Database health check endpoint
+
+### Health Centers
+- `POST /healthcenters/register`: Register a new health center
+- `GET /healthcenters/:healthcenter_id`: Get health center details
+- `PUT /healthcenters/:healthcenter_id`: Update health center
+- `DELETE /healthcenters/:healthcenter_id`: Delete health center
+
+### Sites
+- `POST /sites/register`: Register a new site
+- `GET /sites/:site_id`: Get site details
+- `PUT /sites/:site_id`: Update site
+- `DELETE /sites/:site_id`: Delete site
+
+### Devices
+- `POST /devices/register`: Register a new device
+- `GET /devices/:device_id`: Get device details
+- `PUT /devices/:device_id`: Update device
+- `DELETE /devices/:device_id`: Delete device
+
+### Sessions
+- `POST /sessions`: Submit a new session
+- `GET /sessions`: Get paginated list of sessions
+- `GET /sessions/:session_id`: Get session details
+- `PUT /sessions/:session_id`: Update session
+- `DELETE /sessions/:session_id`: Delete session
+- `GET /sessions/users/:user_id`: Get sessions by user
+- `GET /sessions/sites/:site_id`: Get sessions by site
+- `GET /sessions/:session_id/specimens`: Get specimens for a session
+- `GET /sessions/:session_id/survey`: Get session surveillance form
+- `GET /sessions/export/csv`: Export sessions as CSV
+
+### Specimens
+- `POST /specimens`: Create a new specimen
+- `GET /specimens/:specimen_id`: Get specimen details
+- `PUT /specimens/:specimen_id`: Update specimen
+- `POST /specimens/:specimen_id/images`: Upload specimen image
+- `GET /specimens/:specimen_id/images`: Get all specimen images
+- `GET /specimens/:specimen_id/images/:image_id`: Get specific specimen image
+- `POST /specimens/:specimen_id/images/uploads`: Initiate multipart upload
+- `PUT /specimens/:specimen_id/images/uploads/:upload_id`: Append bytes to upload
+- `POST /specimens/:specimen_id/images/uploads/:upload_id/complete`: Complete multipart upload
+
+### Documentation
+- `GET /documentation`: Interactive API documentation (Swagger UI)
 
 ## Project Structure
 

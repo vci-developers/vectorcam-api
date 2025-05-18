@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSessionById, hasSpecimens, handleError } from './common';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Delete a session',
   params: {
     type: 'object',
     properties: {

@@ -6,6 +6,8 @@ import {
 } from './common';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Get session details',
   params: {
     type: 'object',
     properties: {

@@ -23,6 +23,8 @@ interface UpdateSpecimenRequest {
 }
 
 export const schema = {
+  tags: ['Specimens'],
+  description: 'Update specimen details',
   params: {
     type: 'object',
     properties: {

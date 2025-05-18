@@ -9,6 +9,8 @@ const CHUNK_SIZE = 20 * 1024 * 1024; // 20MB
 const FLUSH_THRESHOLD = 5 * 1024 * 1024; // 5MB
 
 export const schema = {
+  tags: ['Specimen Images'],
+  description: 'Append data to multipart upload',
   params: {
     type: 'object',
     required: ['specimen_id', 'upload_id'],

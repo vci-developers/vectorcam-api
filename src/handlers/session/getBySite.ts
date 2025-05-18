@@ -3,6 +3,8 @@ import { findSiteById, formatSessionResponse, handleError } from './common';
 import { Session } from '../../db/models';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Get sessions by site',
   params: {
     type: 'object',
     properties: {

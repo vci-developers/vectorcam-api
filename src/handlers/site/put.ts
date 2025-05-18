@@ -15,6 +15,8 @@ interface UpdateSiteRequest {
 }
 
 export const schema = {
+  tags: ['Sites'],
+  description: 'Update site details',
   params: {
     type: 'object',
     properties: {

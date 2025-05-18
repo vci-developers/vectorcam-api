@@ -3,6 +3,8 @@ import { findSessionById, handleError } from './common';
 import { SurveillanceForm } from '../../db/models';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Get session surveillance form',
   params: {
     type: 'object',
     properties: {

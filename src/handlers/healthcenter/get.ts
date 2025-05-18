@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findHealthCenterById, formatHealthCenterResponse, handleError } from './common';
 
 export const schema = {
+  tags: ['Health Centers'],
+  description: 'Get health center details',
   params: {
     type: 'object',
     properties: {

@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findDeviceById, hasAssociatedSessions, handleError } from './common';
 
 export const schema = {
+  tags: ['Devices'],
+  description: 'Delete a device',
   params: {
     type: 'object',
     properties: {

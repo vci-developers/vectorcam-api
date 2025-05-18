@@ -4,6 +4,8 @@ import { handleError } from './common';
 import { Site, Device, Session } from '../../db/models';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Export sessions data',
   querystring: {
     type: 'object',
     properties: {

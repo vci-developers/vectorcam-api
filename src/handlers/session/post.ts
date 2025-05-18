@@ -14,6 +14,8 @@ interface SubmitSessionRequest {
 }
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Submit a new session',
   body: {
     type: 'object',
     required: ['deviceId', 'siteId', 'createdAt'],

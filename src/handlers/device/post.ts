@@ -7,6 +7,8 @@ interface RegisterDeviceRequest {
 }
 
 export const schema = {
+  tags: ['Devices'],
+  description: 'Register a new device',
   body: {
     type: 'object',
     required: ['siteId'],

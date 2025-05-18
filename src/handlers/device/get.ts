@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findDeviceById, formatDeviceResponse, handleError } from './common';
 
 export const schema = {
+  tags: ['Devices'],
+  description: 'Get device details',
   params: {
     type: 'object',
     properties: {

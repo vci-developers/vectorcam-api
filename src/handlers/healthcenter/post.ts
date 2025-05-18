@@ -15,6 +15,8 @@ interface CreateHealthCenterRequest {
 }
 
 export const schema = {
+  tags: ['Health Centers'],
+  description: 'Register a new health center',
   body: {
     type: 'object',
     required: ['latitude', 'longitude', 'parish', 'subcounty', 'district', 'country'],

@@ -3,6 +3,8 @@ import { findSessionById, handleError } from './common';
 import { Specimen } from '../../db/models';
 
 export const schema = {
+  tags: ['Sessions'],
+  description: 'Get specimens for a session',
   params: {
     type: 'object',
     properties: {

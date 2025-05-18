@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSpecimen, formatSpecimenResponse, handleError } from './common';
 
 export const schema = {
+  tags: ['Specimens'],
+  description: 'Get specimen details',
   params: {
     type: 'object',
     properties: {

@@ -6,6 +6,8 @@ import {
 } from './common';
 
 export const schema = {
+  tags: ['Health Centers'],
+  description: 'Delete a health center',
   params: {
     type: 'object',
     properties: {

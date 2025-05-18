@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSiteById, formatSiteResponse, handleError } from './common';
 
 export const schema = {
+  tags: ['Sites'],
+  description: 'Get site details',
   params: {
     type: 'object',
     properties: {

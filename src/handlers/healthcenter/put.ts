@@ -15,6 +15,8 @@ interface UpdateHealthCenterRequest {
 }
 
 export const schema = {
+  tags: ['Health Centers'],
+  description: 'Update health center details',
   params: {
     type: 'object',
     properties: {
