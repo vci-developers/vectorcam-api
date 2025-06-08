@@ -8,6 +8,7 @@ import {
   initiateUpload,
   appendUpload,
   completeUpload,
+  getUploadStatus,
 } from './upload';
 
 export {
@@ -20,4 +21,5 @@ export {
   initiateUpload,
   appendUpload,
   completeUpload,
+  getUploadStatus,
 };

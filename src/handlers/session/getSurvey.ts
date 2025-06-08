@@ -17,7 +17,7 @@ export const schema = {
       properties: {
         formId: { type: 'number' },
         sessionId: { type: 'number' },
-        collectionDate: { type: ['string', 'null'], format: 'date' },
+        collectionDate: { type: ['number', 'null'] },
         officerName: { type: ['string', 'null'] },
         officerTitle: { type: ['string', 'null'] },
         peopleInHouse: { type: ['number', 'null'] },
@@ -27,7 +27,7 @@ export const schema = {
         bednetType: { type: ['string', 'null'] },
         bednetBrand: { type: ['string', 'null'] },
         isIrsSprayed: { type: ['boolean', 'null'] },
-        irsDate: { type: ['string', 'null'], format: 'date' }
+        irsDate: { type: ['number', 'null'] }
       }
     }
   }

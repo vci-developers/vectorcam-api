@@ -21,8 +21,8 @@ export const schema = {
         sessionId: { type: 'number' },
         deviceId: { type: 'number' },
         siteId: { type: 'number' },
-        createdAt: { type: 'string', format: 'date-time' },
-        submittedAt: { type: 'string', format: 'date-time' }
+        createdAt: { type: 'number' },
+        submittedAt: { type: 'number' }
       }
     }
   }

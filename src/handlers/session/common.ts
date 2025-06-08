@@ -6,8 +6,8 @@ export interface SessionResponse {
   sessionId: number;
   deviceId: number;
   siteId: number;
-  createdAt: string;
-  submittedAt: string;
+  createdAt: number;
+  submittedAt: number;
 }
 
 // Helper to format session data consistently across endpoints
@@ -16,8 +16,8 @@ export function formatSessionResponse(session: Session): SessionResponse {
     sessionId: session.id,
     deviceId: session.deviceId,
     siteId: session.siteId,
-    createdAt: session.createdAt.toISOString(),
-    submittedAt: session.submittedAt.toISOString(),
+    createdAt: session.createdAt.getTime(),
+    submittedAt: session.submittedAt.getTime(),
   };
 }
 

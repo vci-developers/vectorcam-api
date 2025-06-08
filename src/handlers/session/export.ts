@@ -9,8 +9,8 @@ export const schema = {
   querystring: {
     type: 'object',
     properties: {
-      startDate: { type: 'string', format: 'date' },
-      endDate: { type: 'string', format: 'date' }
+      startDate: { type: 'number' },
+      endDate: { type: 'number' }
     }
   },
   response: {

@@ -9,6 +9,7 @@ import {
   initiateUpload,
   appendUpload,
   completeUpload,
+  getUploadStatus,
 } from '../handlers/specimen';
 import fastifyMultipart from '@fastify/multipart';
 
@@ -22,6 +23,7 @@ import { schema as getImageSchema } from '../handlers/specimen/getImage';
 import { schema as initiateUploadSchema } from '../handlers/specimen/upload/initiate'
 import { schema as appendUploadSchema } from '../handlers/specimen/upload/append'
 import { schema as completeUploadSchema } from '../handlers/specimen/upload/complete'
+import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get'
 
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
@@ -72,6 +74,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.post('/:specimen_id/images/uploads/:upload_id/complete', {
     schema: completeUploadSchema
   }, completeUpload);
+
+  // Get upload status
+  fastify.get('/:specimen_id/images/uploads/:upload_id', {
+    schema: getUploadStatusSchema
+  }, getUploadStatus);
 
   done();
 } 
