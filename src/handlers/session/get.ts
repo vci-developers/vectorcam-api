@@ -19,7 +19,7 @@ export const schema = {
       type: 'object',
       properties: {
         sessionId: { type: 'number' },
-        frontendId: { type: ['number', 'null'] },
+        frontendId: { type: 'number' },
         houseNumber: { type: ['string', 'null'] },
         collectorTitle: { type: ['string', 'null'] },
         collectorName: { type: ['string', 'null'] },

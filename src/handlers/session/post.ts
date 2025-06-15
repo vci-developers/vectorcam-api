@@ -8,7 +8,7 @@ import {
 import { Session } from '../../db/models';
 
 interface SubmitSessionRequest {
-  frontendId?: number;
+  frontendId: number;
   houseNumber?: string;
   collectorTitle?: string;
   collectorName?: string;
@@ -26,7 +26,7 @@ export const schema = {
   description: 'Submit a new session',
   body: {
     type: 'object',
-    required: ['siteId'],
+    required: ['frontendId', 'siteId'],
     properties: {
       frontendId: { type: 'number' },
       houseNumber: { type: 'string' },
@@ -50,7 +50,7 @@ export const schema = {
           type: 'object',
           properties: {
             sessionId: { type: 'number' },
-            frontendId: { type: ['number', 'null'] },
+            frontendId: { type: 'number' },
             houseNumber: { type: ['string', 'null'] },
             collectorTitle: { type: ['string', 'null'] },
             collectorName: { type: ['string', 'null'] },

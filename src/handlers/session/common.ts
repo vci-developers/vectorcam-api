@@ -4,7 +4,7 @@ import { Session, Site, Device, Specimen } from '../../db/models';
 // Session response format interface
 export interface SessionResponse {
   sessionId: number;
-  frontendId: number | null;
+  frontendId: number;
   houseNumber: string | null;
   collectorTitle: string | null;
   collectorName: string | null;

@@ -10,7 +10,7 @@ class Session extends Model {
   // Static association declarations will be created at runtime
 
   declare id: number;
-  declare frontendId: number | null;
+  declare frontendId: number;
   declare houseNumber: string | null;
   declare collectorTitle: string | null;
   declare collectorName: string | null;
@@ -34,7 +34,7 @@ Session.init(
     },
     frontendId: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: false,
       unique: true,
       field: 'frontend_id',
     },
