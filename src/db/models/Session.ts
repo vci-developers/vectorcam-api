@@ -22,7 +22,6 @@ class Session extends Model {
   declare submittedAt: Date | null;
   declare notes: string | null;
   declare siteId: number;
-  declare deviceId: number;
   declare updatedAt: Date;
 }
 
@@ -82,15 +81,6 @@ Session.init(
     notes: {
       type: DataTypes.TEXT,
       allowNull: true,
-    },
-    deviceId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'devices',
-        key: 'id',
-      },
-      field: 'device_id',
     },
     siteId: {
       type: DataTypes.INTEGER,

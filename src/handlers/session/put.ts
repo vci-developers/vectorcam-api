@@ -59,8 +59,7 @@ export const schema = {
             completedAt: { type: ['number', 'null'] },
             submittedAt: { type: ['number', 'null'] },
             notes: { type: ['string', 'null'] },
-            siteId: { type: 'number' },
-            deviceId: { type: 'number' }
+            siteId: { type: 'number' }
           }
         }
       }

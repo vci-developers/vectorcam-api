@@ -16,7 +16,6 @@ export interface SessionResponse {
   submittedAt: number | null;
   notes: string | null;
   siteId: number;
-  deviceId: number;
 }
 
 // Helper to format session data consistently across endpoints
@@ -35,7 +34,6 @@ export function formatSessionResponse(session: Session): SessionResponse {
     submittedAt: session.submittedAt ? session.submittedAt.getTime() : null,
     notes: session.notes,
     siteId: session.siteId,
-    deviceId: session.deviceId,
   };
 }
 

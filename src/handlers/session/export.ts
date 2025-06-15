@@ -65,24 +65,20 @@ export async function exportSessionsCSV(
       where,
       order: [['createdAt', 'DESC']],
       include: [
-        { model: Device, as: 'device' },
         { model: Site, as: 'site' }
       ]
     });
 
     // Generate CSV header
-    let csv = 'SessionID,DeviceID,DeviceName,SiteID,SiteName,CreatedAt,SubmittedAt\n';
+    let csv = 'SessionID,SiteID,SiteName,CreatedAt,SubmittedAt\n';
 
     // Generate CSV rows
     for (const session of sessions) {
       // Safe approach to access associated models
-      const device = session.get('device') as any;
       const site = session.get('site') as any;
       
       const row = [
         session.id,
-        session.deviceId,
-        device?.name || 'N/A',
         session.siteId,
         site?.name || 'N/A',
         session.createdAt.toISOString(),

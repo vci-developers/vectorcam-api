@@ -18,7 +18,6 @@ interface SubmitSessionRequest {
   completedAt?: number;
   submittedAt?: number;
   notes?: string;
-  deviceId: number;
   siteId: number;
 }
 
@@ -27,7 +26,7 @@ export const schema = {
   description: 'Submit a new session',
   body: {
     type: 'object',
-    required: ['deviceId', 'siteId'],
+    required: ['siteId'],
     properties: {
       frontendId: { type: 'number' },
       houseNumber: { type: 'string' },
@@ -39,7 +38,6 @@ export const schema = {
       completedAt: { type: 'number' },
       submittedAt: { type: 'number' },
       notes: { type: 'string' },
-      deviceId: { type: 'number' },
       siteId: { type: 'number' }
     }
   },
@@ -63,8 +61,7 @@ export const schema = {
             completedAt: { type: ['number', 'null'] },
             submittedAt: { type: ['number', 'null'] },
             notes: { type: ['string', 'null'] },
-            siteId: { type: 'number' },
-            deviceId: { type: 'number' }
+            siteId: { type: 'number' }
           }
         }
       }
@@ -106,15 +103,8 @@ export async function submitSession(
       completedAt,
       submittedAt,
       notes,
-      deviceId, 
       siteId 
     } = request.body;
-
-    // Check if device exists
-    const device = await findDeviceById(deviceId);
-    if (!device) {
-      return reply.code(404).send({ error: 'Device not found' });
-    }
 
     // Check if site exists
     const site = await findSiteById(siteId);
@@ -144,7 +134,6 @@ export async function submitSession(
       completedAt: completedAt ? new Date(completedAt) : null,
       submittedAt: submittedAt ? new Date(submittedAt) : null,
       notes,
-      deviceId,
       siteId,
     });
 
