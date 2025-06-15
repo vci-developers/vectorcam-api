@@ -17,17 +17,13 @@ export const schema = {
       properties: {
         formId: { type: 'number' },
         sessionId: { type: 'number' },
-        collectionDate: { type: ['number', 'null'] },
-        officerName: { type: ['string', 'null'] },
-        officerTitle: { type: ['string', 'null'] },
-        peopleInHouse: { type: ['number', 'null'] },
-        isBednetAvailable: { type: ['boolean', 'null'] },
-        numberOfBednetsAvailable: { type: ['number', 'null'] },
-        numberOfPeopleSleptUnderBednet: { type: ['number', 'null'] },
-        bednetType: { type: ['string', 'null'] },
-        bednetBrand: { type: ['string', 'null'] },
-        isIrsSprayed: { type: ['boolean', 'null'] },
-        irsDate: { type: ['number', 'null'] }
+        numPeopleSleptInHouse: { type: ['number', 'null'] },
+        wasIrsConducted: { type: ['boolean', 'null'] },
+        monthsSinceIrs: { type: ['number', 'null'] },
+        numLlinsAvailable: { type: ['number', 'null'] },
+        llinType: { type: ['string', 'null'] },
+        llinBrand: { type: ['string', 'null'] },
+        numPeopleSleptUnderLlin: { type: ['number', 'null'] }
       }
     }
   }
@@ -57,17 +53,13 @@ export async function getSessionSurvey(
     reply.send({
       formId: surveillanceForm.id,
       sessionId: surveillanceForm.sessionId,
-      collectionDate: surveillanceForm.collectionDate?.toISOString().split('T')[0] || null,
-      officerName: surveillanceForm.officerName,
-      officerTitle: surveillanceForm.officerTitle,
-      peopleInHouse: surveillanceForm.peopleInHouse,
-      isBednetAvailable: surveillanceForm.isBednetAvailable,
-      numberOfBednetsAvailable: surveillanceForm.numberOfBednetsAvailable,
-      numberOfPeopleSleptUnderBednet: surveillanceForm.numberOfPeopleSleptUnderBednet,
-      bednetType: surveillanceForm.bednetType,
-      bednetBrand: surveillanceForm.bednetBrand,
-      isIrsSprayed: surveillanceForm.isIrsSprayed,
-      irsDate: surveillanceForm.irsDate?.toISOString().split('T')[0] || null
+      numPeopleSleptInHouse: surveillanceForm.numPeopleSleptInHouse,
+      wasIrsConducted: surveillanceForm.wasIrsConducted,
+      monthsSinceIrs: surveillanceForm.monthsSinceIrs,
+      numLlinsAvailable: surveillanceForm.numLlinsAvailable,
+      llinType: surveillanceForm.llinType,
+      llinBrand: surveillanceForm.llinBrand,
+      numPeopleSleptUnderLlin: surveillanceForm.numPeopleSleptUnderLlin
     });
   } catch (error) {
     handleError(error, request, reply, 'Failed to get session surveillance form');

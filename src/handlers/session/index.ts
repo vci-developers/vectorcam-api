@@ -8,3 +8,5 @@ export { getSessionsBySite } from './getBySite';
 export { getSessionSpecimens } from './getSpecimens'; 
 export { exportSessionsCSV } from './export';
 export { getSessionSurvey } from './getSurvey';
+export { createSurvey } from './postSurvey'
+export { updateSurvey } from './putSurvey'
