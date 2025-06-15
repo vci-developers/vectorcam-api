@@ -4,20 +4,38 @@ import { Session, Site, Device, Specimen } from '../../db/models';
 // Session response format interface
 export interface SessionResponse {
   sessionId: number;
-  deviceId: number;
-  siteId: number;
+  frontendId: number | null;
+  houseNumber: string | null;
+  collectorTitle: string | null;
+  collectorName: string | null;
+  collectionDate: number | null;
+  collectionMethod: string | null;
+  specimenCondition: string | null;
   createdAt: number;
-  submittedAt: number;
+  completedAt: number | null;
+  submittedAt: number | null;
+  notes: string | null;
+  siteId: number;
+  deviceId: number;
 }
 
 // Helper to format session data consistently across endpoints
 export function formatSessionResponse(session: Session): SessionResponse {
   return {
     sessionId: session.id,
-    deviceId: session.deviceId,
-    siteId: session.siteId,
+    frontendId: session.frontendId,
+    houseNumber: session.houseNumber,
+    collectorTitle: session.collectorTitle,
+    collectorName: session.collectorName,
+    collectionDate: session.collectionDate ? session.collectionDate.getTime() : null,
+    collectionMethod: session.collectionMethod,
+    specimenCondition: session.specimenCondition,
     createdAt: session.createdAt.getTime(),
-    submittedAt: session.submittedAt.getTime(),
+    completedAt: session.completedAt ? session.completedAt.getTime() : null,
+    submittedAt: session.submittedAt ? session.submittedAt.getTime() : null,
+    notes: session.notes,
+    siteId: session.siteId,
+    deviceId: session.deviceId,
   };
 }
 
@@ -42,17 +60,18 @@ export function handleError(error: any, request: FastifyRequest, reply: FastifyR
   reply.code(500).send({ error: message });
 }
 
-// Check if session has specimens
+// Check if session has associated specimens
 export async function hasSpecimens(sessionId: number): Promise<boolean> {
-  const count = await Specimen.count({ where: { sessionId } });
-  return count > 0;
+  const specimenCount = await Specimen.count({
+    where: { sessionId },
+  });
+  return specimenCount > 0;
 }
 
-// Common pagination params parser
+// Get pagination parameters from request
 export function getPaginationParams(query: { page?: string; size?: string }): { page: number; size: number; offset: number } {
   const page = parseInt(query.page || '1', 10);
   const size = parseInt(query.size || '10', 10);
   const offset = (page - 1) * size;
-  
   return { page, size, offset };
 } 

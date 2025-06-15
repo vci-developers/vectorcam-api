@@ -1,7 +1,17 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSessionById, findSiteById, formatSessionResponse, handleError } from './common';
+import { Session } from '../../db/models';
 
 interface UpdateSessionRequest {
+  frontendId?: number;
+  houseNumber?: string;
+  collectorTitle?: string;
+  collectorName?: string;
+  collectionDate?: number;
+  collectionMethod?: string;
+  specimenCondition?: string;
+  completedAt?: number;
+  notes?: string;
   siteId?: number;
 }
 
@@ -17,6 +27,15 @@ export const schema = {
   body: {
     type: 'object',
     properties: {
+      frontendId: { type: 'number' },
+      houseNumber: { type: 'string' },
+      collectorTitle: { type: 'string' },
+      collectorName: { type: 'string' },
+      collectionDate: { type: 'number' },
+      collectionMethod: { type: 'string' },
+      specimenCondition: { type: 'string' },
+      completedAt: { type: 'number' },
+      notes: { type: 'string' },
       siteId: { type: 'number' }
     }
   },
@@ -29,12 +48,39 @@ export const schema = {
           type: 'object',
           properties: {
             sessionId: { type: 'number' },
-            deviceId: { type: 'number' },
-            siteId: { type: 'number' },
+            frontendId: { type: ['number', 'null'] },
+            houseNumber: { type: ['string', 'null'] },
+            collectorTitle: { type: ['string', 'null'] },
+            collectorName: { type: ['string', 'null'] },
+            collectionDate: { type: ['number', 'null'] },
+            collectionMethod: { type: ['string', 'null'] },
+            specimenCondition: { type: ['string', 'null'] },
             createdAt: { type: 'number' },
-            submittedAt: { type: ['number', 'null'] }
+            completedAt: { type: ['number', 'null'] },
+            submittedAt: { type: ['number', 'null'] },
+            notes: { type: ['string', 'null'] },
+            siteId: { type: 'number' },
+            deviceId: { type: 'number' }
           }
         }
+      }
+    },
+    404: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' }
+      }
+    },
+    409: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' }
+      }
+    },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' }
       }
     }
   }
@@ -46,7 +92,18 @@ export async function updateSession(
 ): Promise<void> {
   try {
     const { session_id } = request.params;
-    const { siteId } = request.body;
+    const { 
+      frontendId,
+      houseNumber,
+      collectorTitle,
+      collectorName,
+      collectionDate,
+      collectionMethod,
+      specimenCondition,
+      completedAt,
+      notes,
+      siteId 
+    } = request.body;
 
     const session = await findSessionById(session_id);
     if (!session) {
@@ -61,8 +118,27 @@ export async function updateSession(
       }
     }
 
+    // Check if frontendId is unique if provided
+    if (frontendId && frontendId !== session.frontendId) {
+      const existingSession = await Session.findOne({
+        where: { frontendId }
+      });
+      if (existingSession) {
+        return reply.code(409).send({ error: 'A session with this frontendId already exists' });
+      }
+    }
+
     // Update the session
     await session.update({
+      frontendId: frontendId !== undefined ? frontendId : session.frontendId,
+      houseNumber: houseNumber !== undefined ? houseNumber : session.houseNumber,
+      collectorTitle: collectorTitle !== undefined ? collectorTitle : session.collectorTitle,
+      collectorName: collectorName !== undefined ? collectorName : session.collectorName,
+      collectionDate: collectionDate !== undefined ? new Date(collectionDate) : session.collectionDate,
+      collectionMethod: collectionMethod !== undefined ? collectionMethod : session.collectionMethod,
+      specimenCondition: specimenCondition !== undefined ? specimenCondition : session.specimenCondition,
+      completedAt: completedAt !== undefined ? new Date(completedAt) : session.completedAt,
+      notes: notes !== undefined ? notes : session.notes,
       siteId: siteId || session.siteId,
     });
 
@@ -71,6 +147,7 @@ export async function updateSession(
       session: formatSessionResponse(session),
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to update session');
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 

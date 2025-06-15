@@ -16,6 +16,18 @@ export const schema = {
   response: {
     200: {
       type: 'string'
+    },
+    400: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' }
+      }
+    },
+    500: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' }
+      }
     }
   }
 };
@@ -26,6 +38,11 @@ export async function exportSessionsCSV(
 ): Promise<void> {
   try {
     const { startDate, endDate } = request.query;
+    
+    // Validate date range
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return reply.code(400).send({ error: 'Start date must be before end date' });
+    }
     
     // Build query conditions
     const where: any = {};
