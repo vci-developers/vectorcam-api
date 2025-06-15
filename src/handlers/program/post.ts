@@ -8,6 +8,7 @@ interface CreateProgramRequest {
 }
 
 export const schema = {
+  tags: ['Programs'],
   body: {
     type: 'object',
     required: ['name', 'country'],

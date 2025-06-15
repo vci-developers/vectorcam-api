@@ -11,6 +11,7 @@ interface UpdateSiteRequest {
 }
 
 export const schema = {
+  tags: ['Sites'],
   params: {
     type: 'object',
     required: ['site_id'],

@@ -53,11 +53,11 @@ async function setupServer(): Promise<void> {
         consumes: ['application/json'],
         produces: ['application/json'],
         tags: [
-          { name: 'Health Centers', description: 'Health center management endpoints' },
+          { name: 'Programs', description: 'Program management endpoints' },
           { name: 'Sites', description: 'Site management endpoints' },
           { name: 'Devices', description: 'Device management endpoints' },
           { name: 'Sessions', description: 'Session management and surveillance form endpoints' },
-          { name: 'Specimens', description: 'Specimen management and image upload endpoints' },
+          { name: 'Specimens', description: 'Specimen management endpoints' },
           { name: 'Specimen Images', description: 'Specimen image management and multipart upload endpoints' }
         ]
       }

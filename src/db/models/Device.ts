@@ -3,7 +3,6 @@ import sequelize from '../index';
 
 // Import models needed for associations
 import Program from './Program';
-import Session from './Session';
 
 class Device extends Model {
   declare id: number;
@@ -51,8 +50,5 @@ Device.init(
 // Setup associations
 Device.belongsTo(Program, { foreignKey: 'program_id', as: 'program' });
 Program.hasMany(Device, { foreignKey: 'program_id', as: 'devices' });
-
-Device.hasMany(Session, { foreignKey: 'device_id', as: 'sessions' });
-Session.belongsTo(Device, { foreignKey: 'device_id', as: 'device' });
 
 export default Device; 

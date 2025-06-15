@@ -8,6 +8,7 @@ interface UpdateDeviceRequest {
 }
 
 export const schema = {
+  tags: ['Devices'],
   params: {
     type: 'object',
     required: ['device_id'],

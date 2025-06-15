@@ -12,6 +12,7 @@ interface CreateSiteRequest {
 }
 
 export const schema = {
+  tags: ['Sites'],
   body: {
     type: 'object',
     required: ['programId'],

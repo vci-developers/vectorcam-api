@@ -7,6 +7,7 @@ interface UpdateProgramRequest {
 }
 
 export const schema = {
+  tags: ['Programs'],
   params: {
     type: 'object',
     required: ['program_id'],

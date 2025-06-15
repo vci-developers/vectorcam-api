@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findProgramById, formatProgramResponse } from './common';
 
 export const schema = {
+  tags: ['Programs'],
   params: {
     type: 'object',
     required: ['program_id'],

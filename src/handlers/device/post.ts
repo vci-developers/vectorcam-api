@@ -9,6 +9,7 @@ interface CreateDeviceRequest {
 }
 
 export const schema = {
+  tags: ['Devices'],
   body: {
     type: 'object',
     required: ['model', 'registeredAt', 'programId'],
