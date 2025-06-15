@@ -1,13 +1,8 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { 
-  findSiteById, 
-  formatSiteResponse, 
-  handleError, 
-  findHealthCenterById
-} from './common';
+import { FastifyRequest } from 'fastify';
+import { formatSiteResponse, findSiteById, findProgramById } from './common';
 
 interface UpdateSiteRequest {
-  healthCenterId?: number;
+  programId?: number;
   latitude?: number;
   longitude?: number;
   houseNumber?: number;
@@ -15,10 +10,9 @@ interface UpdateSiteRequest {
 }
 
 export const schema = {
-  tags: ['Sites'],
-  description: 'Update site details',
   params: {
     type: 'object',
+    required: ['site_id'],
     properties: {
       site_id: { type: 'number' }
     }
@@ -26,69 +20,69 @@ export const schema = {
   body: {
     type: 'object',
     properties: {
-      healthCenterId: { type: 'number' },
+      programId: { type: 'number' },
       latitude: { type: 'number' },
       longitude: { type: 'number' },
       houseNumber: { type: 'number' },
-      villageName: { type: 'string' }
-    }
+      villageName: { type: 'string' },
+    },
   },
   response: {
     200: {
       type: 'object',
       properties: {
-        message: { type: 'string' },
         site: {
           type: 'object',
           properties: {
             siteId: { type: 'number' },
-            healthCenterId: { type: 'number' },
-            latitude: { type: ['number', 'null'] },
-            longitude: { type: ['number', 'null'] },
-            houseNumber: { type: ['number', 'null'] },
-            villageName: { type: ['string', 'null'] }
-          }
-        }
-      }
-    }
-  }
+            programId: { type: 'number' },
+            latitude: { type: 'number' },
+            longitude: { type: 'number' },
+            houseNumber: { type: 'number' },
+            villageName: { type: 'string' },
+          },
+        },
+      },
+    },
+  },
 };
 
 export async function updateSite(
-  request: FastifyRequest<{ Params: { site_id: number }; Body: UpdateSiteRequest }>,
-  reply: FastifyReply
-): Promise<void> {
+  request: FastifyRequest<{ 
+    Params: { site_id: number };
+    Body: UpdateSiteRequest;
+  }>,
+  reply: any
+) {
   try {
     const { site_id } = request.params;
-    const { healthCenterId, latitude, longitude, houseNumber, villageName } = request.body;
+    const { programId, latitude, longitude, houseNumber, villageName } = request.body;
 
     const site = await findSiteById(site_id);
     if (!site) {
       return reply.code(404).send({ error: 'Site not found' });
     }
 
-    // If updating health center, check if it exists
-    if (healthCenterId) {
-      const healthCenter = await findHealthCenterById(healthCenterId);
-      if (!healthCenter) {
-        return reply.code(404).send({ error: 'Health center not found' });
+    if (programId) {
+      const program = await findProgramById(programId);
+      if (!program) {
+        return reply.code(404).send({ error: 'Program not found' });
       }
     }
 
-    // Update the site
     await site.update({
-      healthCenterId: healthCenterId !== undefined ? healthCenterId : site.healthCenterId,
+      programId: programId !== undefined ? programId : site.programId,
       latitude: latitude !== undefined ? latitude : site.latitude,
       longitude: longitude !== undefined ? longitude : site.longitude,
       houseNumber: houseNumber !== undefined ? houseNumber : site.houseNumber,
-      villageName: villageName !== undefined ? villageName : site.villageName
+      villageName: villageName !== undefined ? villageName : site.villageName,
     });
 
-    reply.send({
-      message: 'Site updated successfully',
-      site: formatSiteResponse(site)
+    return reply.code(200).send({
+      site: formatSiteResponse(site),
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to update site');
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 

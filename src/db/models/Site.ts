@@ -3,7 +3,7 @@ import sequelize from '../index';
 
 class Site extends Model {
   declare id: number;
-  declare healthCenterId: number;
+  declare programId: number;
   declare latitude: number | null;
   declare longitude: number | null;
   declare houseNumber: number | null;
@@ -19,14 +19,14 @@ Site.init(
       primaryKey: true,
       autoIncrement: true,
     },
-    healthCenterId: {
+    programId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'healthcenters',
+        model: 'programs',
         key: 'id',
       },
-      field: 'health_center_id',
+      field: 'program_id',
     },
     latitude: {
       type: DataTypes.FLOAT,

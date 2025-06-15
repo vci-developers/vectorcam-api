@@ -1,4 +1,4 @@
-import HealthCenter from './HealthCenter';
+import Program from './Program';
 import Site from './Site';
 import Device from './Device';
 import Session from './Session';
@@ -9,7 +9,7 @@ import SpecimenImage from './SpecimenImage';
 import MultipartUpload from './MultipartUpload';
 
 export {
-  HealthCenter,
+  Program,
   Site,
   Device,
   Session,

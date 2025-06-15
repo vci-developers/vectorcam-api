@@ -1,12 +1,9 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { 
-  findHealthCenterById, 
-  formatSiteResponse, 
-  handleError
-} from './common';
+import { FastifyRequest } from 'fastify';
 import { Site } from '../../db/models';
+import { formatSiteResponse, findProgramById } from './common';
+
 interface CreateSiteRequest {
-  healthCenterId: number;
+  programId: number;
   latitude?: number;
   longitude?: number;
   houseNumber?: number;
@@ -14,67 +11,63 @@ interface CreateSiteRequest {
 }
 
 export const schema = {
-  tags: ['Sites'],
-  description: 'Register a new site',
   body: {
     type: 'object',
-    required: ['healthCenterId'],
+    required: ['programId'],
     properties: {
-      healthCenterId: { type: 'number' },
+      programId: { type: 'number' },
       latitude: { type: 'number' },
       longitude: { type: 'number' },
       houseNumber: { type: 'number' },
-      villageName: { type: 'string' }
-    }
+      villageName: { type: 'string' },
+    },
   },
   response: {
-    201: {
+    200: {
       type: 'object',
       properties: {
-        message: { type: 'string' },
         site: {
           type: 'object',
           properties: {
             siteId: { type: 'number' },
-            healthCenterId: { type: 'number' },
-            latitude: { type: ['number', 'null'] },
-            longitude: { type: ['number', 'null'] },
-            houseNumber: { type: ['number', 'null'] },
-            villageName: { type: ['string', 'null'] }
-          }
-        }
-      }
-    }
-  }
+            programId: { type: 'number' },
+            latitude: { type: 'number' },
+            longitude: { type: 'number' },
+            houseNumber: { type: 'number' },
+            villageName: { type: 'string' },
+          },
+        },
+      },
+    },
+  },
 };
 
 export async function createSite(
   request: FastifyRequest<{ Body: CreateSiteRequest }>,
-  reply: FastifyReply
-): Promise<void> {
+  reply: any
+) {
   try {
-    const { healthCenterId, latitude, longitude, houseNumber, villageName } = request.body;
+    const { programId, latitude, longitude, houseNumber, villageName } = request.body;
 
-    // Check if health center exists
-    const healthCenter = await findHealthCenterById(healthCenterId);
-    if (!healthCenter) {
-      return reply.code(404).send({ error: 'Health center not found' });
+    // Check if program exists
+    const program = await findProgramById(programId);
+    if (!program) {
+      return reply.code(404).send({ error: 'Program not found' });
     }
 
-    // Create the site
     const site = await Site.create({
-      healthCenterId,
+      programId,
       latitude,
       longitude,
       houseNumber,
-      villageName
+      villageName,
     });
 
-    reply.code(201).send({
-      message: 'Site created successfully',
-      site: formatSiteResponse(site)
+    return reply.code(200).send({
+      site: formatSiteResponse(site),
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to create site');
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 

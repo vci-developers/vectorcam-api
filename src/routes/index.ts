@@ -1,28 +1,18 @@
 import { FastifyInstance } from 'fastify';
-import healthRoutes from './health';
-import deviceRoutes from './devices';
+import programRoutes from './programs';
 import siteRoutes from './sites';
-import healthCenterRoutes from './healthcenters';
+import deviceRoutes from './devices';
 import sessionRoutes from './sessions';
 import specimenRoutes from './specimens';
-// Import other route modules here when they are created
 
 /**
  * Register all routes with the Fastify instance
  */
-export default function registerRoutes(server: FastifyInstance): void {
-  // Register health check routes
-  server.register(healthRoutes, { prefix: '/health' });
-  
-  // Basic root endpoint
-  server.get('/', async (request, reply) => {
-    return { message: 'Welcome to VectorCam API' };
-  });
-
-  // Register API endpoints
-  server.register(deviceRoutes, { prefix: '/devices' });
+export default async function routes(server: FastifyInstance): Promise<void> {
+  // Register routes
+  server.register(programRoutes, { prefix: '/programs' });
   server.register(siteRoutes, { prefix: '/sites' });
-  server.register(healthCenterRoutes, { prefix: '/healthcenters' });
+  server.register(deviceRoutes, { prefix: '/devices' });
   server.register(sessionRoutes, { prefix: '/sessions' });
   server.register(specimenRoutes, { prefix: '/specimens' });
 } 
