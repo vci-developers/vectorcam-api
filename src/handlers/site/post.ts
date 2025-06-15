@@ -1,13 +1,14 @@
-import { FastifyRequest } from 'fastify';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { Site } from '../../db/models';
 import { formatSiteResponse, findProgramById } from './common';
 
 interface CreateSiteRequest {
   programId: number;
-  latitude?: number;
-  longitude?: number;
-  houseNumber?: number;
-  villageName?: string;
+  district?: string;
+  subCounty?: string;
+  parish?: string;
+  sentinelSite?: string;
+  healthCenter?: string;
 }
 
 export const schema = {
@@ -16,25 +17,28 @@ export const schema = {
     required: ['programId'],
     properties: {
       programId: { type: 'number' },
-      latitude: { type: 'number' },
-      longitude: { type: 'number' },
-      houseNumber: { type: 'number' },
-      villageName: { type: 'string' },
+      district: { type: 'string' },
+      subCounty: { type: 'string' },
+      parish: { type: 'string' },
+      sentinelSite: { type: 'string' },
+      healthCenter: { type: 'string' },
     },
   },
   response: {
     200: {
       type: 'object',
       properties: {
+        message: { type: 'string' },
         site: {
           type: 'object',
           properties: {
             siteId: { type: 'number' },
             programId: { type: 'number' },
-            latitude: { type: 'number' },
-            longitude: { type: 'number' },
-            houseNumber: { type: 'number' },
-            villageName: { type: 'string' },
+            district: { type: 'string' },
+            subCounty: { type: 'string' },
+            parish: { type: 'string' },
+            sentinelSite: { type: 'string' },
+            healthCenter: { type: 'string' },
           },
         },
       },
@@ -44,10 +48,10 @@ export const schema = {
 
 export async function createSite(
   request: FastifyRequest<{ Body: CreateSiteRequest }>,
-  reply: any
+  reply: FastifyReply
 ) {
   try {
-    const { programId, latitude, longitude, houseNumber, villageName } = request.body;
+    const { programId, district, subCounty, parish, sentinelSite, healthCenter } = request.body;
 
     // Check if program exists
     const program = await findProgramById(programId);
@@ -57,13 +61,15 @@ export async function createSite(
 
     const site = await Site.create({
       programId,
-      latitude,
-      longitude,
-      houseNumber,
-      villageName,
+      district,
+      subCounty,
+      parish,
+      sentinelSite,
+      healthCenter,
     });
 
     return reply.code(200).send({
+      message: 'Site created successfully',
       site: formatSiteResponse(site),
     });
   } catch (error) {

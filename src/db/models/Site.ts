@@ -4,10 +4,11 @@ import sequelize from '../index';
 class Site extends Model {
   declare id: number;
   declare programId: number;
-  declare latitude: number | null;
-  declare longitude: number | null;
-  declare houseNumber: number | null;
-  declare villageName: string | null;
+  declare district: string | null;
+  declare subCounty: string | null;
+  declare parish: string | null;
+  declare sentinelSite: string | null;
+  declare healthCenter: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -28,23 +29,28 @@ Site.init(
       },
       field: 'program_id',
     },
-    latitude: {
-      type: DataTypes.FLOAT,
-      allowNull: true,
-    },
-    longitude: {
-      type: DataTypes.FLOAT,
-      allowNull: true,
-    },
-    houseNumber: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      field: 'house_number',
-    },
-    villageName: {
+    district: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      field: 'village_name',
+    },
+    subCounty: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'sub_county',
+    },
+    parish: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+    },
+    sentinelSite: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'sentinel_site',
+    },
+    healthCenter: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'health_center',
     },
   },
   {

@@ -4,10 +4,11 @@ import { Site, Program, Device, Session } from '../../db/models';
 export interface SiteResponse {
   siteId: number;
   programId: number;
-  latitude: number | null;
-  longitude: number | null;
-  houseNumber: number | null;
-  villageName: string | null;
+  district: string | null;
+  subCounty: string | null;
+  parish: string | null;
+  sentinelSite: string | null;
+  healthCenter: string | null;
 }
 
 // Helper to format site data consistently across endpoints
@@ -15,10 +16,11 @@ export function formatSiteResponse(site: Site): SiteResponse {
   return {
     siteId: site.id,
     programId: site.programId,
-    latitude: site.latitude,
-    longitude: site.longitude,
-    houseNumber: site.houseNumber,
-    villageName: site.villageName,
+    district: site.district,
+    subCounty: site.subCounty,
+    parish: site.parish,
+    sentinelSite: site.sentinelSite,
+    healthCenter: site.healthCenter,
   };
 }
 

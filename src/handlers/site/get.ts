@@ -15,11 +15,12 @@ export const schema = {
       type: 'object',
       properties: {
         siteId: { type: 'number' },
-        healthCenterId: { type: 'number' },
-        latitude: { type: ['number', 'null'] },
-        longitude: { type: ['number', 'null'] },
-        houseNumber: { type: ['number', 'null'] },
-        villageName: { type: ['string', 'null'] }
+        programId: { type: 'number' },
+        district: { type: ['string', 'null'] },
+        subCounty: { type: ['string', 'null'] },
+        parish: { type: ['string', 'null'] },
+        sentinelSite: { type: ['string', 'null'] },
+        healthCenter: { type: ['string', 'null'] }
       }
     }
   }
