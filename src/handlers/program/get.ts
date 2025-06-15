@@ -1,4 +1,4 @@
-import { FastifyRequest } from 'fastify';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { findProgramById, formatProgramResponse } from './common';
 
 export const schema = {
@@ -13,14 +13,9 @@ export const schema = {
     200: {
       type: 'object',
       properties: {
-        program: {
-          type: 'object',
-          properties: {
-            programId: { type: 'number' },
-            name: { type: 'string' },
-            country: { type: 'string' },
-          },
-        },
+        programId: { type: 'number' },
+        name: { type: 'string' },
+        country: { type: 'string' },
       },
     },
   },
@@ -28,7 +23,7 @@ export const schema = {
 
 export async function getProgramDetails(
   request: FastifyRequest<{ Params: { program_id: number } }>,
-  reply: any
+  reply: FastifyReply
 ) {
   try {
     const { program_id } = request.params;
@@ -38,9 +33,7 @@ export async function getProgramDetails(
       return reply.code(404).send({ error: 'Program not found' });
     }
 
-    return reply.code(200).send({
-      program: formatProgramResponse(program),
-    });
+    return reply.code(200).send(formatProgramResponse(program));
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Internal Server Error' });

@@ -1,15 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findDeviceById, findSiteById, formatDeviceResponse, handleError } from './common';
+import { formatDeviceResponse, findDeviceById, findProgramById } from './common';
 
 interface UpdateDeviceRequest {
-  siteId?: number;
+  model?: string;
+  registeredAt?: number; // Unix timestamp in milliseconds
+  programId?: number;
 }
 
 export const schema = {
-  tags: ['Devices'],
-  description: 'Update device details',
   params: {
     type: 'object',
+    required: ['device_id'],
     properties: {
       device_id: { type: 'number' }
     }
@@ -17,8 +18,10 @@ export const schema = {
   body: {
     type: 'object',
     properties: {
-      siteId: { type: 'number' },
-    }
+      model: { type: 'string' },
+      registeredAt: { type: 'number' }, // Unix timestamp in milliseconds
+      programId: { type: 'number' },
+    },
   },
   response: {
     200: {
@@ -29,45 +32,51 @@ export const schema = {
           type: 'object',
           properties: {
             deviceId: { type: 'number' },
-            siteId: { type: 'number' }
-          }
-        }
-      }
-    }
-  }
+            model: { type: 'string' },
+            registeredAt: { type: 'number' }, // Unix timestamp in milliseconds
+            programId: { type: 'number' },
+          },
+        },
+      },
+    },
+  },
 };
 
 export async function updateDevice(
-  request: FastifyRequest<{ Params: { device_id: number }; Body: UpdateDeviceRequest }>,
+  request: FastifyRequest<{ 
+    Params: { device_id: number };
+    Body: UpdateDeviceRequest;
+  }>,
   reply: FastifyReply
-): Promise<void> {
+) {
   try {
     const { device_id } = request.params;
-    const { siteId } = request.body;
+    const { model, registeredAt, programId } = request.body;
 
     const device = await findDeviceById(device_id);
     if (!device) {
       return reply.code(404).send({ error: 'Device not found' });
     }
 
-    // If updating siteId, check if site exists
-    if (siteId) {
-      const site = await findSiteById(siteId);
-      if (!site) {
-        return reply.code(404).send({ error: 'Site not found' });
+    if (programId) {
+      const program = await findProgramById(programId);
+      if (!program) {
+        return reply.code(404).send({ error: 'Program not found' });
       }
     }
 
-    // Update the device
     await device.update({
-      siteId: siteId || device.siteId,
+      model: model !== undefined ? model : device.model,
+      registeredAt: registeredAt !== undefined ? new Date(registeredAt) : device.registeredAt,
+      programId: programId !== undefined ? programId : device.programId,
     });
 
-    reply.send({
+    return reply.code(200).send({
       message: 'Device updated successfully',
-      device: formatDeviceResponse(device)
+      device: formatDeviceResponse(device),
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to update device');
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 

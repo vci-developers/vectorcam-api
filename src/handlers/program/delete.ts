@@ -1,4 +1,4 @@
-import { FastifyRequest } from 'fastify';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { findProgramById, hasAssociatedSites } from './common';
 
 export const schema = {
@@ -21,7 +21,7 @@ export const schema = {
 
 export async function deleteProgram(
   request: FastifyRequest<{ Params: { program_id: number } }>,
-  reply: any
+  reply: FastifyReply
 ) {
   try {
     const { program_id } = request.params;

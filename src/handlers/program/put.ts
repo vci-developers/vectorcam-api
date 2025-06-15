@@ -1,4 +1,4 @@
-import { FastifyRequest } from 'fastify';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { findProgramById, formatProgramResponse } from './common';
 
 interface UpdateProgramRequest {
@@ -25,6 +25,7 @@ export const schema = {
     200: {
       type: 'object',
       properties: {
+        message: { type: 'string' },
         program: {
           type: 'object',
           properties: {
@@ -43,7 +44,7 @@ export async function updateProgram(
     Params: { program_id: number };
     Body: UpdateProgramRequest;
   }>,
-  reply: any
+  reply: FastifyReply
 ) {
   try {
     const { program_id } = request.params;
@@ -60,6 +61,7 @@ export async function updateProgram(
     });
 
     return reply.code(200).send({
+      message: 'Program updated successfully',
       program: formatProgramResponse(program),
     });
   } catch (error) {

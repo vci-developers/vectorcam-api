@@ -1,4 +1,4 @@
-import { FastifyRequest } from 'fastify';
+import { FastifyRequest, FastifyReply } from 'fastify';
 import { Program } from '../../db/models';
 import { formatProgramResponse } from './common';
 
@@ -20,6 +20,7 @@ export const schema = {
     200: {
       type: 'object',
       properties: {
+        message: { type: 'string' },
         program: {
           type: 'object',
           properties: {
@@ -35,7 +36,7 @@ export const schema = {
 
 export async function createProgram(
   request: FastifyRequest<{ Body: CreateProgramRequest }>,
-  reply: any
+  reply: FastifyReply
 ) {
   try {
     const { name, country } = request.body;
@@ -46,6 +47,7 @@ export async function createProgram(
     });
 
     return reply.code(200).send({
+      message: 'Program created successfully',
       program: formatProgramResponse(program),
     });
   } catch (error) {

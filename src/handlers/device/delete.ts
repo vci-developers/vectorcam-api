@@ -1,11 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findDeviceById, hasAssociatedSessions, handleError } from './common';
+import { findDeviceById, hasAssociatedSessions } from './common';
 
 export const schema = {
-  tags: ['Devices'],
-  description: 'Delete a device',
   params: {
     type: 'object',
+    required: ['device_id'],
     properties: {
       device_id: { type: 'number' }
     }
@@ -23,7 +22,7 @@ export const schema = {
 export async function deleteDevice(
   request: FastifyRequest<{ Params: { device_id: number } }>,
   reply: FastifyReply
-): Promise<void> {
+) {
   try {
     const { device_id } = request.params;
 
@@ -32,21 +31,20 @@ export async function deleteDevice(
       return reply.code(404).send({ error: 'Device not found' });
     }
 
-    // Check if device has associated sessions
     const hasSessions = await hasAssociatedSessions(device_id);
     if (hasSessions) {
-      return reply.code(400).send({ 
-        error: 'Device cannot be deleted because it has associated sessions' 
+      return reply.code(400).send({
+        error: 'Cannot delete device with associated sessions',
       });
     }
 
-    // Delete the device
     await device.destroy();
 
-    reply.send({
+    return reply.code(200).send({
       message: 'Device deleted successfully',
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to delete device');
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 

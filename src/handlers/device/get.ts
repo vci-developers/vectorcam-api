@@ -1,11 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findDeviceById, formatDeviceResponse, handleError } from './common';
+import { findDeviceById, formatDeviceResponse } from './common';
 
 export const schema = {
-  tags: ['Devices'],
-  description: 'Get device details',
   params: {
     type: 'object',
+    required: ['device_id'],
     properties: {
       device_id: { type: 'number' }
     }
@@ -15,20 +14,18 @@ export const schema = {
       type: 'object',
       properties: {
         deviceId: { type: 'number' },
-        siteId: { type: 'number' },
-        name: { type: ['string', 'null'] },
-        modelNumber: { type: ['string', 'null'] },
-        serialNumber: { type: ['string', 'null'] },
-        firmwareVersion: { type: ['string', 'null'] }
-      }
-    }
-  }
+        model: { type: 'string' },
+        registeredAt: { type: 'number' },
+        programId: { type: 'number' },
+      },
+    },
+  },
 };
 
 export async function getDeviceDetails(
   request: FastifyRequest<{ Params: { device_id: number } }>,
   reply: FastifyReply
-): Promise<void> {
+) {
   try {
     const { device_id } = request.params;
 
@@ -37,8 +34,9 @@ export async function getDeviceDetails(
       return reply.code(404).send({ error: 'Device not found' });
     }
 
-    reply.send(formatDeviceResponse(device));
+    return reply.code(200).send(formatDeviceResponse(device));
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get device details');
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 
