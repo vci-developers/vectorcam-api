@@ -9,13 +9,14 @@ export interface SpecimenResponse {
   species: string | null;
   sex: string | null;
   abdomenStatus: string | null;
+  capturedAt: number | null;
   thumbnailUrl: string | null;
   thumbnailImageId: number | null;
   images: Array<{
     id: number;
     url: string;
   }>;
-  yoloBox?: {
+  yoloBox: {
     yoloBoxId: number;
     topLeftX: number;
     topLeftY: number;
@@ -26,29 +27,17 @@ export interface SpecimenResponse {
 
 // Helper to format specimen data consistently across endpoints
 export async function formatSpecimenResponse(specimen: Specimen): Promise<SpecimenResponse> {
-  const yoloBox = specimen.yoloBoxId ? await YoloBox.findByPk(specimen.yoloBoxId) : null;
-  
   // Get all images for this specimen
   const images = await SpecimenImage.findAll({
-    where: { specimenId: specimen.id },
-    order: [['created_at', 'DESC']]
+    where: { specimenId: specimen.id }
   });
 
-  // Format the images
-  const formattedImages = images.map(img => ({
-    id: img.id,
-    url: `/specimens/${specimen.specimenId}/images/${img.id}`
-  }));
+  // Get the yoloBox if it exists
+  const yoloBox = specimen.yoloBoxId ? await YoloBox.findByPk(specimen.yoloBoxId) : null;
 
-  // Get the thumbnail URL
-  let thumbnailUrl = null;
-  if (specimen.thumbnailImageId) {
-    const thumbnail = images.find(img => img.id === specimen.thumbnailImageId);
-    if (thumbnail) {
-      thumbnailUrl = `/specimens/${specimen.specimenId}/images/${thumbnail.id}`;
-    }
-  }
-  
+  // Get the thumbnail image if it exists
+  const thumbnailImage = specimen.thumbnailImageId ? await SpecimenImage.findByPk(specimen.thumbnailImageId) : null;
+
   return {
     id: specimen.id,
     specimenId: specimen.specimenId,
@@ -56,16 +45,20 @@ export async function formatSpecimenResponse(specimen: Specimen): Promise<Specim
     species: specimen.species,
     sex: specimen.sex,
     abdomenStatus: specimen.abdomenStatus,
-    thumbnailUrl,
+    capturedAt: specimen.capturedAt ? specimen.capturedAt.getTime() : null,
+    thumbnailUrl: thumbnailImage ? `/specimens/${specimen.specimenId}/images/${thumbnailImage.id}` : null,
     thumbnailImageId: specimen.thumbnailImageId,
-    images: formattedImages,
+    images: images.map(img => ({
+      id: img.id,
+      url: `/specimens/${specimen.specimenId}/images/${img.id}`
+    })),
     yoloBox: yoloBox ? {
       yoloBoxId: yoloBox.id,
       topLeftX: yoloBox.topLeftX,
       topLeftY: yoloBox.topLeftY,
       width: yoloBox.width,
-      height: yoloBox.height,
-    } : null,
+      height: yoloBox.height
+    } : null
   };
 }
 
@@ -75,12 +68,10 @@ export function isValidId(id: string): boolean {
 }
 
 // Helper function to find a specimen by either ID or key
-export async function findSpecimen(id: string): Promise<Specimen | null> {
-  if (isValidId(id)) {
-    return await Specimen.findByPk(id);
-  } else {
-    return await Specimen.findOne({ where: { specimenId: id } });
-  }
+export async function findSpecimen(specimenId: string): Promise<Specimen | null> {
+  return Specimen.findOne({
+    where: { specimenId }
+  });
 }
 
 // Check if session exists by ID
@@ -89,8 +80,8 @@ export async function findSessionById(sessionId: number): Promise<any> {
 }
 
 // Check if yoloBox exists by ID
-export async function findYoloBoxById(yoloBoxId: number): Promise<any> {
-  return await YoloBox.findByPk(yoloBoxId);
+export async function findYoloBoxById(id: number): Promise<YoloBox | null> {
+  return YoloBox.findByPk(id);
 }
 
 // Common error handler

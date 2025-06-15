@@ -14,6 +14,7 @@ class Specimen extends Model {
   declare species: string | null;
   declare sex: string | null;
   declare abdomenStatus: string | null;
+  declare capturedAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -70,6 +71,11 @@ Specimen.init(
       type: DataTypes.STRING(255),
       allowNull: true,
       field: 'abdomen_status',
+    },
+    capturedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'captured_at',
     },
   },
   {

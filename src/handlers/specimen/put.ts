@@ -13,6 +13,7 @@ interface UpdateSpecimenRequest {
   species?: string;
   sex?: string;
   abdomenStatus?: string;
+  capturedAt?: number;
   thumbnailImageId?: number;
   yoloBox?: {
     topLeftX: number;
@@ -38,6 +39,7 @@ export const schema = {
       species: { type: 'string' },
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
+      capturedAt: { type: 'number' },
       thumbnailImageId: { type: 'number' },
       yoloBox: {
         type: 'object',
@@ -64,6 +66,7 @@ export const schema = {
             species: { type: ['string', 'null'] },
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
+            capturedAt: { type: ['number', 'null'] },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             images: {
@@ -99,7 +102,7 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, species, sex, abdomenStatus, thumbnailImageId, yoloBox } = request.body;
+    const { specimenId, species, sex, abdomenStatus, capturedAt, thumbnailImageId, yoloBox } = request.body;
     
     const specimen = await findSpecimen(specimen_id);
     if (!specimen) {
@@ -165,6 +168,7 @@ export async function updateSpecimen(
       species: species !== undefined ? species : specimen.species,
       sex: sex !== undefined ? sex : specimen.sex,
       abdomenStatus: abdomenStatus !== undefined ? abdomenStatus : specimen.abdomenStatus,
+      capturedAt: capturedAt !== undefined ? new Date(capturedAt) : specimen.capturedAt,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
       yoloBoxId: yoloBoxData ? yoloBoxData.id : specimen.yoloBoxId
     });

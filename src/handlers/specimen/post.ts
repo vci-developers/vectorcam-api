@@ -12,6 +12,7 @@ interface CreateSpecimenRequest {
   species?: string;
   sex?: string;
   abdomenStatus?: string;
+  capturedAt?: number;
   yoloBox?: {
     topLeftX: number;
     topLeftY: number;
@@ -32,6 +33,7 @@ export const schema = {
       species: { type: 'string' },
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
+      capturedAt: { type: 'number' },
       yoloBox: {
         type: 'object',
         properties: {
@@ -58,6 +60,7 @@ export const schema = {
             species: { type: ['string', 'null'] },
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
+            capturedAt: { type: ['number', 'null'] },
             yoloBox: {
               type: ['object', 'null'],
               properties: {
@@ -86,6 +89,7 @@ export async function createSpecimen(
       species,
       sex,
       abdomenStatus,
+      capturedAt,
       yoloBox,
     } = request.body;
 
@@ -112,6 +116,7 @@ export async function createSpecimen(
       species,
       sex,
       abdomenStatus,
+      capturedAt: capturedAt ? new Date(capturedAt) : null,
       yoloBoxId: createdYoloBox?.id
     });
 
