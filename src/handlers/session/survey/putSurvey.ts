@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSessionById, handleError } from './common';
-import { SurveillanceForm } from '../../db/models';
+import { findSessionById, handleError } from '../common';
+import { SurveillanceForm } from '../../../db/models';
 
 interface UpdateSurveyRequest {
   numPeopleSleptInHouse?: number;

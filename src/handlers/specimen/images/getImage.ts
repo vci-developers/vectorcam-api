@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { getFileStream } from '../../services/s3.service';
-import { findSpecimen, handleError } from './common';
-import { SpecimenImage } from '../../db/models';
+import { getFileStream } from '../../../services/s3.service';
+import { findSpecimen, handleError } from '../common';
+import { SpecimenImage } from '../../../db/models';
 
 export const schema = {
   tags: ['Specimen Images'],

@@ -20,6 +20,7 @@ export const schema = {
         species: { type: ['string', 'null'] },
         sex: { type: ['string', 'null'] },
         abdomenStatus: { type: ['string', 'null'] },
+        capturedAt: { type: ['number', 'null'] },
         thumbnailUrl: { type: ['string', 'null'] },
         thumbnailImageId: { type: ['number', 'null'] },
         images: {
@@ -32,14 +33,26 @@ export const schema = {
             }
           }
         },
-        yoloBox: {
+        inferenceResult: {
           type: ['object', 'null'],
           properties: {
-            yoloBoxId: { type: 'number' },
-            topLeftX: { type: 'number' },
-            topLeftY: { type: 'number' },
-            width: { type: 'number' },
-            height: { type: 'number' }
+            id: { type: 'number' },
+            bboxTopLeftX: { type: 'number' },
+            bboxTopLeftY: { type: 'number' },
+            bboxWidth: { type: 'number' },
+            bboxHeight: { type: 'number' },
+            speciesProbabilities: { 
+              type: 'array',
+              items: { type: 'number' }
+            },
+            sexProbabilities: { 
+              type: 'array',
+              items: { type: 'number' }
+            },
+            abdomenStatusProbabilities: { 
+              type: 'array',
+              items: { type: 'number' }
+            }
           }
         }
       }
@@ -53,7 +66,7 @@ export async function getSpecimenDetails(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-
+    
     const specimen = await findSpecimen(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });

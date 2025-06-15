@@ -2,14 +2,13 @@ import { Model, DataTypes } from 'sequelize';
 import sequelize from '../index';
 
 // Import models needed for associations
-import YoloBox from './YoloBox';
+import InferenceResult from './InferenceResult';
 import SpecimenImage from './SpecimenImage';
 
 class Specimen extends Model {
   declare id: number;
   declare specimenId: string;
   declare sessionId: number;
-  declare yoloBoxId: number | null;
   declare thumbnailImageId: number | null;
   declare species: string | null;
   declare sex: string | null;
@@ -39,15 +38,6 @@ Specimen.init(
         key: 'id',
       },
       field: 'session_id',
-    },
-    yoloBoxId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      references: {
-        model: 'yoloboxes',
-        key: 'id',
-      },
-      field: 'yolo_box_id',
     },
     thumbnailImageId: {
       type: DataTypes.INTEGER,
@@ -87,8 +77,8 @@ Specimen.init(
 );
 
 // Setup associations
-Specimen.belongsTo(YoloBox, { foreignKey: 'yolo_box_id', as: 'yoloBox' });
-YoloBox.hasOne(Specimen, { foreignKey: 'yolo_box_id', as: 'specimen' });
+Specimen.hasOne(InferenceResult, { foreignKey: 'specimenId', as: 'inferenceResult' });
+InferenceResult.belongsTo(Specimen, { foreignKey: 'specimenId', as: 'specimen' });
 
 // Setup associations with SpecimenImage
 Specimen.belongsTo(SpecimenImage, { foreignKey: 'thumbnail_image_id', as: 'thumbnailImage' });

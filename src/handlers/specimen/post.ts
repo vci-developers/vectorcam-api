@@ -4,7 +4,7 @@ import {
   handleError, 
   formatSpecimenResponse,
 } from './common';
-import { YoloBox, Specimen } from '../../db/models';
+import { InferenceResult, Specimen } from '../../db/models';
 
 interface CreateSpecimenRequest {
   specimenId: string;
@@ -13,11 +13,14 @@ interface CreateSpecimenRequest {
   sex?: string;
   abdomenStatus?: string;
   capturedAt?: number;
-  yoloBox?: {
-    topLeftX: number;
-    topLeftY: number;
-    width: number;
-    height: number;
+  inferenceResult?: {
+    bboxTopLeftX: number;
+    bboxTopLeftY: number;
+    bboxWidth: number;
+    bboxHeight: number;
+    speciesProbabilities: number[];
+    sexProbabilities: number[];
+    abdomenStatusProbabilities: number[];
   };
 }
 
@@ -34,13 +37,25 @@ export const schema = {
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
       capturedAt: { type: 'number' },
-      yoloBox: {
+      inferenceResult: {
         type: 'object',
         properties: {
-          topLeftX: { type: 'number' },
-          topLeftY: { type: 'number' },
-          width: { type: 'number' },
-          height: { type: 'number' }
+          bboxTopLeftX: { type: 'number' },
+          bboxTopLeftY: { type: 'number' },
+          bboxWidth: { type: 'number' },
+          bboxHeight: { type: 'number' },
+          speciesProbabilities: { 
+            type: 'array',
+            items: { type: 'number' }
+          },
+          sexProbabilities: { 
+            type: 'array',
+            items: { type: 'number' }
+          },
+          abdomenStatusProbabilities: { 
+            type: 'array',
+            items: { type: 'number' }
+          }
         }
       }
     }
@@ -61,14 +76,26 @@ export const schema = {
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
             capturedAt: { type: ['number', 'null'] },
-            yoloBox: {
+            inferenceResult: {
               type: ['object', 'null'],
               properties: {
-                yoloBoxId: { type: 'number' },
-                topLeftX: { type: 'number' },
-                topLeftY: { type: 'number' },
-                width: { type: 'number' },
-                height: { type: 'number' }
+                id: { type: 'number' },
+                bboxTopLeftX: { type: 'number' },
+                bboxTopLeftY: { type: 'number' },
+                bboxWidth: { type: 'number' },
+                bboxHeight: { type: 'number' },
+                speciesProbabilities: { 
+                  type: 'array',
+                  items: { type: 'number' }
+                },
+                sexProbabilities: { 
+                  type: 'array',
+                  items: { type: 'number' }
+                },
+                abdomenStatusProbabilities: { 
+                  type: 'array',
+                  items: { type: 'number' }
+                }
               }
             }
           }
@@ -90,7 +117,7 @@ export async function createSpecimen(
       sex,
       abdomenStatus,
       capturedAt,
-      yoloBox,
+      inferenceResult,
     } = request.body;
 
     // Check if session exists
@@ -99,17 +126,7 @@ export async function createSpecimen(
       return reply.code(404).send({ error: 'Session not found' });
     }
 
-    let createdYoloBox = null;
-    if (yoloBox) {
-      createdYoloBox = await YoloBox.create({
-        topLeftX: yoloBox.topLeftX,
-        topLeftY: yoloBox.topLeftY,
-        width: yoloBox.width,
-        height: yoloBox.height
-      });
-    }
-
-    // Create the specimen
+    // Create the specimen first
     const specimen = await Specimen.create({
       specimenId,
       sessionId,
@@ -117,8 +134,21 @@ export async function createSpecimen(
       sex,
       abdomenStatus,
       capturedAt: capturedAt ? new Date(capturedAt) : null,
-      yoloBoxId: createdYoloBox?.id
     });
+
+    // Create inference result if provided
+    if (inferenceResult) {
+      await InferenceResult.create({
+        specimenId: specimen.id,
+        bboxTopLeftX: inferenceResult.bboxTopLeftX,
+        bboxTopLeftY: inferenceResult.bboxTopLeftY,
+        bboxWidth: inferenceResult.bboxWidth,
+        bboxHeight: inferenceResult.bboxHeight,
+        speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
+        sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
+        abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
+      });
+    }
 
     const formattedResponse = await formatSpecimenResponse(specimen);
 

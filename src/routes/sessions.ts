@@ -23,10 +23,10 @@ import { schema as getAllSchema } from '../handlers/session/getAll';
 import { schema as getByUserSchema } from '../handlers/session/getByUser';
 import { schema as getBySiteSchema } from '../handlers/session/getBySite';
 import { schema as getSpecimensSchema } from '../handlers/session/getSpecimens';
-import { schema as getSurveySchema } from '../handlers/session/getSurvey';
 import { schema as exportSessionsCSVSchema } from '../handlers/session/export';
-import { schema as createSurveySchema } from '../handlers/session/postSurvey';
-import { schema as updateSurveySchema } from '../handlers/session/putSurvey';
+import { schema as getSurveySchema } from '../handlers/session/survey/getSurvey';
+import { schema as createSurveySchema } from '../handlers/session/survey/postSurvey';
+import { schema as updateSurveySchema } from '../handlers/session/survey/putSurvey';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Submit a new session

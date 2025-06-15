@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, YoloBox, SpecimenImage } from '../../db/models';
+import { Specimen, Session, InferenceResult, SpecimenImage } from '../../db/models';
 
 // Specimen response format interface
 export interface SpecimenResponse {
@@ -16,13 +16,26 @@ export interface SpecimenResponse {
     id: number;
     url: string;
   }>;
-  yoloBox: {
-    yoloBoxId: number;
-    topLeftX: number;
-    topLeftY: number;
-    width: number;
-    height: number;
+  inferenceResult: {
+    id: number;
+    bboxTopLeftX: number;
+    bboxTopLeftY: number;
+    bboxWidth: number;
+    bboxHeight: number;
+    speciesProbabilities: number[];
+    sexProbabilities: number[];
+    abdomenStatusProbabilities: number[];
   } | null;
+}
+
+// Helper function to parse probability string to array
+function parseProbabilityString(str: string): number[] {
+  try {
+    return JSON.parse(str);
+  } catch (error) {
+    console.error('Error parsing probability string:', error);
+    return [];
+  }
 }
 
 // Helper to format specimen data consistently across endpoints
@@ -32,8 +45,10 @@ export async function formatSpecimenResponse(specimen: Specimen): Promise<Specim
     where: { specimenId: specimen.id }
   });
 
-  // Get the yoloBox if it exists
-  const yoloBox = specimen.yoloBoxId ? await YoloBox.findByPk(specimen.yoloBoxId) : null;
+  // Get the inference result if it exists
+  const inferenceResult = await InferenceResult.findOne({
+    where: { specimenId: specimen.id }
+  });
 
   // Get the thumbnail image if it exists
   const thumbnailImage = specimen.thumbnailImageId ? await SpecimenImage.findByPk(specimen.thumbnailImageId) : null;
@@ -52,12 +67,15 @@ export async function formatSpecimenResponse(specimen: Specimen): Promise<Specim
       id: img.id,
       url: `/specimens/${specimen.specimenId}/images/${img.id}`
     })),
-    yoloBox: yoloBox ? {
-      yoloBoxId: yoloBox.id,
-      topLeftX: yoloBox.topLeftX,
-      topLeftY: yoloBox.topLeftY,
-      width: yoloBox.width,
-      height: yoloBox.height
+    inferenceResult: inferenceResult ? {
+      id: inferenceResult.id,
+      bboxTopLeftX: inferenceResult.bboxTopLeftX,
+      bboxTopLeftY: inferenceResult.bboxTopLeftY,
+      bboxWidth: inferenceResult.bboxWidth,
+      bboxHeight: inferenceResult.bboxHeight,
+      speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
+      sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
+      abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
     } : null
   };
 }
@@ -75,17 +93,19 @@ export async function findSpecimen(specimenId: string): Promise<Specimen | null>
 }
 
 // Check if session exists by ID
-export async function findSessionById(sessionId: number): Promise<any> {
-  return await Session.findByPk(sessionId);
+export async function findSessionById(id: number): Promise<Session | null> {
+  return Session.findByPk(id);
 }
 
-// Check if yoloBox exists by ID
-export async function findYoloBoxById(id: number): Promise<YoloBox | null> {
-  return YoloBox.findByPk(id);
+// Check if inference result exists by specimen ID
+export async function findInferenceResultBySpecimenId(specimenId: number): Promise<InferenceResult | null> {
+  return InferenceResult.findOne({
+    where: { specimenId }
+  });
 }
 
 // Common error handler
-export function handleError(error: any, request: FastifyRequest, reply: FastifyReply, message: string = 'An error occurred'): void {
-  request.log.error(error);
-  reply.code(500).send({ error: message });
+export function handleError(error: any, request: FastifyRequest, reply: FastifyReply, defaultMessage: string): void {
+  console.error(`Error in ${request.method} ${request.url}:`, error);
+  reply.code(500).send({ error: defaultMessage });
 }

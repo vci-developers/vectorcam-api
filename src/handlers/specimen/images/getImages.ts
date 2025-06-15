@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSpecimen, handleError } from './common';
-import { SpecimenImage } from '../../db/models';
+import { findSpecimen, handleError } from '../common';
+import { SpecimenImage } from '../../../db/models';
 
 export const schema = {
   tags: ['Specimen Images'],

@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { uploadFileStream } from '../../services/s3.service';
-import { findSpecimen, handleError } from './common';
-import { SpecimenImage } from '../../db/models';
+import { uploadFileStream } from '../../../services/s3.service';
+import { findSpecimen, handleError } from '../common';
+import { SpecimenImage } from '../../../db/models';
 import { createHash } from 'crypto';
 import { Readable } from 'stream';
 

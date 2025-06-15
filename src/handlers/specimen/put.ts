@@ -4,9 +4,9 @@ import {
   findSpecimen, 
   formatSpecimenResponse, 
   handleError, 
-  findYoloBoxById 
+  findInferenceResultBySpecimenId 
 } from './common';
-import { Specimen, YoloBox, SpecimenImage } from '../../db/models';
+import { Specimen, InferenceResult, SpecimenImage } from '../../db/models';
 
 interface UpdateSpecimenRequest {
   specimenId?: string;
@@ -15,11 +15,14 @@ interface UpdateSpecimenRequest {
   abdomenStatus?: string;
   capturedAt?: number;
   thumbnailImageId?: number;
-  yoloBox?: {
-    topLeftX: number;
-    topLeftY: number;
-    width: number;
-    height: number;
+  inferenceResult?: {
+    bboxTopLeftX: number;
+    bboxTopLeftY: number;
+    bboxWidth: number;
+    bboxHeight: number;
+    speciesProbabilities: number[];
+    sexProbabilities: number[];
+    abdomenStatusProbabilities: number[];
   };
 }
 
@@ -41,13 +44,25 @@ export const schema = {
       abdomenStatus: { type: 'string' },
       capturedAt: { type: 'number' },
       thumbnailImageId: { type: 'number' },
-      yoloBox: {
+      inferenceResult: {
         type: 'object',
         properties: {
-          topLeftX: { type: 'number' },
-          topLeftY: { type: 'number' },
-          width: { type: 'number' },
-          height: { type: 'number' }
+          bboxTopLeftX: { type: 'number' },
+          bboxTopLeftY: { type: 'number' },
+          bboxWidth: { type: 'number' },
+          bboxHeight: { type: 'number' },
+          speciesProbabilities: { 
+            type: 'array',
+            items: { type: 'number' }
+          },
+          sexProbabilities: { 
+            type: 'array',
+            items: { type: 'number' }
+          },
+          abdomenStatusProbabilities: { 
+            type: 'array',
+            items: { type: 'number' }
+          }
         }
       }
     }
@@ -79,14 +94,26 @@ export const schema = {
                 }
               }
             },
-            yoloBox: {
+            inferenceResult: {
               type: ['object', 'null'],
               properties: {
-                yoloBoxId: { type: 'number' },
-                topLeftX: { type: 'number' },
-                topLeftY: { type: 'number' },
-                width: { type: 'number' },
-                height: { type: 'number' }
+                id: { type: 'number' },
+                bboxTopLeftX: { type: 'number' },
+                bboxTopLeftY: { type: 'number' },
+                bboxWidth: { type: 'number' },
+                bboxHeight: { type: 'number' },
+                speciesProbabilities: { 
+                  type: 'array',
+                  items: { type: 'number' }
+                },
+                sexProbabilities: { 
+                  type: 'array',
+                  items: { type: 'number' }
+                },
+                abdomenStatusProbabilities: { 
+                  type: 'array',
+                  items: { type: 'number' }
+                }
               }
             }
           }
@@ -102,7 +129,7 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, species, sex, abdomenStatus, capturedAt, thumbnailImageId, yoloBox } = request.body;
+    const { specimenId, species, sex, abdomenStatus, capturedAt, thumbnailImageId, inferenceResult } = request.body;
     
     const specimen = await findSpecimen(specimen_id);
     if (!specimen) {
@@ -137,29 +164,32 @@ export async function updateSpecimen(
       }
     }
 
-    // Update the yoloBox if provided
-    let yoloBoxData = null;
-    if (yoloBox && specimen.yoloBoxId) {
-      const existingBox = await findYoloBoxById(specimen.yoloBoxId);
-      if (existingBox) {
-        await existingBox.update({
-          topLeftX: yoloBox.topLeftX,
-          topLeftY: yoloBox.topLeftY,
-          width: yoloBox.width,
-          height: yoloBox.height,
+    // Update the inference result if provided
+    if (inferenceResult) {
+      const existingResult = await findInferenceResultBySpecimenId(specimen.id);
+      if (existingResult) {
+        await existingResult.update({
+          bboxTopLeftX: inferenceResult.bboxTopLeftX,
+          bboxTopLeftY: inferenceResult.bboxTopLeftY,
+          bboxWidth: inferenceResult.bboxWidth,
+          bboxHeight: inferenceResult.bboxHeight,
+          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
+          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
+          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
         });
-        yoloBoxData = existingBox;
+      } else {
+        // Create a new inference result if specimen doesn't have one
+        await InferenceResult.create({
+          specimenId: specimen.id,
+          bboxTopLeftX: inferenceResult.bboxTopLeftX,
+          bboxTopLeftY: inferenceResult.bboxTopLeftY,
+          bboxWidth: inferenceResult.bboxWidth,
+          bboxHeight: inferenceResult.bboxHeight,
+          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
+          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
+          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
+        });
       }
-    } else if (yoloBox) {
-      // Create a new yoloBox if specimen doesn't have one
-      const newBox = await YoloBox.create({
-        topLeftX: yoloBox.topLeftX,
-        topLeftY: yoloBox.topLeftY,
-        width: yoloBox.width,
-        height: yoloBox.height,
-      });
-      await specimen.update({ yoloBoxId: newBox.id });
-      yoloBoxData = newBox;
     }
 
     // Update the specimen with the new data
@@ -169,8 +199,7 @@ export async function updateSpecimen(
       sex: sex !== undefined ? sex : specimen.sex,
       abdomenStatus: abdomenStatus !== undefined ? abdomenStatus : specimen.abdomenStatus,
       capturedAt: capturedAt !== undefined ? new Date(capturedAt) : specimen.capturedAt,
-      thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
-      yoloBoxId: yoloBoxData ? yoloBoxData.id : specimen.yoloBoxId
+      thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId
     });
 
     // Get the updated specimen

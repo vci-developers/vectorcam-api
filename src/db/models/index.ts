@@ -4,7 +4,7 @@ import Device from './Device';
 import Session from './Session';
 import SurveillanceForm from './SurveillanceForm';
 import Specimen from './Specimen';
-import YoloBox from './YoloBox';
+import InferenceResult from './InferenceResult';
 import SpecimenImage from './SpecimenImage';
 import MultipartUpload from './MultipartUpload';
 
@@ -15,7 +15,7 @@ export {
   Session,
   SurveillanceForm,
   Specimen,
-  YoloBox,
+  InferenceResult,
   SpecimenImage,
   MultipartUpload
 };
