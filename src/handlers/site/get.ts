@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSiteById, formatSiteResponse, handleError } from './common';
+import { formatSiteResponse, handleError } from './common';
+import { Site, Program } from '../../db/models';
 
 export const schema = {
   tags: ['Sites'],
@@ -20,7 +21,15 @@ export const schema = {
         subCounty: { type: ['string', 'null'] },
         parish: { type: ['string', 'null'] },
         sentinelSite: { type: ['string', 'null'] },
-        healthCenter: { type: ['string', 'null'] }
+        healthCenter: { type: ['string', 'null'] },
+        program: {
+          type: 'object',
+          properties: {
+            id: { type: 'number' },
+            name: { type: 'string' },
+            country: { type: 'string' }
+          }
+        }
       }
     }
   }
@@ -33,12 +42,32 @@ export async function getSiteDetails(
   try {
     const { site_id } = request.params;
 
-    const site = await findSiteById(site_id);
+    const site = await Site.findByPk(site_id, {
+      include: [
+        {
+          model: Program,
+          as: 'program',
+          attributes: ['id', 'name', 'country']
+        }
+      ]
+    });
+
     if (!site) {
       return reply.code(404).send({ error: 'Site not found' });
     }
 
-    reply.send(formatSiteResponse(site));
+    // Format response with associations
+    const siteData = site.get({ plain: true }) as any;
+    const response = {
+      ...formatSiteResponse(site),
+      program: siteData.program ? {
+        id: siteData.program.id,
+        name: siteData.program.name,
+        country: siteData.program.country
+      } : null
+    };
+
+    reply.send(response);
   } catch (error) {
     handleError(error, request, reply, 'Failed to get site details');
   }

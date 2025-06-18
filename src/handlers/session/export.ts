@@ -65,24 +65,43 @@ export async function exportSessionsCSV(
       where,
       order: [['createdAt', 'DESC']],
       include: [
-        { model: Site, as: 'site' }
+        { model: Site, as: 'site' },
+        { model: Device, as: 'device' }
       ]
     });
 
     // Generate CSV header
-    let csv = 'SessionID,SiteID,SiteName,CreatedAt,SubmittedAt\n';
+    let csv = 'SessionID,FrontendID,HouseNumber,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,DeviceID,DeviceModel,DeviceRegisteredAt\n';
 
     // Generate CSV rows
     for (const session of sessions) {
       // Safe approach to access associated models
       const site = session.get('site') as any;
+      const device = session.get('device') as any;
       
       const row = [
         session.id,
-        session.siteId,
-        site?.name || 'N/A',
+        session.frontendId,
+        session.houseNumber || 'N/A',
+        session.collectorTitle || 'N/A',
+        session.collectorName || 'N/A',
+        session.collectionDate?.toISOString() || 'N/A',
+        session.collectionMethod || 'N/A',
+        session.specimenCondition || 'N/A',
+        session.notes || 'N/A',
         session.createdAt.toISOString(),
-        session.submittedAt?.toISOString() || 'N/A'
+        session.completedAt?.toISOString() || 'N/A',
+        session.submittedAt.toISOString(),
+        session.updatedAt.toISOString(),
+        session.siteId,
+        site?.district || 'N/A',
+        site?.subCounty || 'N/A',
+        site?.parish || 'N/A',
+        site?.sentinelSite || 'N/A',
+        site?.healthCenter || 'N/A',
+        session.deviceId,
+        device?.model || 'N/A',
+        device?.registeredAt?.toISOString() || 'N/A'
       ].join(',');
       
       csv += row + '\n';

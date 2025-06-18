@@ -5,12 +5,13 @@ import sequelize from '../index';
 import Site from './Site';
 import Specimen from './Specimen';
 import SurveillanceForm from './SurveillanceForm';
+import Device from './Device';
 
 class Session extends Model {
   // Static association declarations will be created at runtime
 
   declare id: number;
-  declare frontendId: number;
+  declare frontendId: string;
   declare houseNumber: string | null;
   declare collectorTitle: string | null;
   declare collectorName: string | null;
@@ -19,9 +20,10 @@ class Session extends Model {
   declare specimenCondition: string | null;
   declare createdAt: Date;
   declare completedAt: Date | null;
-  declare submittedAt: Date | null;
+  declare submittedAt: Date;
   declare notes: string | null;
   declare siteId: number;
+  declare deviceId: number;
   declare updatedAt: Date;
 }
 
@@ -33,7 +35,7 @@ Session.init(
       autoIncrement: true,
     },
     frontendId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.STRING(64),
       allowNull: false,
       unique: true,
       field: 'frontend_id',
@@ -75,7 +77,8 @@ Session.init(
     },
     submittedAt: {
       type: DataTypes.DATE,
-      allowNull: true,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
       field: 'submitted_at',
     },
     notes: {
@@ -91,18 +94,36 @@ Session.init(
       },
       field: 'site_id',
     },
+    deviceId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'devices',
+        key: 'id',
+      },
+      field: 'device_id',
+    },
+    createdAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'created_at',
+    },
   },
   {
     sequelize,
     tableName: 'sessions',
     underscored: true,
     timestamps: true,
+    createdAt: false,
   }
 );
 
 // Set up associations
 Session.belongsTo(Site, { foreignKey: 'site_id', as: 'site' });
 Site.hasMany(Session, { foreignKey: 'site_id', as: 'sessions' });
+
+Session.belongsTo(Device, { foreignKey: 'device_id', as: 'device' });
+Device.hasMany(Session, { foreignKey: 'device_id', as: 'sessions' });
 
 Session.hasMany(Specimen, { foreignKey: 'session_id', as: 'specimens' });
 Specimen.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });

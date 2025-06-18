@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, Site, Program } from '../../db/models';
+import { Specimen } from '../../db/models';
 import { formatSpecimenResponse } from './common';
 import { Op, Order } from 'sequelize';
 
@@ -65,15 +65,6 @@ export const schema = {
                   speciesProbabilities: { type: 'array', items: { type: 'number' } },
                   sexProbabilities: { type: 'array', items: { type: 'number' } },
                   abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
-                }
-              },
-              session: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  frontendId: { type: 'number' },
-                  houseNumber: { type: 'string', nullable: true },
-                  collectorName: { type: 'string', nullable: true }
                 }
               }
             }
@@ -162,45 +153,17 @@ export async function getSpecimenList(
       }
     }
 
-    // Build include clause
-    const includeClause: any[] = [
-      {
-        model: Session,
-        as: 'session',
-        attributes: ['id', 'frontendId', 'houseNumber', 'collectorName'],
-        include: [
-          {
-            model: Site,
-            as: 'site',
-            attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
-          }
-        ]
-      }
-    ];
-
-    // Add site filter to session include if needed
-    if (siteId) {
-      includeClause[0].where = { siteId };
-    }
-
-    // Add program filter to site include if needed
-    if (programId) {
-      includeClause[0].include[0].where = { programId };
-    }
-
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
     // Get total count
     const total = await Specimen.count({
-      where: whereClause,
-      include: includeClause
+      where: whereClause
     });
 
     // Get specimens with pagination
     const specimens = await Specimen.findAll({
       where: whereClause,
-      include: includeClause,
       order: orderClause,
       limit,
       offset
@@ -209,18 +172,7 @@ export async function getSpecimenList(
     // Format response
     const formattedSpecimens = await Promise.all(
       specimens.map(async (specimen) => {
-        const specimenData = specimen.get({ plain: true }) as any;
-        const formattedSpecimen = await formatSpecimenResponse(specimen);
-        
-        return {
-          ...formattedSpecimen,
-          session: specimenData.session ? {
-            id: specimenData.session.id,
-            frontendId: specimenData.session.frontendId,
-            houseNumber: specimenData.session.houseNumber,
-            collectorName: specimenData.session.collectorName
-          } : null
-        };
+        return await formatSpecimenResponse(specimen);
       })
     );
 

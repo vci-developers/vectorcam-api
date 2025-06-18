@@ -86,16 +86,17 @@ export function isValidId(id: string): boolean {
 }
 
 // Helper function to find a specimen by either ID or key
-export async function findSpecimen(id: string): Promise<Specimen | null> {
+export async function findSpecimen(id: string, include?: any[]): Promise<Specimen | null> {
   // If the id is a valid number, try to find by numeric id first
   if (isValidId(id)) {
-    const specimen = await Specimen.findByPk(Number(id));
+    const specimen = await Specimen.findByPk(Number(id), { include });
     if (specimen) return specimen;
   }
   
   // If not found by numeric id or id is not a number, try to find by specimenId
   return Specimen.findOne({
-    where: { specimenId: id }
+    where: { specimenId: id },
+    include
   });
 }
 

@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Site, Program } from '../../db/models';
+import { Site } from '../../db/models';
 import { formatSiteResponse } from './common';
 import { Op, Order } from 'sequelize';
 
@@ -35,15 +35,7 @@ export const schema = {
               subCounty: { type: 'string', nullable: true },
               parish: { type: 'string', nullable: true },
               sentinelSite: { type: 'string', nullable: true },
-              healthCenter: { type: 'string', nullable: true },
-              program: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  name: { type: 'string' },
-                  country: { type: 'string' }
-                }
-              }
+              healthCenter: { type: 'string', nullable: true }
             }
           }
         },
@@ -127,30 +119,13 @@ export async function getSiteList(
     // Get sites with pagination
     const sites = await Site.findAll({
       where: whereClause,
-      include: [
-        {
-          model: Program,
-          as: 'program',
-          attributes: ['id', 'name', 'country']
-        }
-      ],
       order: orderClause,
       limit,
       offset
     });
 
     // Format response
-    const formattedSites = sites.map(site => {
-      const siteData = site.get({ plain: true }) as any;
-      return {
-        ...formatSiteResponse(site),
-        program: siteData.program ? {
-          id: siteData.program.id,
-          name: siteData.program.name,
-          country: siteData.program.country
-        } : null
-      };
-    });
+    const formattedSites = sites.map(site => formatSiteResponse(site));
 
     return reply.code(200).send({
       sites: formattedSites,

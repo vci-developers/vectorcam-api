@@ -4,18 +4,19 @@ import { Session, Site, Device, Specimen } from '../../db/models';
 // Session response format interface
 export interface SessionResponse {
   sessionId: number;
-  frontendId: number;
+  frontendId: string;
   houseNumber: string | null;
   collectorTitle: string | null;
   collectorName: string | null;
   collectionDate: number | null;
   collectionMethod: string | null;
   specimenCondition: string | null;
-  createdAt: number;
+  createdAt: number | null;
   completedAt: number | null;
-  submittedAt: number | null;
+  submittedAt: number;
   notes: string | null;
   siteId: number;
+  deviceId: number;
 }
 
 // Helper to format session data consistently across endpoints
@@ -29,11 +30,12 @@ export function formatSessionResponse(session: Session): SessionResponse {
     collectionDate: session.collectionDate ? session.collectionDate.getTime() : null,
     collectionMethod: session.collectionMethod,
     specimenCondition: session.specimenCondition,
-    createdAt: session.createdAt.getTime(),
+    createdAt: session.createdAt ? session.createdAt.getTime() : null,
     completedAt: session.completedAt ? session.completedAt.getTime() : null,
-    submittedAt: session.submittedAt ? session.submittedAt.getTime() : null,
+    submittedAt: session.submittedAt.getTime(),
     notes: session.notes,
     siteId: session.siteId,
+    deviceId: session.deviceId,
   };
 }
 

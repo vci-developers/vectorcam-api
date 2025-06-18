@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Device, Program } from '../../db/models';
+import { Device } from '../../db/models';
 import { formatDeviceResponse } from './common';
 import { Op, Order } from 'sequelize';
 
@@ -28,14 +28,7 @@ export const schema = {
               deviceId: { type: 'number' },
               model: { type: 'string' },
               registeredAt: { type: 'number' },
-              programId: { type: 'number' },
-              program: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  name: { type: 'string' }
-                }
-              }
+              programId: { type: 'number' }
             }
           }
         },
@@ -91,29 +84,13 @@ export async function getDeviceList(
     // Get devices with pagination
     const devices = await Device.findAll({
       where: whereClause,
-      include: [
-        {
-          model: Program,
-          as: 'program',
-          attributes: ['id', 'name']
-        }
-      ],
       order: orderClause,
       limit,
       offset
     });
 
     // Format response
-    const formattedDevices = devices.map(device => {
-      const deviceData = device.get({ plain: true }) as any;
-      return {
-        ...formatDeviceResponse(device),
-        program: deviceData.program ? {
-          id: deviceData.program.id,
-          name: deviceData.program.name
-        } : null
-      };
-    });
+    const formattedDevices = devices.map(device => formatDeviceResponse(device));
 
     return reply.code(200).send({
       devices: formattedDevices,

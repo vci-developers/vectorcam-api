@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Session, Site, Program } from '../../db/models';
+import { Session } from '../../db/models';
 import { formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
 
@@ -10,7 +10,8 @@ export const schema = {
     properties: {
       siteId: { type: 'number', description: 'Filter by site ID' },
       programId: { type: 'number', description: 'Filter by program ID' },
-      frontendId: { type: 'number', description: 'Filter by frontend ID' },
+      deviceId: { type: 'number', description: 'Filter by device ID' },
+      frontendId: { type: 'string', description: 'Filter by frontend ID' },
       houseNumber: { type: 'string', description: 'Filter by house number (partial match)' },
       collectorName: { type: 'string', description: 'Filter by collector name (partial match)' },
       collectionMethod: { type: 'string', description: 'Filter by collection method (partial match)' },
@@ -34,29 +35,19 @@ export const schema = {
             type: 'object',
             properties: {
               sessionId: { type: 'number' },
-              frontendId: { type: 'number' },
+              frontendId: { type: 'string' },
               houseNumber: { type: 'string', nullable: true },
               collectorTitle: { type: 'string', nullable: true },
               collectorName: { type: 'string', nullable: true },
               collectionDate: { type: 'number', nullable: true },
               collectionMethod: { type: 'string', nullable: true },
               specimenCondition: { type: 'string', nullable: true },
-              createdAt: { type: 'number' },
+              createdAt: { type: ['number', 'null'] },
               completedAt: { type: 'number', nullable: true },
-              submittedAt: { type: 'number', nullable: true },
+              submittedAt: { type: 'number' },
               notes: { type: 'string', nullable: true },
               siteId: { type: 'number' },
-              site: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  district: { type: 'string', nullable: true },
-                  subCounty: { type: 'string', nullable: true },
-                  parish: { type: 'string', nullable: true },
-                  sentinelSite: { type: 'string', nullable: true },
-                  healthCenter: { type: 'string', nullable: true }
-                }
-              }
+              deviceId: { type: 'number' }
             }
           }
         },
@@ -72,7 +63,8 @@ export const schema = {
 interface QueryParams {
   siteId?: number;
   programId?: number;
-  frontendId?: number;
+  deviceId?: number;
+  frontendId?: string;
   houseNumber?: string;
   collectorName?: string;
   collectionMethod?: string;
@@ -94,6 +86,7 @@ export async function getSessionList(
     const {
       siteId,
       programId,
+      deviceId,
       frontendId,
       houseNumber,
       collectorName,
@@ -112,6 +105,9 @@ export async function getSessionList(
     const whereClause: any = {};
     if (siteId) {
       whereClause.siteId = siteId;
+    }
+    if (deviceId) {
+      whereClause.deviceId = deviceId;
     }
     if (frontendId) {
       whereClause.frontendId = frontendId;
@@ -142,14 +138,12 @@ export async function getSessionList(
       switch (status) {
         case 'pending':
           whereClause.completedAt = null;
-          whereClause.submittedAt = null;
           break;
         case 'completed':
           whereClause.completedAt = { [Op.ne]: null };
-          whereClause.submittedAt = null;
           break;
         case 'submitted':
-          whereClause.submittedAt = { [Op.ne]: null };
+          // All sessions are submitted by default, so no additional filter needed
           break;
       }
     }
@@ -165,55 +159,26 @@ export async function getSessionList(
       }
     }
 
-    // Build include clause
-    const includeClause: any[] = [
-      {
-        model: Site,
-        as: 'site',
-        attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
-      }
-    ];
-
-    // Add program filter to site include if needed
-    if (programId) {
-      includeClause[0].where = { programId };
-    }
-
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
     // Get total count
     const total = await Session.count({
-      where: whereClause,
-      include: includeClause
+      where: whereClause
     });
 
     // Get sessions with pagination
     const sessions = await Session.findAll({
       where: whereClause,
-      include: includeClause,
       order: orderClause,
       limit,
       offset
     });
 
     // Format response
-    const formattedSessions = sessions.map(session => {
-      const sessionData = session.get({ plain: true }) as any;
-      return {
-        ...formatSessionResponse(session),
-        site: sessionData.site ? {
-          id: sessionData.site.id,
-          district: sessionData.site.district,
-          subCounty: sessionData.site.subCounty,
-          parish: sessionData.site.parish,
-          sentinelSite: sessionData.site.sentinelSite,
-          healthCenter: sessionData.site.healthCenter
-        } : null
-      };
-    });
+    const formattedSessions = sessions.map(session => formatSessionResponse(session));
 
-    return reply.code(200).send({
+    reply.send({
       sessions: formattedSessions,
       total,
       limit,
@@ -222,6 +187,6 @@ export async function getSessionList(
     });
   } catch (error) {
     request.log.error(error);
-    return reply.code(500).send({ error: 'Internal Server Error' });
+    reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 

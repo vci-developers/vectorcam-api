@@ -8,7 +8,7 @@ import {
 import { Session } from '../../db/models';
 
 interface SubmitSessionRequest {
-  frontendId: number;
+  frontendId: string;
   houseNumber?: string;
   collectorTitle?: string;
   collectorName?: string;
@@ -16,9 +16,10 @@ interface SubmitSessionRequest {
   collectionMethod?: string;
   specimenCondition?: string;
   completedAt?: number;
-  submittedAt?: number;
+  createdAt?: number;
   notes?: string;
   siteId: number;
+  deviceId: number;
 }
 
 export const schema = {
@@ -26,9 +27,9 @@ export const schema = {
   description: 'Submit a new session',
   body: {
     type: 'object',
-    required: ['frontendId', 'siteId'],
+    required: ['frontendId', 'siteId', 'deviceId'],
     properties: {
-      frontendId: { type: 'number' },
+      frontendId: { type: 'string', maxLength: 64 },
       houseNumber: { type: 'string' },
       collectorTitle: { type: 'string' },
       collectorName: { type: 'string' },
@@ -36,9 +37,10 @@ export const schema = {
       collectionMethod: { type: 'string' },
       specimenCondition: { type: 'string' },
       completedAt: { type: 'number' },
-      submittedAt: { type: 'number' },
+      createdAt: { type: 'number' },
       notes: { type: 'string' },
-      siteId: { type: 'number' }
+      siteId: { type: 'number' },
+      deviceId: { type: 'number' }
     }
   },
   response: {
@@ -50,18 +52,19 @@ export const schema = {
           type: 'object',
           properties: {
             sessionId: { type: 'number' },
-            frontendId: { type: 'number' },
+            frontendId: { type: 'string' },
             houseNumber: { type: ['string', 'null'] },
             collectorTitle: { type: ['string', 'null'] },
             collectorName: { type: ['string', 'null'] },
             collectionDate: { type: ['number', 'null'] },
             collectionMethod: { type: ['string', 'null'] },
             specimenCondition: { type: ['string', 'null'] },
-            createdAt: { type: 'number' },
+            createdAt: { type: ['number', 'null'] },
             completedAt: { type: ['number', 'null'] },
-            submittedAt: { type: ['number', 'null'] },
+            submittedAt: { type: 'number' },
             notes: { type: ['string', 'null'] },
-            siteId: { type: 'number' }
+            siteId: { type: 'number' },
+            deviceId: { type: 'number' }
           }
         }
       }
@@ -101,15 +104,22 @@ export async function submitSession(
       collectionMethod,
       specimenCondition,
       completedAt,
-      submittedAt,
+      createdAt,
       notes,
-      siteId 
+      siteId,
+      deviceId
     } = request.body;
 
     // Check if site exists
     const site = await findSiteById(siteId);
     if (!site) {
       return reply.code(404).send({ error: 'Site not found' });
+    }
+
+    // Check if device exists
+    const device = await findDeviceById(deviceId);
+    if (!device) {
+      return reply.code(404).send({ error: 'Device not found' });
     }
 
     // Check if frontendId is unique if provided
@@ -132,9 +142,10 @@ export async function submitSession(
       collectionMethod,
       specimenCondition,
       completedAt: completedAt ? new Date(completedAt) : null,
-      submittedAt: submittedAt ? new Date(submittedAt) : null,
+      createdAt: createdAt ? new Date(createdAt) : null,
       notes,
       siteId,
+      deviceId,
     });
 
     reply.code(201).send({

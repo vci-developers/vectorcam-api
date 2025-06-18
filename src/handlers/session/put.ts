@@ -1,9 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSessionById, findSiteById, formatSessionResponse, handleError } from './common';
+import { findSessionById, findSiteById, findDeviceById, formatSessionResponse, handleError } from './common';
 import { Session } from '../../db/models';
 
 interface UpdateSessionRequest {
-  frontendId?: number;
+  frontendId?: string;
   houseNumber?: string;
   collectorTitle?: string;
   collectorName?: string;
@@ -11,8 +11,10 @@ interface UpdateSessionRequest {
   collectionMethod?: string;
   specimenCondition?: string;
   completedAt?: number;
+  createdAt?: number;
   notes?: string;
   siteId?: number;
+  deviceId?: number;
 }
 
 export const schema = {
@@ -27,7 +29,7 @@ export const schema = {
   body: {
     type: 'object',
     properties: {
-      frontendId: { type: 'number' },
+      frontendId: { type: 'string', maxLength: 64 },
       houseNumber: { type: 'string' },
       collectorTitle: { type: 'string' },
       collectorName: { type: 'string' },
@@ -35,8 +37,10 @@ export const schema = {
       collectionMethod: { type: 'string' },
       specimenCondition: { type: 'string' },
       completedAt: { type: 'number' },
+      createdAt: { type: 'number' },
       notes: { type: 'string' },
-      siteId: { type: 'number' }
+      siteId: { type: 'number' },
+      deviceId: { type: 'number' }
     }
   },
   response: {
@@ -48,18 +52,19 @@ export const schema = {
           type: 'object',
           properties: {
             sessionId: { type: 'number' },
-            frontendId: { type: ['number', 'null'] },
+            frontendId: { type: 'string' },
             houseNumber: { type: ['string', 'null'] },
             collectorTitle: { type: ['string', 'null'] },
             collectorName: { type: ['string', 'null'] },
             collectionDate: { type: ['number', 'null'] },
             collectionMethod: { type: ['string', 'null'] },
             specimenCondition: { type: ['string', 'null'] },
-            createdAt: { type: 'number' },
+            createdAt: { type: ['number', 'null'] },
             completedAt: { type: ['number', 'null'] },
-            submittedAt: { type: ['number', 'null'] },
+            submittedAt: { type: 'number' },
             notes: { type: ['string', 'null'] },
-            siteId: { type: 'number' }
+            siteId: { type: 'number' },
+            deviceId: { type: 'number' }
           }
         }
       }
@@ -100,8 +105,10 @@ export async function updateSession(
       collectionMethod,
       specimenCondition,
       completedAt,
+      createdAt,
       notes,
-      siteId 
+      siteId,
+      deviceId
     } = request.body;
 
     const session = await findSessionById(session_id);
@@ -114,6 +121,14 @@ export async function updateSession(
       const site = await findSiteById(siteId);
       if (!site) {
         return reply.code(404).send({ error: 'Site not found' });
+      }
+    }
+
+    // Check if device exists when updating deviceId
+    if (deviceId) {
+      const device = await findDeviceById(deviceId);
+      if (!device) {
+        return reply.code(404).send({ error: 'Device not found' });
       }
     }
 
@@ -137,8 +152,10 @@ export async function updateSession(
       collectionMethod: collectionMethod !== undefined ? collectionMethod : session.collectionMethod,
       specimenCondition: specimenCondition !== undefined ? specimenCondition : session.specimenCondition,
       completedAt: completedAt !== undefined ? new Date(completedAt) : session.completedAt,
+      createdAt: createdAt !== undefined ? new Date(createdAt) : session.createdAt,
       notes: notes !== undefined ? notes : session.notes,
       siteId: siteId || session.siteId,
+      deviceId: deviceId || session.deviceId,
     });
 
     reply.send({

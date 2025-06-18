@@ -20,18 +20,19 @@ export const schema = {
             type: 'object',
             properties: {
               sessionId: { type: 'number' },
-              frontendId: { type: 'number' },
+              frontendId: { type: 'string' },
               houseNumber: { type: ['string', 'null'] },
               collectorTitle: { type: ['string', 'null'] },
               collectorName: { type: ['string', 'null'] },
               collectionDate: { type: ['number', 'null'] },
               collectionMethod: { type: ['string', 'null'] },
               specimenCondition: { type: ['string', 'null'] },
-              createdAt: { type: 'number' },
+              createdAt: { type: ['number', 'null'] },
               completedAt: { type: ['number', 'null'] },
-              submittedAt: { type: ['number', 'null'] },
+              submittedAt: { type: 'number' },
               notes: { type: ['string', 'null'] },
-              siteId: { type: 'number' }
+              siteId: { type: 'number' },
+              deviceId: { type: 'number' }
             }
           }
         }
