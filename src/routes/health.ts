@@ -9,8 +9,7 @@ export default async function healthRoutes(
   // Simple health check endpoint
   fastify.get('/', async (request, reply) => {
     return { 
-      status: 'ok', 
-      environment: config.server.nodeEnv,
+      status: 'ok',
       timestamp: new Date().toISOString() 
     };
   });
