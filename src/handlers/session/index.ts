@@ -2,7 +2,7 @@ export { submitSession } from './post';
 export { getSessionDetails } from './get';
 export { updateSession } from './put';
 export { deleteSession } from './delete';
-export { getSessionPaginated } from './getAll';
+export { getSessionList } from './getList';
 export { getSessionsByUser } from './getByUser';
 export { getSessionsBySite } from './getBySite';
 export { getSessionSpecimens } from './getSpecimens'; 

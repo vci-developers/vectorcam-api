@@ -4,7 +4,6 @@ import {
   getSessionDetails,
   updateSession,
   deleteSession,
-  getSessionPaginated,
   getSessionsByUser,
   getSessionsBySite,
   getSessionSpecimens,
@@ -13,13 +12,14 @@ import {
   createSurvey,
   updateSurvey
 } from '../handlers/session';
+import { getSessionList } from '../handlers/session/getList';
 
 // Import schemas from handler files
 import { schema as submitSchema } from '../handlers/session/post';
 import { schema as getSchema } from '../handlers/session/get';
 import { schema as updateSchema } from '../handlers/session/put';
 import { schema as deleteSchema } from '../handlers/session/delete';
-import { schema as getAllSchema } from '../handlers/session/getAll';
+import { schema as getListSchema } from '../handlers/session/getList';
 import { schema as getByUserSchema } from '../handlers/session/getByUser';
 import { schema as getBySiteSchema } from '../handlers/session/getBySite';
 import { schema as getSpecimensSchema } from '../handlers/session/getSpecimens';
@@ -29,6 +29,11 @@ import { schema as createSurveySchema } from '../handlers/session/survey/postSur
 import { schema as updateSurveySchema } from '../handlers/session/survey/putSurvey';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
+  // Get all sessions with comprehensive filters
+  fastify.get('/', {
+    schema: getListSchema
+  }, getSessionList);
+
   // Submit a new session
   fastify.post('/', {
     schema: submitSchema
@@ -48,11 +53,6 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.delete('/:session_id', {
     schema: deleteSchema
   }, deleteSession);
-
-  // Get paginated list of sessions
-  fastify.get('/', {
-    schema: getAllSchema
-  }, getSessionPaginated);
 
   // Get sessions by user
   fastify.get('/users/:user_id', {

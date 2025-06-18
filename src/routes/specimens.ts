@@ -11,6 +11,8 @@ import {
   completeUpload,
   getUploadStatus,
 } from '../handlers/specimen';
+import { getSpecimenList } from '../handlers/specimen/getList';
+import { getUploadList } from '../handlers/specimen/upload/getList';
 import fastifyMultipart from '@fastify/multipart';
 
 // Import schemas from handler files
@@ -24,11 +26,17 @@ import { schema as initiateUploadSchema } from '../handlers/specimen/upload/init
 import { schema as appendUploadSchema } from '../handlers/specimen/upload/append'
 import { schema as completeUploadSchema } from '../handlers/specimen/upload/complete'
 import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get'
-
+import { schema as getListSchema } from '../handlers/specimen/getList'
+import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Register multipart support for file uploads
   fastify.register(fastifyMultipart);
+
+  // Get all specimens with filters
+  fastify.get('/', {
+    schema: getListSchema
+  }, getSpecimenList);
 
   // Create a new specimen
   fastify.post('/', {
@@ -44,6 +52,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.put('/:specimen_id', {
     schema: updateSchema
   }, updateSpecimen);
+
+  // Get uploads by specimen
+  fastify.get('/:specimen_id/uploads', {
+    schema: getUploadListSchema
+  }, getUploadList);
 
   // Upload specimen image
   fastify.post('/:specimen_id/images', {
