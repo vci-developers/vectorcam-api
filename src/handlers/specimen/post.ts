@@ -152,11 +152,11 @@ export async function createSpecimen(
 
     const formattedResponse = await formatSpecimenResponse(specimen);
 
-    reply.code(201).send({
+    return reply.code(201).send({
       message: 'Specimen created successfully',
       specimen: formattedResponse
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to create specimen');
+    return handleError(error, request, reply, 'Failed to create specimen');
   }
 } 

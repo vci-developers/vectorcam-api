@@ -53,7 +53,7 @@ export async function getSessionSpecimens(
       order: [['createdAt', 'DESC']],
     });
 
-    reply.send({
+    return reply.send({
       specimens: specimens.map(specimen => ({
         id: specimen.id,
         specimenId: specimen.specimenId,
@@ -65,6 +65,6 @@ export async function getSessionSpecimens(
       })),
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get session specimens');
+    return handleError(error, request, reply, 'Failed to get session specimens');
   }
 } 

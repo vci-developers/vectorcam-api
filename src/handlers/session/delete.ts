@@ -61,10 +61,10 @@ export async function deleteSession(
     // Delete the session
     await session.destroy();
 
-    reply.send({
+    return reply.send({
       message: 'Session deleted successfully',
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to delete session');
+    return handleError(error, request, reply, 'Failed to delete session');
   }
 } 

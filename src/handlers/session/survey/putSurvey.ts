@@ -102,11 +102,11 @@ export async function updateSurvey(
       numPeopleSleptUnderLlin: numPeopleSleptUnderLlin !== undefined ? numPeopleSleptUnderLlin : form.numPeopleSleptUnderLlin
     });
 
-    reply.send({
+    return reply.send({
       message: 'Surveillance form updated successfully',
       form
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to update surveillance form');
+    return handleError(error, request, reply, 'Failed to update surveillance form');
   }
 } 

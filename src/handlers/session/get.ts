@@ -98,8 +98,8 @@ export async function getSessionDetails(
       } : null
     };
 
-    reply.send(response);
+    return reply.send(response);
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get session details');
+    return handleError(error, request, reply, 'Failed to get session details');
   }
 } 

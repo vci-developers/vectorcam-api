@@ -178,7 +178,7 @@ export async function getSessionList(
     // Format response
     const formattedSessions = sessions.map(session => formatSessionResponse(session));
 
-    reply.send({
+    return reply.send({
       sessions: formattedSessions,
       total,
       limit,
@@ -188,5 +188,6 @@ export async function getSessionList(
   } catch (error) {
     request.log.error(error);
     reply.code(500).send({ error: 'Internal Server Error' });
+    return;
   }
 } 

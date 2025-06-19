@@ -59,10 +59,10 @@ export async function getSessionsByUser(
 ): Promise<void> {
   try {
     // This will be implemented when user authentication is added
-    reply.send({
+    return reply.send({
       sessions: []
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get sessions by user');
+    return handleError(error, request, reply, 'Failed to get sessions by user');
   }
 } 

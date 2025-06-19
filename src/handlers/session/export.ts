@@ -111,8 +111,8 @@ export async function exportSessionsCSV(
     reply.header('Content-Type', 'text/csv');
     reply.header('Content-Disposition', 'attachment; filename=sessions-export.csv');
     
-    reply.send(csv);
+    return reply.send(csv);
   } catch (error) {
-    handleError(error, request, reply, 'Failed to export sessions as CSV');
+    return handleError(error, request, reply, 'Failed to export sessions as CSV');
   }
 } 

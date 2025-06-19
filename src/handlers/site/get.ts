@@ -67,8 +67,8 @@ export async function getSiteDetails(
       } : null
     };
 
-    reply.send(response);
+    return reply.send(response);
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get site details');
+    return handleError(error, request, reply, 'Failed to get site details');
   }
 } 

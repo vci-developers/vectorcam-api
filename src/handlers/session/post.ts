@@ -148,11 +148,11 @@ export async function submitSession(
       deviceId,
     });
 
-    reply.code(201).send({
+    return reply.code(201).send({
       message: 'Session submitted successfully',
       session: formatSessionResponse(session),
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to submit session');
+    return handleError(error, request, reply, 'Failed to submit session');
   }
 } 

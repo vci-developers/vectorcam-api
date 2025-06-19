@@ -50,7 +50,7 @@ export async function getSessionSurvey(
       return reply.code(404).send({ error: 'Surveillance form not found for this session' });
     }
 
-    reply.send({
+    return reply.send({
       formId: surveillanceForm.id,
       sessionId: surveillanceForm.sessionId,
       numPeopleSleptInHouse: surveillanceForm.numPeopleSleptInHouse,
@@ -62,6 +62,6 @@ export async function getSessionSurvey(
       numPeopleSleptUnderLlin: surveillanceForm.numPeopleSleptUnderLlin
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get session surveillance form');
+    return handleError(error, request, reply, 'Failed to get session surveillance form');
   }
 } 

@@ -158,7 +158,7 @@ export async function updateSession(
       deviceId: deviceId || session.deviceId,
     });
 
-    reply.send({
+    return reply.send({
       message: 'Session updated successfully',
       session: formatSessionResponse(session),
     });

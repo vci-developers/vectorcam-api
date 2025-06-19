@@ -85,12 +85,12 @@ export async function uploadImage(
       await specimen.update({ thumbnailImageId: newImage.id });
     }
 
-    reply.code(201).send({
+    return reply.code(201).send({
       message: 'Image uploaded successfully',
       imageId: newImage.id,
       imageUrl: `/specimens/${specimen.specimenId}/images/${newImage.id}`
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to upload specimen image');
+    return handleError(error, request, reply, 'Failed to upload specimen image');
   }
 } 

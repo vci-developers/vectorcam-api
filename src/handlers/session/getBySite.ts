@@ -73,10 +73,10 @@ export async function getSessionsBySite(
       order: [['createdAt', 'DESC']],
     });
 
-    reply.send({
+    return reply.send({
       sessions: sessions.map(session => formatSessionResponse(session)),
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get sessions by site');
+    return handleError(error, request, reply, 'Failed to get sessions by site');
   }
 } 

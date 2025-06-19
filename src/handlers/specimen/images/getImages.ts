@@ -72,12 +72,13 @@ export async function getImages(
       }
     }
 
-    reply.code(200).send({
+    return reply.code(200).send({
       images: formattedImages,
       thumbnailUrl,
       thumbnailImageId: specimen.thumbnailImageId
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get specimen images');
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 } 

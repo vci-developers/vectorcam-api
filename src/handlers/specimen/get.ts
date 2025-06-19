@@ -167,8 +167,8 @@ export async function getSpecimenDetails(
       } : null
     };
 
-    reply.send(response);
+    return reply.send(response);
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get specimen details');
+    return handleError(error, request, reply, 'Failed to get specimen details');
   }
 } 

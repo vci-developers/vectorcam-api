@@ -97,11 +97,11 @@ export async function createSurvey(
       numPeopleSleptUnderLlin
     });
 
-    reply.code(201).send({
+    return reply.code(201).send({
       message: 'Surveillance form created successfully',
       form
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to create surveillance form');
+    return handleError(error, request, reply, 'Failed to create surveillance form');
   }
 } 

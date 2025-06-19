@@ -209,11 +209,11 @@ export async function updateSpecimen(
     }
 
     const response = await formatSpecimenResponse(updatedSpecimen);
-    reply.send({
+    return reply.send({
       message: 'Specimen updated successfully',
       specimen: response
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to update specimen');
+    return handleError(error, request, reply, 'Failed to update specimen');
   }
 } 

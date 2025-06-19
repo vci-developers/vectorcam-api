@@ -60,9 +60,9 @@ export async function getImage(
     } catch (error) {
       // If the file doesn't exist in S3, return error
       request.log.error(`Failed to get image from S3: ${image.imageKey}`, error);
-      reply.code(404).send({ error: 'Image not found in storage' });
+      return reply.code(404).send({ error: 'Image not found in storage' });
     }
   } catch (error) {
-    handleError(error, request, reply, 'Failed to get specimen image');
+    return handleError(error, request, reply, 'Failed to get specimen image');
   }
 } 

@@ -56,10 +56,10 @@ export async function deleteSite(
     // Delete the site
     await site.destroy();
 
-    reply.send({
+    return reply.send({
       message: 'Site deleted successfully',
     });
   } catch (error) {
-    handleError(error, request, reply, 'Failed to delete site');
+    return handleError(error, request, reply, 'Failed to delete site');
   }
 } 
