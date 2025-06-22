@@ -30,7 +30,9 @@
     "fastify": "^5.3.2",
     "mysql2": "^3.6.5",
     "pino": "^8.16.2",
-    "sequelize": "^6.35.1"
+    "sequelize": "^6.35.1",
+    "@tus/server": "^2.2.0",
+    "@tus/s3-store": "^2.0.0"
   },
   "devDependencies": {
     "@types/mysql": "^2.15.24",

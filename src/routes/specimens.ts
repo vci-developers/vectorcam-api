@@ -13,6 +13,7 @@ import {
 } from '../handlers/specimen';
 import { getSpecimenList } from '../handlers/specimen/getList';
 import { getUploadList } from '../handlers/specimen/upload/getList';
+import { tusHandler } from '../handlers/specimen/images/tusServer';
 import fastifyMultipart from '@fastify/multipart';
 
 // Import schemas from handler files
@@ -92,6 +93,10 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.get('/:specimen_id/images/uploads/:upload_id', {
     schema: getUploadStatusSchema
   }, getUploadStatus);
+
+  // TUS endpoints for specimen images
+  fastify.all('/:specimen_id/images/tus', tusHandler);
+  fastify.all('/:specimen_id/images/tus/*', tusHandler);
 
   done();
 } 
