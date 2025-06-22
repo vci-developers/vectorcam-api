@@ -11,6 +11,11 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.test.ts"]
+  "include": [
+    "src/**/*",
+    "deno-shim.d.ts",
+    "bun.d.ts"
+  ],
+  "exclude": ["node_modules", "**/*.test.ts"],
+  "types": ["node"]
 } 
