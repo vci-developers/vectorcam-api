@@ -37,6 +37,7 @@ export const schema = {
               id: { type: 'number' },
               specimenId: { type: 'string' },
               sessionId: { type: 'number' },
+              submittedAt: { type: 'number' },
               species: { type: 'string', nullable: true },
               sex: { type: 'string', nullable: true },
               abdomenStatus: { type: 'string', nullable: true },

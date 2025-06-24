@@ -17,6 +17,7 @@ export const schema = {
       properties: {
         formId: { type: 'number' },
         sessionId: { type: 'number' },
+        submittedAt: { type: 'number' },
         numPeopleSleptInHouse: { type: ['number', 'null'] },
         wasIrsConducted: { type: ['boolean', 'null'] },
         monthsSinceIrs: { type: ['number', 'null'] },
@@ -53,6 +54,7 @@ export async function getSessionSurvey(
     return reply.send({
       formId: surveillanceForm.id,
       sessionId: surveillanceForm.sessionId,
+      submittedAt: surveillanceForm.createdAt.getTime(),
       numPeopleSleptInHouse: surveillanceForm.numPeopleSleptInHouse,
       wasIrsConducted: surveillanceForm.wasIrsConducted,
       monthsSinceIrs: surveillanceForm.monthsSinceIrs,

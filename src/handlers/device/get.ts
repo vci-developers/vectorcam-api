@@ -19,6 +19,7 @@ export const schema = {
         model: { type: 'string' },
         registeredAt: { type: 'number' },
         programId: { type: 'number' },
+        submittedAt: { type: 'number' },
         program: {
           type: 'object',
           properties: {

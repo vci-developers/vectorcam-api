@@ -7,6 +7,7 @@ export interface DeviceResponse {
   model: string;
   registeredAt: number; // Unix timestamp in milliseconds
   programId: number;
+  submittedAt: number; // Unix timestamp in milliseconds
 }
 
 // Helper to format device data consistently across endpoints
@@ -16,6 +17,7 @@ export function formatDeviceResponse(device: Device): DeviceResponse {
     model: device.model,
     registeredAt: device.registeredAt.getTime(), // Convert Date to Unix timestamp in milliseconds
     programId: device.programId,
+    submittedAt: device.createdAt.getTime(),
   };
 }
 

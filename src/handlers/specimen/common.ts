@@ -26,6 +26,7 @@ export interface SpecimenResponse {
     sexProbabilities: number[];
     abdomenStatusProbabilities: number[];
   } | null;
+  submittedAt: number;
 }
 
 // Helper function to parse probability string to array
@@ -76,7 +77,8 @@ export async function formatSpecimenResponse(specimen: Specimen): Promise<Specim
       speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
       sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
       abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
-    } : null
+    } : null,
+    submittedAt: specimen.createdAt.getTime(),
   };
 }
 

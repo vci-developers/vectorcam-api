@@ -28,7 +28,8 @@ export const schema = {
               deviceId: { type: 'number' },
               model: { type: 'string' },
               registeredAt: { type: 'number' },
-              programId: { type: 'number' }
+              programId: { type: 'number' },
+              submittedAt: { type: 'number' }
             }
           }
         },
