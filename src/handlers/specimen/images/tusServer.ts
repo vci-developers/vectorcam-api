@@ -21,9 +21,17 @@ async function getTusServer(): Promise<any> {
       },
     });
     tusServer = new TusServer({
-      path: '/tus',
+      path: '/specimens/:specimen_id/images/tus',
       datastore: s3Store,
-      onUploadFinish: (async function(req: any, upload: any) {
+      generateUrl: (req, upload) => {
+        return `${req.url}/${upload.id}`;
+      },
+      onUploadCreate: (async (_, upload) => {
+        const contentType = upload.metadata?.contentType || upload.metadata?.fileType || "";
+        console.log('contentType', contentType)
+        return { metadata: { ...upload.metadata, contentType } }
+      }),
+      onUploadFinish: (async function(req, upload) {
         try {
           const match = req.url.match(/\/specimens\/(.+?)\/images\/tus/);
           const specimen_id = match ? match[1] : null;
@@ -31,7 +39,7 @@ async function getTusServer(): Promise<any> {
           const specimen: Specimen | null = await findSpecimen(specimen_id);
           if (!specimen) return {};
           // S3 key is in upload.storage.key
-          const imageKey: string | undefined = upload.storage && upload.storage.key;
+          const imageKey: string | undefined = upload.storage?.path;
           if (!imageKey) return {};
           // Create SpecimenImage record
           const newImage = await SpecimenImage.create({
@@ -42,11 +50,21 @@ async function getTusServer(): Promise<any> {
           if (!specimen.thumbnailImageId) {
             await specimen.update({ thumbnailImageId: newImage.id });
           }
+          return {
+            status_code: 204,
+            body: JSON.stringify({
+              imageId: newImage.id,
+              imageUrl: `/specimens/${specimen.specimenId}/images/${newImage.id}`
+            })
+          };
         } catch (err) {
           // Log but do not throw, to avoid breaking tus response
           console.error('Error in tus onUploadFinish:', err);
+          return {
+            status_code: 500,
+            body: JSON.stringify({ message: `Error in tus onUploadFinish: ${err}` })
+          };
         }
-        return {};
       })
     });
   }
@@ -58,14 +76,6 @@ export async function tusHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
-  // Set CORS headers for tus protocol
-  reply.header('Access-Control-Allow-Origin', '*');
-  reply.header('Access-Control-Allow-Methods', 'POST, GET, HEAD, PATCH, DELETE, OPTIONS');
-  reply.header('Access-Control-Allow-Headers', 'Tus-Resumable, Upload-Length, Upload-Metadata, Upload-Defer-Length, Upload-Concat, Upload-Offset, Content-Type, Authorization, Origin, X-Requested-With, Accept');
   const server = await getTusServer();
-  // Pass the raw Node.js req/res to tus server
-  // Note: tusServer.handle expects Node.js req/res, not Fastify's
-  await server.handle(request.raw, reply.raw);
-  // Fastify expects us to return, but tusServer will end the response
-  reply.sent = true;
+  return server.handle(request.raw, reply.raw);
 } 

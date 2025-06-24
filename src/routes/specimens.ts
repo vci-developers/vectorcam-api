@@ -95,6 +95,7 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   }, getUploadStatus);
 
   // TUS endpoints for specimen images
+  fastify.addContentTypeParser('application/offset+octet-stream', (request, payload, done) => done(null));
   fastify.all('/:specimen_id/images/tus', tusHandler);
   fastify.all('/:specimen_id/images/tus/*', tusHandler);
 
