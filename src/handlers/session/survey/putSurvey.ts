@@ -49,7 +49,8 @@ export const schema = {
             numLlinsAvailable: { type: ['number', 'null'] },
             llinType: { type: ['string', 'null'] },
             llinBrand: { type: ['string', 'null'] },
-            numPeopleSleptUnderLlin: { type: ['number', 'null'] }
+            numPeopleSleptUnderLlin: { type: ['number', 'null'] },
+            submittedAt: { type: 'number' },
           }
         }
       }
@@ -104,7 +105,18 @@ export async function updateSurvey(
 
     return reply.send({
       message: 'Surveillance form updated successfully',
-      form
+      form: {
+        formId: form.id,
+        sessionId: form.sessionId,
+        submittedAt: form.createdAt.getTime(),
+        numPeopleSleptInHouse: form.numPeopleSleptInHouse,
+        wasIrsConducted: form.wasIrsConducted,
+        monthsSinceIrs: form.monthsSinceIrs,
+        numLlinsAvailable: form.numLlinsAvailable,
+        llinType: form.llinType,
+        llinBrand: form.llinBrand,
+        numPeopleSleptUnderLlin: form.numPeopleSleptUnderLlin
+      }
     });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to update surveillance form');

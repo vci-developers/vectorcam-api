@@ -76,6 +76,7 @@ export const schema = {
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
             capturedAt: { type: ['number', 'null'] },
+            submittedAt: { type: 'number' },
             inferenceResult: {
               type: ['object', 'null'],
               properties: {

@@ -36,6 +36,7 @@ export const schema = {
             model: { type: 'string' },
             registeredAt: { type: 'number' }, // Unix timestamp in milliseconds
             programId: { type: 'number' },
+            submittedAt: { type: 'number' },
           },
         },
       },

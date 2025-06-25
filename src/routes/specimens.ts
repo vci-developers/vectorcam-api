@@ -10,6 +10,7 @@ import {
   appendUpload,
   completeUpload,
   getUploadStatus,
+  deleteSpecimen,
 } from '../handlers/specimen';
 import { getSpecimenList } from '../handlers/specimen/getList';
 import { getUploadList } from '../handlers/specimen/upload/getList';
@@ -29,6 +30,7 @@ import { schema as completeUploadSchema } from '../handlers/specimen/upload/comp
 import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get'
 import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
+import { schema as deleteSchema } from '../handlers/specimen/delete';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Register multipart support for file uploads
@@ -53,6 +55,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.put('/:specimen_id', {
     schema: updateSchema
   }, updateSpecimen);
+
+  // Delete specimen
+  fastify.delete('/:specimen_id', {
+    schema: deleteSchema
+  }, deleteSpecimen);
 
   // Get uploads by specimen
   fastify.get('/:specimen_id/uploads', {

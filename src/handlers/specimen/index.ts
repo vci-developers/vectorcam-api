@@ -14,6 +14,7 @@ import {
   getImages,
   getImage
 } from './images';
+import { deleteSpecimen } from './delete';
 
 export {
   createSpecimen,
@@ -28,4 +29,5 @@ export {
   appendUpload,
   completeUpload,
   getUploadStatus,
+  deleteSpecimen,
 };

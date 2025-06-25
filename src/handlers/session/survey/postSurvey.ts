@@ -46,7 +46,8 @@ export const schema = {
             numLlinsAvailable: { type: ['number', 'null'] },
             llinType: { type: ['string', 'null'] },
             llinBrand: { type: ['string', 'null'] },
-            numPeopleSleptUnderLlin: { type: ['number', 'null'] }
+            numPeopleSleptUnderLlin: { type: ['number', 'null'] },
+            submittedAt: { type: 'number' },
           }
         }
       }
@@ -99,7 +100,18 @@ export async function createSurvey(
 
     return reply.code(201).send({
       message: 'Surveillance form created successfully',
-      form
+      form: {
+        formId: form.id,
+        sessionId: form.sessionId,
+        submittedAt: form.createdAt.getTime(),
+        numPeopleSleptInHouse: form.numPeopleSleptInHouse,
+        wasIrsConducted: form.wasIrsConducted,
+        monthsSinceIrs: form.monthsSinceIrs,
+        numLlinsAvailable: form.numLlinsAvailable,
+        llinType: form.llinType,
+        llinBrand: form.llinBrand,
+        numPeopleSleptUnderLlin: form.numPeopleSleptUnderLlin
+      }
     });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to create surveillance form');

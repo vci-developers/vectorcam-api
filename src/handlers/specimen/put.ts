@@ -94,6 +94,7 @@ export const schema = {
                 }
               }
             },
+            submittedAt: { type: 'number' },
             inferenceResult: {
               type: ['object', 'null'],
               properties: {
