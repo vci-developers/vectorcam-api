@@ -1,9 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSessionById, handleError } from '../common';
+import { findSession, handleError } from '../common';
 import { SurveillanceForm } from '../../../db/models';
 
 interface CreateSurveyRequest {
-  sessionId: number;
   numPeopleSleptInHouse?: number;
   wasIrsConducted?: boolean;
   monthsSinceIrs?: number;
@@ -18,9 +17,7 @@ export const schema = {
   description: 'Create a new surveillance form',
   body: {
     type: 'object',
-    required: ['sessionId'],
     properties: {
-      sessionId: { type: 'number' },
       numPeopleSleptInHouse: { type: 'number' },
       wasIrsConducted: { type: 'boolean' },
       monthsSinceIrs: { type: 'number' },
@@ -56,12 +53,11 @@ export const schema = {
 };
 
 export async function createSurvey(
-  request: FastifyRequest<{ Body: CreateSurveyRequest }>,
+  request: FastifyRequest<{ Params: { session_id: string }, Body: CreateSurveyRequest }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
     const {
-      sessionId,
       numPeopleSleptInHouse,
       wasIrsConducted,
       monthsSinceIrs,
@@ -71,15 +67,16 @@ export async function createSurvey(
       numPeopleSleptUnderLlin
     } = request.body;
 
+    const { session_id } = request.params;
     // Check if session exists
-    const session = await findSessionById(sessionId);
+    const session = await findSession(session_id);
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });
     }
 
     // Check if a survey already exists for this session
     const existingSurvey = await SurveillanceForm.findOne({
-      where: { sessionId }
+      where: { sessionId: session.id }
     });
 
     if (existingSurvey) {
@@ -88,7 +85,7 @@ export async function createSurvey(
 
     // Create the surveillance form
     const form = await SurveillanceForm.create({
-      sessionId,
+      sessionId: session.id,
       numPeopleSleptInHouse,
       wasIrsConducted,
       monthsSinceIrs,

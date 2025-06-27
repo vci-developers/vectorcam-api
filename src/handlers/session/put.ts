@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSessionById, findSiteById, findDeviceById, formatSessionResponse, handleError } from './common';
+import { findSessionById, findSiteById, findDeviceById, formatSessionResponse, handleError, findSession } from './common';
 import { Session } from '../../db/models';
 
 interface UpdateSessionRequest {
@@ -23,7 +23,7 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      session_id: { type: 'number' }
+      session_id: { type: 'string' }
     }
   },
   body: {
@@ -91,7 +91,7 @@ export const schema = {
 };
 
 export async function updateSession(
-  request: FastifyRequest<{ Params: { session_id: number }; Body: UpdateSessionRequest }>,
+  request: FastifyRequest<{ Params: { session_id: string }; Body: UpdateSessionRequest }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
@@ -111,7 +111,7 @@ export async function updateSession(
       deviceId
     } = request.body;
 
-    const session = await findSessionById(session_id);
+    const session = await findSession(session_id);
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });
     }

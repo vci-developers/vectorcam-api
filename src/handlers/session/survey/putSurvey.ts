@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSessionById, handleError } from '../common';
+import { findSession, findSessionById, handleError } from '../common';
 import { SurveillanceForm } from '../../../db/models';
 
 interface UpdateSurveyRequest {
@@ -18,7 +18,7 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      session_id: { type: 'number' }
+      session_id: { type: 'string' }
     }
   },
   body: {
@@ -60,7 +60,7 @@ export const schema = {
 
 export async function updateSurvey(
   request: FastifyRequest<{ 
-    Params: { session_id: number };
+    Params: { session_id: string };
     Body: UpdateSurveyRequest;
   }>,
   reply: FastifyReply
@@ -78,14 +78,14 @@ export async function updateSurvey(
     } = request.body;
 
     // Check if session exists
-    const session = await findSessionById(session_id);
+    const session = await findSession(session_id);
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });
     }
 
     // Find the surveillance form
     const form = await SurveillanceForm.findOne({
-      where: { sessionId: session_id }
+      where: { sessionId: session.id }
     });
 
     if (!form) {

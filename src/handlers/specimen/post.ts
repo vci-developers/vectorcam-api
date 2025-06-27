@@ -127,6 +127,12 @@ export async function createSpecimen(
       return reply.code(404).send({ error: 'Session not found' });
     }
 
+    // Check if specimenId is unique
+    const existingSpecimen = await Specimen.findOne({ where: { specimenId } });
+    if (existingSpecimen) {
+      return reply.code(409).send({ error: 'A specimen with this id already exists' });
+    }
+
     // Create the specimen first
     const specimen = await Specimen.create({
       specimenId,
@@ -157,7 +163,11 @@ export async function createSpecimen(
       message: 'Specimen created successfully',
       specimen: formattedResponse
     });
-  } catch (error) {
+  } catch (error: any) {
+    // Handle unique constraint error from DB
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return reply.code(409).send({ error: 'A specimen with this id already exists' });
+    }
     return handleError(error, request, reply, 'Failed to create specimen');
   }
 } 

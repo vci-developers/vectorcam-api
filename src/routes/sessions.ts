@@ -39,7 +39,7 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: submitSchema
   }, submitSession);
 
-  // Get session details by ID
+  // Get session details by ID or frontendId (as string)
   fastify.get('/:session_id', {
     schema: getSchema
   }, getSessionDetails);

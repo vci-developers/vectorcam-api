@@ -1,15 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { formatSessionResponse, handleError } from './common';
-import { Session, Site, Device, Program } from '../../db/models';
+import { formatSessionResponse, handleError, findSession } from './common';
+import { Session, Site, Device } from '../../db/models';
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Get session details',
+  description: 'Get session details by session_id (string: can be numeric or frontendId)',
   params: {
     type: 'object',
     properties: {
-      session_id: { type: 'number' }
-    }
+      session_id: { type: 'string' }
+    },
+    required: ['session_id']
   },
   response: {
     200: {
@@ -54,26 +55,26 @@ export const schema = {
 };
 
 export async function getSessionDetails(
-  request: FastifyRequest<{ Params: { session_id: number } }>,
+  request: FastifyRequest<{ Params: { session_id: string } }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
     const { session_id } = request.params;
 
-    const session = await Session.findByPk(session_id, {
-      include: [
-        {
-          model: Site,
-          as: 'site',
-          attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
-        },
-        {
-          model: Device,
-          as: 'device',
-          attributes: ['id', 'model', 'registeredAt']
-        }
-      ]
-    });
+    const include = [
+      {
+        model: Site,
+        as: 'site',
+        attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
+      },
+      {
+        model: Device,
+        as: 'device',
+        attributes: ['id', 'model', 'registeredAt']
+      }
+    ];
+
+    const session = await findSession(session_id, include);
 
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });

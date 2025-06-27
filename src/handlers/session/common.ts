@@ -74,4 +74,25 @@ export function getPaginationParams(query: { page?: string; size?: string }): { 
   const size = parseInt(query.size || '10', 10);
   const offset = (page - 1) * size;
   return { page, size, offset };
+}
+
+export function isValidId(id: string): boolean {
+  return !isNaN(Number(id)) && Number(id) > 0;
+}
+
+export async function findSession(
+  id: string,
+  include?: any
+): Promise<Session | null> {
+  // If the id is a valid number, try to find by numeric id first
+  if (isValidId(id)) {
+    const session = await Session.findByPk(Number(id), { include });
+    if (session) return session;
+  }
+  
+  // If not found by numeric id or id is not a number, try to find by frontendId
+  return Session.findOne({
+    where: { frontendId: id },
+    include
+  });
 } 

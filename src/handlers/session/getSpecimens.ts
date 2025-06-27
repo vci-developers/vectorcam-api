@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSessionById, handleError } from './common';
+import { findSession, findSessionById, handleError } from './common';
 import { Specimen } from '../../db/models';
 
 export const schema = {
@@ -8,7 +8,7 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      session_id: { type: 'number' }
+      session_id: { type: 'string' }
     }
   },
   response: {
@@ -36,13 +36,13 @@ export const schema = {
 };
 
 export async function getSessionSpecimens(
-  request: FastifyRequest<{ Params: { session_id: number } }>,
+  request: FastifyRequest<{ Params: { session_id: string } }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
     const { session_id } = request.params;
 
-    const session = await findSessionById(session_id);
+    const session = await findSession(session_id);
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });
     }
