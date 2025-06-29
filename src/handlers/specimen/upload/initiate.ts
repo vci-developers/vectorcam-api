@@ -66,6 +66,17 @@ export default async function initiateUpload(
       return reply.code(404).send({ error: 'Specimen not found' });
     }
 
+    // Check for existing upload with same specimenId and filemd5
+    const existingUpload = await MultipartUpload.findOne({
+      where: {
+        specimenId: specimen.id,
+        filemd5
+      }
+    });
+    if (existingUpload) {
+      return reply.code(409).send({ error: 'A multipart upload for this file already exists for this specimen.' });
+    }
+
     // Get file extension from content type
     const extension = contentType.split('/')[1];
 
@@ -95,6 +106,7 @@ export default async function initiateUpload(
 
     return reply.code(200).send({
       uploadId: upload.id,
+      currentPart: upload.currentPart
     });
   } catch (error) {
     request.log.error(error);

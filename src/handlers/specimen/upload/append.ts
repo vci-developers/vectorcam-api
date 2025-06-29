@@ -5,7 +5,6 @@ import { Readable } from 'stream';
 import { findSpecimen } from '../common';
 import { MultipartFile } from '@fastify/multipart';
 
-const CHUNK_SIZE = 20 * 1024 * 1024; // 20MB
 const FLUSH_THRESHOLD = 5 * 1024 * 1024; // 5MB
 
 export const schema = {
@@ -69,23 +68,24 @@ export default async function appendUpload(
       return reply.code(400).send({ error: 'Upload is not in a valid state for appending' });
     }
 
-    const parts = request.parts({ limits: { fileSize: CHUNK_SIZE, fields: 1 } })
+    const parts = request.parts({ limits: { fields: 1 } })
 
-    let file: MultipartFile | null = null;
+    let fileBuffer: Buffer | null = null;
     let partIndex = 0;
 
     for await (const part of parts) {
       if (part.type === 'file') {
-        if (file) {
+        if (fileBuffer) {
+          part.file.resume();
           return reply.code(400).send({ error: 'Only one file is allowed' });
         }
-        file = part;
+        fileBuffer = await part.toBuffer()
       } else if (part.fieldname === "partIndex") {
         partIndex = parseInt(part.value as string)
       }
     }
 
-    if (!file) {
+    if (!fileBuffer) {
       return reply.code(400).send({ error: 'No file uploaded' });
     }
 
@@ -102,54 +102,55 @@ export default async function appendUpload(
       });
     }
 
-
-    // Read the chunk data into a buffer
-    const newBufferData = await file.toBuffer();
-
     // Combine with existing buffer data if any
     const existingBufferData = upload.bufferData || Buffer.alloc(0);
-    const combinedBufferData = Buffer.concat([existingBufferData, newBufferData]);
+    const combinedBufferData = Buffer.concat([existingBufferData, fileBuffer]);
 
     // Update buffer size and data
     const newBufferSize = combinedBufferData.length;
-    await upload.update({ 
-      bufferSize: newBufferSize,
-      bufferData: combinedBufferData,
-      status: 'in_progress'
-    });
 
     // If buffer size exceeds threshold, flush to S3
     if (newBufferSize >= FLUSH_THRESHOLD) {
       // Create a readable stream from the buffer
       const readStream = Readable.from(combinedBufferData);
-      
-      // Upload part to S3 with content length
-      await uploadPart(
+      // Upload part to S3 with content length using s3PartNumber
+      const etag = await uploadPart(
         upload.s3Key,
         upload.s3UploadId,
-        upload.currentPart,
+        upload.s3PartNumber,
         readStream,
         newBufferSize
       );
 
-      // Update upload record
+      // Get existing ETags and add the new one
+      const existingEtags = upload.s3PartEtags || [];
+      const updatedEtags = [...existingEtags, etag];
+
+      // Update upload record - increment s3PartNumber (for S3), update ETags, reset buffer
       await upload.update({
         currentPart: upload.currentPart + 1,
+        s3PartNumber: upload.s3PartNumber + 1,
+        s3PartEtags: updatedEtags,
         bufferSize: 0,
-        bufferData: null
+        bufferData: null,
+        status: 'in_progress'
       });
-
-      return reply.code(200).send({
-        message: 'Chunk uploaded successfully',
-        currentPart: upload.currentPart,
-        bufferSize: 0
+    } else {
+      // If not flushing, just update buffer size and data
+      await upload.update({
+        currentPart: upload.currentPart + 1,
+        bufferSize: newBufferSize,
+        bufferData: combinedBufferData,
+        status: 'in_progress'
       });
     }
 
+    await upload.reload();
+
     return reply.code(200).send({
-      message: 'Chunk buffered successfully',
+      message: 'Chunk processed successfully',
       currentPart: upload.currentPart,
-      bufferSize: newBufferSize
+      bufferSize: upload.bufferSize
     });
   } catch (error) {
     request.log.error(error);

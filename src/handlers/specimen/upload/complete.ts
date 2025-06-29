@@ -63,22 +63,31 @@ export default async function completeUpload(
 
     const parts: { PartNumber: number; ETag: string }[] = [];
 
+    // Add all previously uploaded parts
+    const existingEtags = upload.s3PartEtags || [];
+    existingEtags.forEach((etag, index) => {
+      parts.push({
+        PartNumber: index + 1, // S3 part numbers start at 1
+        ETag: etag
+      });
+    });
+
     // If there's any remaining buffer, upload it as the final part
     if (upload.bufferSize > 0 && upload.bufferData) {
       // Create a readable stream from the buffer
       const readStream = Readable.from(upload.bufferData);
 
-      // Upload final part to S3
+      // Upload final part to S3 using s3PartNumber
       const etag = await uploadPart(
         upload.s3Key,
         upload.s3UploadId,
-        upload.currentPart,
+        upload.s3PartNumber,
         readStream,
         upload.bufferSize
       );
 
       parts.push({
-        PartNumber: upload.currentPart,
+        PartNumber: upload.s3PartNumber,
         ETag: etag
       });
     }
@@ -126,7 +135,9 @@ export default async function completeUpload(
     await upload.update({
       status: 'completed',
       totalParts: upload.currentPart,
-      bufferData: null
+      bufferData: null,
+      bufferSize: 0,
+      s3PartEtags: []
     });
 
     return reply.code(200).send({

@@ -32,9 +32,11 @@ import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
 
+const CHUNK_SIZE = 20 * 1024 * 1024; // 20MB
+
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Register multipart support for file uploads
-  fastify.register(fastifyMultipart);
+  fastify.register(fastifyMultipart, { limits: { fileSize: CHUNK_SIZE } });
 
   // Get all specimens with filters
   fastify.get('/', {
