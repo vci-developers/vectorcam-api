@@ -13,6 +13,8 @@ class InferenceResult extends Model {
   declare speciesProbabilities: string;
   declare sexProbabilities: string;
   declare abdomenStatusProbabilities: string;
+  declare bboxConfidence: number;
+  declare bboxClassId: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -67,6 +69,16 @@ InferenceResult.init(
       type: DataTypes.TEXT,
       allowNull: false,
       field: 'abdomen_status_probabilities',
+    },
+    bboxConfidence: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+      field: 'bbox_confidence',
+    },
+    bboxClassId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'bbox_class_id',
     },
     createdAt: {
       type: DataTypes.DATE,

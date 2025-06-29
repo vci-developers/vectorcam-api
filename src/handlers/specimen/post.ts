@@ -18,6 +18,8 @@ interface CreateSpecimenRequest {
     bboxTopLeftY: number;
     bboxWidth: number;
     bboxHeight: number;
+    bboxConfidence?: number;
+    bboxClassId?: number;
     speciesProbabilities: number[];
     sexProbabilities: number[];
     abdomenStatusProbabilities: number[];
@@ -44,6 +46,8 @@ export const schema = {
           bboxTopLeftY: { type: 'number' },
           bboxWidth: { type: 'number' },
           bboxHeight: { type: 'number' },
+          bboxConfidence: { type: 'number' },
+          bboxClassId: { type: 'number' },
           speciesProbabilities: { 
             type: 'array',
             items: { type: 'number' }
@@ -85,6 +89,8 @@ export const schema = {
                 bboxTopLeftY: { type: 'number' },
                 bboxWidth: { type: 'number' },
                 bboxHeight: { type: 'number' },
+                bboxConfidence: { type: 'number' },
+                bboxClassId: { type: 'number' },
                 speciesProbabilities: { 
                   type: 'array',
                   items: { type: 'number' }
@@ -151,6 +157,8 @@ export async function createSpecimen(
         bboxTopLeftY: inferenceResult.bboxTopLeftY,
         bboxWidth: inferenceResult.bboxWidth,
         bboxHeight: inferenceResult.bboxHeight,
+        bboxConfidence: inferenceResult.bboxConfidence,
+        bboxClassId: inferenceResult.bboxClassId,
         speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
         sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
         abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)

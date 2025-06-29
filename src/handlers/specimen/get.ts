@@ -43,6 +43,8 @@ export const schema = {
             bboxTopLeftY: { type: 'number' },
             bboxWidth: { type: 'number' },
             bboxHeight: { type: 'number' },
+            bboxConfidence: { type: 'number' },
+            bboxClassId: { type: 'number' },
             speciesProbabilities: { 
               type: 'array',
               items: { type: 'number' }

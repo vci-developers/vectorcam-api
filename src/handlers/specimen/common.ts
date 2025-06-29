@@ -22,6 +22,8 @@ export interface SpecimenResponse {
     bboxTopLeftY: number;
     bboxWidth: number;
     bboxHeight: number;
+    bboxConfidence?: number;
+    bboxClassId?: number;
     speciesProbabilities: number[];
     sexProbabilities: number[];
     abdomenStatusProbabilities: number[];
@@ -74,6 +76,8 @@ export async function formatSpecimenResponse(specimen: Specimen): Promise<Specim
       bboxTopLeftY: inferenceResult.bboxTopLeftY,
       bboxWidth: inferenceResult.bboxWidth,
       bboxHeight: inferenceResult.bboxHeight,
+      bboxConfidence: inferenceResult.bboxConfidence,
+      bboxClassId: inferenceResult.bboxClassId,
       speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
       sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
       abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
