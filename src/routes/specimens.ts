@@ -32,7 +32,7 @@ import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
 
-const CHUNK_SIZE = 20 * 1024 * 1024; // 20MB
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Register multipart support for file uploads
@@ -63,11 +63,6 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: deleteSchema
   }, deleteSpecimen);
 
-  // Get uploads by specimen
-  fastify.get('/:specimen_id/uploads', {
-    schema: getUploadListSchema
-  }, getUploadList);
-
   // Upload specimen image
   fastify.post('/:specimen_id/images', {
     schema: uploadImageSchema
@@ -97,6 +92,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.post('/:specimen_id/images/uploads/:upload_id/complete', {
     schema: completeUploadSchema
   }, completeUpload);
+
+  // Get uploads by specimen
+  fastify.get('/:specimen_id/images/uploads', {
+    schema: getUploadListSchema
+  }, getUploadList);
 
   // Get upload status
   fastify.get('/:specimen_id/images/uploads/:upload_id', {

@@ -109,8 +109,8 @@ export default async function completeUpload(
     const calculatedMd5 = createHash('md5').update(fileBuffer).digest('hex');
 
     if (calculatedMd5 !== upload.filemd5) {
-      // Delete the upload record
-      await upload.destroy();
+      // Set the upload status to failed instead of deleting the record
+      await upload.update({ status: 'failed' });
 
       return reply.code(400).send({ 
         error: 'File integrity check failed',

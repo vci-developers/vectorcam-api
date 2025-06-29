@@ -60,7 +60,7 @@ MultipartUpload.init(
       defaultValue: 0,
     },
     bufferData: {
-      type: DataTypes.BLOB,
+      type: DataTypes.BLOB('medium'),
       allowNull: true,
       field: 'buffer_data',
     },

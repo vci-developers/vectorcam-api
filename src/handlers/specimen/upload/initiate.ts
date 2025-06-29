@@ -35,7 +35,7 @@ export const schema = {
       type: 'object',
       properties: {
         uploadId: { type: 'number' },
-        s3UploadId: { type: 'string' }
+        currentPart: { type: 'number' }
       }
     }
   }

@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { MultipartUpload, Specimen } from '../../../db/models';
 import { Op, Order } from 'sequelize';
+import { findSpecimen } from '../common';
 
 export const schema = {
   tags: ['Specimens'],
@@ -85,16 +86,7 @@ export async function getUploadList(
     } = request.query;
 
     // First, find the specimen to get its ID
-    let specimen: Specimen | null;
-    
-    // Check if specimen_id is a valid number
-    if (!isNaN(Number(specimen_id))) {
-      specimen = await Specimen.findByPk(Number(specimen_id));
-    } else {
-      specimen = await Specimen.findOne({
-        where: { specimenId: specimen_id }
-      });
-    }
+    const specimen = await findSpecimen(specimen_id);
 
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
