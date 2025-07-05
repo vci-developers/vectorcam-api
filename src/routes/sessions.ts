@@ -9,6 +9,7 @@ import {
   getSessionSpecimens,
   getSessionSurvey,
   exportSessionsCSV,
+  exportSurveillanceFormsCSV,
   createSurvey,
   updateSurvey
 } from '../handlers/session';
@@ -24,6 +25,7 @@ import { schema as getByUserSchema } from '../handlers/session/getByUser';
 import { schema as getBySiteSchema } from '../handlers/session/getBySite';
 import { schema as getSpecimensSchema } from '../handlers/session/getSpecimens';
 import { schema as exportSessionsCSVSchema } from '../handlers/session/export';
+import { schema as exportSurveillanceFormsCSVSchema } from '../handlers/session/survey/exportSurvey';
 import { schema as getSurveySchema } from '../handlers/session/survey/getSurvey';
 import { schema as createSurveySchema } from '../handlers/session/survey/postSurvey';
 import { schema as updateSurveySchema } from '../handlers/session/survey/putSurvey';
@@ -88,6 +90,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.get('/export/csv', {
     schema: exportSessionsCSVSchema
   }, exportSessionsCSV);
+
+  // Export surveillance forms as CSV
+  fastify.get('/export/surveillance-forms/csv', {
+    schema: exportSurveillanceFormsCSVSchema
+  }, exportSurveillanceFormsCSV);
 
   done();
 } 

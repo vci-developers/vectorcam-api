@@ -20,6 +20,7 @@ const developmentConfig = {
     port: parseInt(process.env.PORT || '8080', 10),
     nodeEnv: 'development',
     logLevel: 'debug',
+    domain: process.env.DOMAIN || 'http://localhost:8080',
   },
   db: {
     host: process.env.DB_HOST || 'localhost',
@@ -43,6 +44,7 @@ const testConfig = {
     port: parseInt(process.env.PORT || '8080', 10),
     nodeEnv: 'test',
     logLevel: 'error',
+    domain: process.env.DOMAIN || 'https://api.vectorcam.com',
   },
   db: {
     host: process.env.DB_HOST || 'localhost',
@@ -66,6 +68,7 @@ const productionConfig = {
     port: parseInt(process.env.PORT || '8080', 10),
     nodeEnv: 'production',
     logLevel: 'info',
+    domain: process.env.DOMAIN || 'https://api.vectorcam.com',
   },
   db: {
     host: process.env.DB_HOST,

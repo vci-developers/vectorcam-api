@@ -10,5 +10,6 @@ export { exportSessionsCSV } from './export';
 export { 
   getSessionSurvey,
   createSurvey,
-  updateSurvey
+  updateSurvey,
+  exportSurveillanceFormsCSV
 } from './survey';

@@ -11,6 +11,7 @@ import {
   completeUpload,
   getUploadStatus,
   deleteSpecimen,
+  exportSpecimensCSV,
 } from '../handlers/specimen';
 import { getSpecimenList } from '../handlers/specimen/getList';
 import { getUploadList } from '../handlers/specimen/upload/getList';
@@ -31,6 +32,7 @@ import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get
 import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
+import { schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -62,6 +64,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.delete('/:specimen_id', {
     schema: deleteSchema
   }, deleteSpecimen);
+
+  // Export specimens as CSV
+  fastify.get('/export/csv', {
+    schema: exportSpecimensCSVSchema
+  }, exportSpecimensCSV);
 
   // Upload specimen image
   fastify.post('/:specimen_id/images', {

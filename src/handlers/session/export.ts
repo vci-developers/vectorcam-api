@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { handleError } from './common';
-import { Site, Device, Session } from '../../db/models';
+import { Site, Device, Session, Program } from '../../db/models';
 
 export const schema = {
   tags: ['Sessions'],
@@ -10,7 +10,10 @@ export const schema = {
     type: 'object',
     properties: {
       startDate: { type: 'number' },
-      endDate: { type: 'number' }
+      endDate: { type: 'number' },
+      programId: { type: 'number' },
+      programCountry: { type: 'string' },
+      siteId: { type: 'number' }
     }
   },
   response: {
@@ -33,11 +36,19 @@ export const schema = {
 };
 
 export async function exportSessionsCSV(
-  request: FastifyRequest<{ Querystring: { startDate?: string; endDate?: string } }>,
+  request: FastifyRequest<{ 
+    Querystring: { 
+      startDate?: string; 
+      endDate?: string;
+      programId?: string;
+      programCountry?: string;
+      siteId?: string;
+    } 
+  }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { startDate, endDate } = request.query;
+    const { startDate, endDate, programId, programCountry, siteId } = request.query;
     
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -60,24 +71,46 @@ export async function exportSessionsCSV(
       };
     }
 
-    // Fetch sessions based on date range
+    // Add siteId filter if provided
+    if (siteId) {
+      where.siteId = parseInt(siteId);
+    }
+
+    // Build include conditions with nested filtering
+    const includeConditions = [
+      { 
+        model: Site, 
+        as: 'site',
+        include: [
+          {
+            model: Program,
+            as: 'program',
+            where: programId || programCountry ? {
+              ...(programId && { id: parseInt(programId) }),
+              ...(programCountry && { country: programCountry })
+            } : undefined
+          }
+        ]
+      },
+      { model: Device, as: 'device' }
+    ];
+
+    // Fetch sessions based on filters
     const sessions = await Session.findAll({
       where,
       order: [['createdAt', 'DESC']],
-      include: [
-        { model: Site, as: 'site' },
-        { model: Device, as: 'device' }
-      ]
+      include: includeConditions
     });
 
-    // Generate CSV header
-    let csv = 'SessionID,FrontendID,HouseNumber,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,DeviceID,DeviceModel,DeviceRegisteredAt\n';
+    // Generate CSV header with program data
+    let csv = 'SessionID,FrontendID,HouseNumber,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
 
     // Generate CSV rows
     for (const session of sessions) {
       // Safe approach to access associated models
       const site = session.get('site') as any;
       const device = session.get('device') as any;
+      const program = site?.program as any;
       
       const row = [
         session.id,
@@ -99,6 +132,9 @@ export async function exportSessionsCSV(
         site?.parish || 'N/A',
         site?.sentinelSite || 'N/A',
         site?.healthCenter || 'N/A',
+        program?.id || 'N/A',
+        program?.name || 'N/A',
+        program?.country || 'N/A',
         session.deviceId,
         device?.model || 'N/A',
         device?.registeredAt?.toISOString() || 'N/A'
