@@ -21,7 +21,8 @@ export const schema = {
             type: 'object',
             properties: {
               id: { type: 'number' },
-              url: { type: 'string' }
+              url: { type: 'string' },
+              filemd5: { type: 'string' }
             }
           }
         },
@@ -60,7 +61,8 @@ export async function getImages(
     // Format the response
     const formattedImages = images.map(img => ({
       id: img.id,
-      url: `/specimens/${specimen.specimenId}/images/${img.id}`
+      url: `/specimens/${specimen.specimenId}/images/${img.id}`,
+      filemd5: img.filemd5
     }));
 
     // Get the thumbnail URL

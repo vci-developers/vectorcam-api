@@ -122,7 +122,8 @@ export default async function completeUpload(
     // Create SpecimenImage record
     const image = await SpecimenImage.create({
       specimenId: upload.specimenId,
-      imageKey: upload.s3Key
+      imageKey: upload.s3Key,
+      filemd5: calculatedMd5
     });
 
     // If there's no current thumbnail

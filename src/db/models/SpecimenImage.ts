@@ -5,6 +5,7 @@ class SpecimenImage extends Model {
   declare id: number;
   declare specimenId: number;
   declare imageKey: string;
+  declare filemd5: string;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -29,6 +30,10 @@ SpecimenImage.init(
       type: DataTypes.TEXT,
       allowNull: false,
       field: 'image_key',
+    },
+    filemd5: {
+      type: DataTypes.STRING(32),
+      allowNull: false,
     }
   },
   {

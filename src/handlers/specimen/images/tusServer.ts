@@ -2,6 +2,8 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../../config/environment';
 import { findSpecimen } from '../common';
 import { SpecimenImage, Specimen } from '../../../db/models';
+import { createHash } from 'crypto';
+import { getFileStream } from '../../../services/s3.service';
 
 let tusServer: any;
 
@@ -41,10 +43,21 @@ async function getTusServer(): Promise<any> {
           // S3 key is in upload.storage.key
           const imageKey: string | undefined = upload.storage?.path;
           if (!imageKey) return {};
-          // Create SpecimenImage record
+          
+          // Calculate MD5 hash of the uploaded file
+          const { stream } = await getFileStream(imageKey);
+          const chunks: Buffer[] = [];
+          for await (const chunk of stream) {
+            chunks.push(chunk);
+          }
+          const fileBuffer = Buffer.concat(chunks);
+          const filemd5 = createHash('md5').update(fileBuffer).digest('hex');
+          
+          // Create SpecimenImage record with MD5
           const newImage = await SpecimenImage.create({
             specimenId: specimen.id,
-            imageKey
+            imageKey,
+            filemd5
           });
           // If there's no current thumbnail, set it
           if (!specimen.thumbnailImageId) {

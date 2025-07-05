@@ -76,7 +76,8 @@ export async function uploadImage(
     // Create new SpecimenImage record
     const newImage = await SpecimenImage.create({
       specimenId: specimen.id,
-      imageKey
+      imageKey,
+      filemd5: md5Hash
     });
 
     // If there's no current thumbnail
