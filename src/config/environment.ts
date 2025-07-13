@@ -22,6 +22,11 @@ const developmentConfig = {
     logLevel: 'debug',
     domain: process.env.DOMAIN || 'http://localhost:8080',
   },
+  sentry: {
+    enabled: process.env.SENTRY_ENABLED === 'true',
+    dsn: process.env.SENTRY_DSN,
+    environment: 'development',
+  },
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '3306', 10),
@@ -46,6 +51,11 @@ const testConfig = {
     logLevel: 'error',
     domain: process.env.DOMAIN || 'https://api.vectorcam.com',
   },
+  sentry: {
+    enabled: process.env.SENTRY_ENABLED === 'true',
+    dsn: process.env.SENTRY_DSN,
+    environment: 'test',
+  },
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '3306', 10),
@@ -69,6 +79,11 @@ const productionConfig = {
     nodeEnv: 'production',
     logLevel: 'info',
     domain: process.env.DOMAIN || 'https://api.vectorcam.com',
+  },
+  sentry: {
+    enabled: process.env.SENTRY_ENABLED === 'true',
+    dsn: process.env.SENTRY_DSN,
+    environment: 'production',
   },
   db: {
     host: process.env.DB_HOST,

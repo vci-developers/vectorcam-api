@@ -7,21 +7,34 @@ import swaggerUi from '@fastify/swagger-ui';
 import { config } from './config/environment';
 import { testConnection } from './db';
 import registerRoutes from './routes';
+import { sentryService } from './services/sentry.service';
+import { sentryMiddleware, sentryErrorHandler } from './middleware/sentry.middleware';
+import { SentryLogger } from './utils/sentry-logger';
 
 // Create Fastify instance with built-in logger options
+const baseLogger = {
+  level: config.server.logLevel || 'info',
+  transport: config.server.nodeEnv !== 'production' 
+    ? { target: 'pino-pretty' } 
+    : undefined,
+};
+
 const server: FastifyInstance = Fastify({
-  logger: {
-    level: config.server.logLevel || 'info',
-    transport: config.server.nodeEnv !== 'production' 
-      ? { target: 'pino-pretty' } 
-      : undefined,
-  },
+  logger: baseLogger,
   trustProxy: true,
 });
+
+// Wrap the logger with Sentry integration
+if (config.sentry?.enabled) {
+  server.log = new SentryLogger(server.log);
+}
 
 // Register plugins
 async function setupServer(): Promise<void> {
   try {
+    // Initialize Sentry
+    sentryService.init();
+    
     // Test database connection
     await testConnection();
     
@@ -85,6 +98,10 @@ async function setupServer(): Promise<void> {
     // Register all routes
     registerRoutes(server);
 
+    // Register Sentry middleware
+    server.addHook('onRequest', sentryMiddleware);
+    server.setErrorHandler(sentryErrorHandler);
+
     // Start the server
     await server.listen({ 
       port: config.server.port,
@@ -95,6 +112,7 @@ async function setupServer(): Promise<void> {
   } catch (err) {
     console.log(err);
     server.log.error('Error starting server:', err);
+    sentryService.captureException(err as Error, { context: 'server_startup' });
     process.exit(1);
   }
 }
@@ -102,12 +120,14 @@ async function setupServer(): Promise<void> {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
   server.log.info('SIGINT received, shutting down gracefully');
+  await sentryService.flush(2000);
   await server.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   server.log.info('SIGTERM received, shutting down gracefully');
+  await sentryService.flush(2000);
   await server.close();
   process.exit(0);
 });

@@ -5,6 +5,7 @@ import deviceRoutes from './devices';
 import sessionRoutes from './sessions';
 import specimenRoutes from './specimens';
 import healthRoutes from './health';
+import testSentryRoutes from './test-sentry';
 
 /**
  * Register all routes with the Fastify instance
@@ -19,4 +20,9 @@ export default async function routes(server: FastifyInstance): Promise<void> {
   server.register(deviceRoutes, { prefix: '/devices' });
   server.register(sessionRoutes, { prefix: '/sessions' });
   server.register(specimenRoutes, { prefix: '/specimens' });
+  
+  // Register test routes (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    server.register(testSentryRoutes, { prefix: '/test' });
+  }
 } 
