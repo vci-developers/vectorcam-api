@@ -10,7 +10,7 @@ export const schema = {
     type: 'object',
     properties: {
       specimen_id: { type: 'string' },
-      image_id: { type: 'string', pattern: '^\\d+$' }
+      image_id: { type: 'string' }
     },
     required: ['specimen_id', 'image_id']
   }
@@ -34,13 +34,23 @@ export async function getImage(
       return reply.code(404).send({ error: 'Specimen not found' });
     }
 
-    // Find the specific image
-    const image = await SpecimenImage.findOne({
+    // Find the specific image by id first
+    let image = await SpecimenImage.findOne({
       where: { 
         id: parseInt(image_id),
         specimenId: specimen.id
       }
     });
+
+    // If not found by id, try by filemd5
+    if (!image) {
+      image = await SpecimenImage.findOne({
+        where: {
+          filemd5: image_id,
+          specimenId: specimen.id
+        }
+      });
+    }
 
     if (!image) {
       return reply.code(404).send({ error: 'Image not found' });
