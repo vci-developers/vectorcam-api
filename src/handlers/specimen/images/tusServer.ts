@@ -28,9 +28,23 @@ async function getTusServer(): Promise<any> {
       generateUrl: (req, upload) => {
         return `${req.url}/${upload.id}`;
       },
-      onUploadCreate: (async (_, upload) => {
+      onUploadCreate: (async (req, upload) => {
         const contentType = upload.metadata?.contentType || upload.metadata?.fileType || "";
-        console.log('contentType', contentType)
+        const filemd5 = upload.metadata?.filemd5;
+        // Extract specimen_id from URL
+        const match = req.url.match(/\/specimens\/(.+?)\/images\/tus/);
+        const specimen_id = match ? match[1] : null;
+        if (filemd5 && specimen_id) {
+          const specimen = await findSpecimen(specimen_id);
+          if (specimen) {
+            const existing = await SpecimenImage.findOne({ where: { specimenId: specimen.id, filemd5 } });
+            if (existing) {
+              const err: any = new Error('Duplicate image: file with this MD5 already exists for this specimen.');
+              err.status_code = 409;
+              throw err;
+            }
+          }
+        }
         return { metadata: { ...upload.metadata, contentType } }
       }),
       onUploadFinish: (async function(req, upload) {
@@ -52,6 +66,24 @@ async function getTusServer(): Promise<any> {
           }
           const fileBuffer = Buffer.concat(chunks);
           const filemd5 = createHash('md5').update(fileBuffer).digest('hex');
+
+          // Check MD5 if provided in metadata
+          const expectedMd5 = upload.metadata?.filemd5;
+          if (expectedMd5 && expectedMd5 !== filemd5) {
+            return {
+              status_code: 400,
+              body: JSON.stringify({ message: 'MD5 mismatch: file corrupted during upload.' })
+            };
+          }
+
+          // Check for MD5 collision in DB after upload
+          const existing = await SpecimenImage.findOne({ where: { specimenId: specimen.id, filemd5 } });
+          if (existing) {
+            return {
+              status_code: 409,
+              body: JSON.stringify({ message: 'Duplicate image: file with this MD5 already exists for this specimen.' })
+            };
+          }
           
           // Create SpecimenImage record with MD5
           const newImage = await SpecimenImage.create({
