@@ -25,6 +25,8 @@ class Session extends Model {
   declare siteId: number;
   declare deviceId: number;
   declare updatedAt: Date;
+  declare latitude: number | null;
+  declare longitude: number | null;
 }
 
 Session.init(
@@ -107,6 +109,16 @@ Session.init(
       type: DataTypes.DATE,
       allowNull: true,
       field: 'created_at',
+    },
+    longitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+      field: 'longitude',
+    },
+    latitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+      field: 'latitude',
     },
   },
   {

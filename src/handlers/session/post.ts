@@ -20,6 +20,8 @@ interface SubmitSessionRequest {
   notes?: string;
   siteId: number;
   deviceId: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export const schema = {
@@ -40,7 +42,9 @@ export const schema = {
       createdAt: { type: 'number' },
       notes: { type: 'string' },
       siteId: { type: 'number' },
-      deviceId: { type: 'number' }
+      deviceId: { type: 'number' },
+      latitude: { type: 'number' },
+      longitude: { type: 'number' }
     }
   },
   response: {
@@ -64,7 +68,9 @@ export const schema = {
             submittedAt: { type: 'number' },
             notes: { type: ['string', 'null'] },
             siteId: { type: 'number' },
-            deviceId: { type: 'number' }
+            deviceId: { type: 'number' },
+            latitude: { type: ['number', 'null'] },
+            longitude: { type: ['number', 'null'] }
           }
         }
       }
@@ -107,7 +113,9 @@ export async function submitSession(
       createdAt,
       notes,
       siteId,
-      deviceId
+      deviceId,
+      latitude,
+      longitude
     } = request.body;
 
     // Check if site exists
@@ -146,6 +154,8 @@ export async function submitSession(
       notes,
       siteId,
       deviceId,
+      latitude,
+      longitude
     });
 
     return reply.code(201).send({

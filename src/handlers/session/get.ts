@@ -30,6 +30,8 @@ export const schema = {
         notes: { type: ['string', 'null'] },
         siteId: { type: 'number' },
         deviceId: { type: 'number' },
+        latitude: { type: ['number', 'null'] },
+        longitude: { type: ['number', 'null'] },
         site: {
           type: 'object',
           properties: {

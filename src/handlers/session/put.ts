@@ -15,6 +15,8 @@ interface UpdateSessionRequest {
   notes?: string;
   siteId?: number;
   deviceId?: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export const schema = {
@@ -40,7 +42,9 @@ export const schema = {
       createdAt: { type: 'number' },
       notes: { type: 'string' },
       siteId: { type: 'number' },
-      deviceId: { type: 'number' }
+      deviceId: { type: 'number' },
+      latitude: { type: 'number' },
+      longitude: { type: 'number' }
     }
   },
   response: {
@@ -64,7 +68,9 @@ export const schema = {
             submittedAt: { type: 'number' },
             notes: { type: ['string', 'null'] },
             siteId: { type: 'number' },
-            deviceId: { type: 'number' }
+            deviceId: { type: 'number' },
+            latitude: { type: ['number', 'null'] },
+            longitude: { type: ['number', 'null'] }
           }
         }
       }
@@ -108,7 +114,9 @@ export async function updateSession(
       createdAt,
       notes,
       siteId,
-      deviceId
+      deviceId,
+      latitude,
+      longitude
     } = request.body;
 
     const session = await findSession(session_id);
@@ -156,6 +164,8 @@ export async function updateSession(
       notes: notes !== undefined ? notes : session.notes,
       siteId: siteId || session.siteId,
       deviceId: deviceId || session.deviceId,
+      latitude: latitude !== undefined ? latitude : session.latitude,
+      longitude: longitude !== undefined ? longitude : session.longitude
     });
 
     return reply.send({

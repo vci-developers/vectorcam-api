@@ -33,7 +33,9 @@ export const schema = {
               submittedAt: { type: 'number' },
               notes: { type: ['string', 'null'] },
               siteId: { type: 'number' },
-              deviceId: { type: 'number' }
+              deviceId: { type: 'number' },
+              latitude: { type: ['number', 'null'] },
+              longitude: { type: ['number', 'null'] }
             }
           }
         }

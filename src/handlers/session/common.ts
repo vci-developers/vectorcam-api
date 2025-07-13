@@ -17,6 +17,9 @@ export interface SessionResponse {
   notes: string | null;
   siteId: number;
   deviceId: number;
+  // Add new fields
+  latitude: number | null;
+  longitude: number | null;
 }
 
 // Helper to format session data consistently across endpoints
@@ -36,6 +39,8 @@ export function formatSessionResponse(session: Session): SessionResponse {
     notes: session.notes,
     siteId: session.siteId,
     deviceId: session.deviceId,
+    latitude: session.latitude,
+    longitude: session.longitude,
   };
 }
 

@@ -105,7 +105,7 @@ export async function exportSessionsCSV(
     });
 
     // Generate CSV header with program data
-    let csv = 'SessionID,FrontendID,HouseNumber,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
+    let csv = 'SessionID,FrontendID,HouseNumber,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry\n';
 
     // Generate CSV rows
     for (const session of sessions) {
@@ -128,6 +128,11 @@ export async function exportSessionsCSV(
         session.completedAt?.toISOString() || 'N/A',
         session.submittedAt.toISOString(),
         session.updatedAt.toISOString(),
+        session.latitude !== null && session.latitude !== undefined ? session.latitude : 'N/A',
+        session.longitude !== null && session.longitude !== undefined ? session.longitude : 'N/A',
+        session.deviceId,
+        device?.model || 'N/A',
+        device?.registeredAt?.toISOString() || 'N/A',
         session.siteId,
         site?.district || 'N/A',
         site?.subCounty || 'N/A',
@@ -136,10 +141,7 @@ export async function exportSessionsCSV(
         site?.healthCenter || 'N/A',
         program?.id || 'N/A',
         program?.name || 'N/A',
-        program?.country || 'N/A',
-        session.deviceId,
-        device?.model || 'N/A',
-        device?.registeredAt?.toISOString() || 'N/A'
+        program?.country || 'N/A'
       ].join(',');
       
       csv += row + '\n';
