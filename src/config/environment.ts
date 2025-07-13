@@ -41,6 +41,7 @@ const developmentConfig = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     s3BucketName: process.env.S3_BUCKET_NAME || 'vectorcam-dev',
   },
+  adminAuthToken: process.env.ADMIN_AUTH_TOKEN,
 };
 
 // Configuration for test environment
@@ -70,6 +71,7 @@ const testConfig = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     s3BucketName: process.env.S3_BUCKET_NAME || 'vectorcam-test',
   },
+  adminAuthToken: process.env.ADMIN_AUTH_TOKEN,
 };
 
 // Configuration for production environment
@@ -99,6 +101,7 @@ const productionConfig = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     s3BucketName: process.env.S3_BUCKET_NAME,
   },
+  adminAuthToken: process.env.ADMIN_AUTH_TOKEN,
 };
 
 // Select the appropriate configuration based on the environment

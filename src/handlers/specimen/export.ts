@@ -36,16 +36,18 @@ export const schema = {
   }
 };
 
+export interface ExportSpecimensCSVRequest {
+  Querystring: { 
+    startDate?: string; 
+    endDate?: string;
+    sessionId?: string;
+    sessionFrontendId?: string;
+    includeInferenceResult?: boolean;
+  }
+}
+
 export async function exportSpecimensCSV(
-  request: FastifyRequest<{ 
-    Querystring: { 
-      startDate?: string; 
-      endDate?: string;
-      sessionId?: string;
-      sessionFrontendId?: string;
-      includeInferenceResult?: boolean;
-    } 
-  }>,
+  request: FastifyRequest<ExportSpecimensCSVRequest>,
   reply: FastifyReply
 ): Promise<void> {
   try {

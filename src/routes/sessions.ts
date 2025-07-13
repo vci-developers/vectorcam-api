@@ -24,11 +24,12 @@ import { schema as getListSchema } from '../handlers/session/getList';
 import { schema as getByUserSchema } from '../handlers/session/getByUser';
 import { schema as getBySiteSchema } from '../handlers/session/getBySite';
 import { schema as getSpecimensSchema } from '../handlers/session/getSpecimens';
-import { schema as exportSessionsCSVSchema } from '../handlers/session/export';
-import { schema as exportSurveillanceFormsCSVSchema } from '../handlers/session/survey/exportSurvey';
+import { ExportSessionsCSVRequest, schema as exportSessionsCSVSchema } from '../handlers/session/export';
+import { ExportSurveillanceFormsCSVRequest, schema as exportSurveillanceFormsCSVSchema } from '../handlers/session/survey/exportSurvey';
 import { schema as getSurveySchema } from '../handlers/session/survey/getSurvey';
 import { schema as createSurveySchema } from '../handlers/session/survey/postSurvey';
 import { schema as updateSurveySchema } from '../handlers/session/survey/putSurvey';
+import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Get all sessions with comprehensive filters
@@ -87,13 +88,15 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   }, updateSurvey);
 
   // Export sessions as CSV
-  fastify.get('/export/csv', {
-    schema: exportSessionsCSVSchema
+  fastify.get<ExportSessionsCSVRequest>('/export/csv', {
+    schema: exportSessionsCSVSchema,
+    preHandler: [adminAuthMiddleware],
   }, exportSessionsCSV);
 
   // Export surveillance forms as CSV
-  fastify.get('/export/surveillance-forms/csv', {
-    schema: exportSurveillanceFormsCSVSchema
+  fastify.get<ExportSurveillanceFormsCSVRequest>('/export/surveillance-forms/csv', {
+    schema: exportSurveillanceFormsCSVSchema,
+    preHandler: [adminAuthMiddleware],
   }, exportSurveillanceFormsCSV);
 
   done();

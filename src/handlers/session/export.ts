@@ -35,16 +35,18 @@ export const schema = {
   }
 };
 
+export interface ExportSessionsCSVRequest {
+  Querystring: { 
+    startDate?: string; 
+    endDate?: string;
+    programId?: string;
+    programCountry?: string;
+    siteId?: string;
+  }
+}
+
 export async function exportSessionsCSV(
-  request: FastifyRequest<{ 
-    Querystring: { 
-      startDate?: string; 
-      endDate?: string;
-      programId?: string;
-      programCountry?: string;
-      siteId?: string;
-    } 
-  }>,
+  request: FastifyRequest<ExportSessionsCSVRequest>,
   reply: FastifyReply
 ): Promise<void> {
   try {

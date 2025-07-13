@@ -32,7 +32,8 @@ import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get
 import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
-import { schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
+import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
+import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -66,8 +67,9 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   }, deleteSpecimen);
 
   // Export specimens as CSV
-  fastify.get('/export/csv', {
-    schema: exportSpecimensCSVSchema
+  fastify.get<ExportSpecimensCSVRequest>('/export/csv', {
+    schema: exportSpecimensCSVSchema,
+    preHandler: [adminAuthMiddleware],
   }, exportSpecimensCSV);
 
   // Upload specimen image

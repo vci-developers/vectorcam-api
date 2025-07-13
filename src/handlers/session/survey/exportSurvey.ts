@@ -34,15 +34,17 @@ export const schema = {
   }
 };
 
+export interface ExportSurveillanceFormsCSVRequest {
+  Querystring: { 
+    startDate?: string; 
+    endDate?: string;
+    programId?: string;
+    programCountry?: string;
+  }
+}
+
 export async function exportSurveillanceFormsCSV(
-  request: FastifyRequest<{ 
-    Querystring: { 
-      startDate?: string; 
-      endDate?: string;
-      programId?: string;
-      programCountry?: string;
-    } 
-  }>,
+  request: FastifyRequest<ExportSurveillanceFormsCSVRequest>,
   reply: FastifyReply
 ): Promise<void> {
   try {
