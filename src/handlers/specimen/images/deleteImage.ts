@@ -35,7 +35,7 @@ export async function deleteImage(
       return reply.code(404).send({ error: 'Specimen not found' });
     }
     // Check if the image exists and belongs to the specimen
-    const image = await SpecimenImage.findOne({ where: { id: image_id, specimenId: specimen_id } });
+    const image = await SpecimenImage.findOne({ where: { id: image_id, specimenId: specimen.id } });
     if (!image) {
       return reply.code(404).send({ error: 'Image not found for this specimen' });
     }

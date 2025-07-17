@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSpecimen, handleError } from './common';
-import { InferenceResult, SpecimenImage } from '../../db/models';
+import { InferenceResult, SpecimenImage, MultipartUpload } from '../../db/models';
 
 export const schema = {
   tags: ['Specimens'],
@@ -42,6 +42,8 @@ export async function deleteSpecimen(
     }
     // Delete associated images
     await SpecimenImage.destroy({ where: { specimenId: specimen.id } });
+    // Delete associated uploads
+    await MultipartUpload.destroy({ where: { specimenId: specimen.id } });
     // Delete the specimen itself
     await specimen.destroy();
 
