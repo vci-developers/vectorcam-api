@@ -80,11 +80,8 @@ export async function uploadImage(
       filemd5: md5Hash
     });
 
-    // If there's no current thumbnail
-    if (!specimen.thumbnailImageId) {
-      // Update specimen to use this as the thumbnail
-      await specimen.update({ thumbnailImageId: newImage.id });
-    }
+    // Update specimen to use this as the thumbnail
+    await specimen.update({ thumbnailImageId: newImage.id });
 
     return reply.code(201).send({
       message: 'Image uploaded successfully',

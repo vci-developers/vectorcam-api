@@ -91,10 +91,9 @@ async function getTusServer(): Promise<any> {
             imageKey,
             filemd5
           });
-          // If there's no current thumbnail, set it
-          if (!specimen.thumbnailImageId) {
-            await specimen.update({ thumbnailImageId: newImage.id });
-          }
+          // Update specimen to use this as the thumbnail
+          await specimen.update({ thumbnailImageId: newImage.id });
+
           return {
             status_code: 204,
             body: JSON.stringify({

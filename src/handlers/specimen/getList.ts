@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen } from '../../db/models';
+import { Specimen, Session, Site, SpecimenImage } from '../../db/models';
 import { formatSpecimenResponse } from './common';
 import { Op, Order } from 'sequelize';
 
@@ -12,11 +12,7 @@ export const schema = {
       siteId: { type: 'number', description: 'Filter by site ID' },
       programId: { type: 'number', description: 'Filter by program ID' },
       specimenId: { type: 'string', description: 'Filter by specimen ID (partial match)' },
-      species: { type: 'string', description: 'Filter by species (partial match)' },
-      sex: { type: 'string', description: 'Filter by sex (exact match)' },
-      abdomenStatus: { type: 'string', description: 'Filter by abdomen status (exact match)' },
       hasImages: { type: 'boolean', description: 'Filter specimens that have images' },
-      hasInference: { type: 'boolean', description: 'Filter specimens that have inference results' },
       dateFrom: { type: 'string', format: 'date', description: 'Filter specimens captured from this date (YYYY-MM-DD)' },
       dateTo: { type: 'string', format: 'date', description: 'Filter specimens captured to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -37,38 +33,44 @@ export const schema = {
               id: { type: 'number' },
               specimenId: { type: 'string' },
               sessionId: { type: 'number' },
-              submittedAt: { type: 'number' },
-              species: { type: 'string', nullable: true },
-              sex: { type: 'string', nullable: true },
-              abdomenStatus: { type: 'string', nullable: true },
-              capturedAt: { type: 'number', nullable: true },
               thumbnailUrl: { type: 'string', nullable: true },
               thumbnailImageId: { type: 'number', nullable: true },
-              images: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'number' },
-                    url: { type: 'string' }
+              thumbnailImage: {
+                anyOf: [
+                  { type: 'null' },
+                  {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      url: { type: 'string' },
+                      species: { type: ['string', 'null'] },
+                      sex: { type: ['string', 'null'] },
+                      abdomenStatus: { type: ['string', 'null'] },
+                      capturedAt: { type: ['number', 'null'] },
+                      submittedAt: { type: 'number' },
+                      inferenceResult: {
+                        anyOf: [
+                          { type: 'null' },
+                          {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'number' },
+                              bboxTopLeftX: { type: 'number' },
+                              bboxTopLeftY: { type: 'number' },
+                              bboxWidth: { type: 'number' },
+                              bboxHeight: { type: 'number' },
+                              bboxConfidence: { type: 'number' },
+                              bboxClassId: { type: 'number' },
+                              speciesProbabilities: { type: 'array', items: { type: 'number' } },
+                              sexProbabilities: { type: 'array', items: { type: 'number' } },
+                              abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                            }
+                          }
+                        ]
+                      }
+                    }
                   }
-                }
-              },
-              inferenceResult: {
-                type: 'object',
-                nullable: true,
-                properties: {
-                  id: { type: 'number' },
-                  bboxTopLeftX: { type: 'number' },
-                  bboxTopLeftY: { type: 'number' },
-                  bboxWidth: { type: 'number' },
-                  bboxHeight: { type: 'number' },
-                  bboxConfidence: { type: 'number' },
-                  bboxClassId: { type: 'number' },
-                  speciesProbabilities: { type: 'array', items: { type: 'number' } },
-                  sexProbabilities: { type: 'array', items: { type: 'number' } },
-                  abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
-                }
+                ]
               }
             }
           }
@@ -87,11 +89,7 @@ interface QueryParams {
   siteId?: number;
   programId?: number;
   specimenId?: string;
-  species?: string;
-  sex?: string;
-  abdomenStatus?: string;
   hasImages?: boolean;
-  hasInference?: boolean;
   dateFrom?: string;
   dateTo?: string;
   limit?: number;
@@ -110,11 +108,7 @@ export async function getSpecimenList(
       siteId,
       programId,
       specimenId,
-      species,
-      sex,
-      abdomenStatus,
       hasImages,
-      hasInference,
       dateFrom,
       dateTo,
       limit = 20,
@@ -125,6 +119,7 @@ export async function getSpecimenList(
 
     // Build where clause
     const whereClause: any = {};
+    const include: any[] = [];
     if (sessionId) {
       whereClause.sessionId = sessionId;
     }
@@ -133,16 +128,40 @@ export async function getSpecimenList(
         [Op.iLike]: `%${specimenId}%`
       };
     }
-    if (species) {
-      whereClause.species = {
-        [Op.iLike]: `%${species}%`
-      };
+
+    // Filter by siteId or programId via Session -> Site
+    if (siteId || programId) {
+      include.push({
+        model: Session,
+        as: 'session',
+        required: true,
+        include: siteId || programId ? [{
+          model: Site,
+          as: 'site',
+          required: true,
+          where: {
+            ...(siteId ? { id: siteId } : {}),
+            ...(programId ? { programId } : {})
+          }
+        }] : []
+      });
+    } else {
+      // If not filtering by siteId/programId but want to allow hasImages, still allow includes
+      include.push({
+        model: Session,
+        as: 'session',
+        required: false
+      });
     }
-    if (sex) {
-      whereClause.sex = sex;
-    }
-    if (abdomenStatus) {
-      whereClause.abdomenStatus = abdomenStatus;
+
+    // Filter by hasImages
+    if (hasImages) {
+      include.push({
+        model: SpecimenImage,
+        as: 'images',
+        required: true,
+        attributes: [],
+      });
     }
 
     // Handle date range filtering
@@ -161,12 +180,14 @@ export async function getSpecimenList(
 
     // Get total count
     const total = await Specimen.count({
-      where: whereClause
+      where: whereClause,
+      include
     });
 
     // Get specimens with pagination
     const specimens = await Specimen.findAll({
       where: whereClause,
+      include,
       order: orderClause,
       limit,
       offset
@@ -175,7 +196,7 @@ export async function getSpecimenList(
     // Format response
     const formattedSpecimens = await Promise.all(
       specimens.map(async (specimen) => {
-        return await formatSpecimenResponse(specimen);
+        return await formatSpecimenResponse(specimen, false);
       })
     );
 

@@ -1,34 +1,37 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session, InferenceResult, SpecimenImage } from '../../db/models';
 
-// Specimen response format interface
-export interface SpecimenResponse {
+export interface ImageResponse {
   id: number;
-  specimenId: string;
-  sessionId: number;
+  url: string;
   species: string | null;
   sex: string | null;
   abdomenStatus: string | null;
   capturedAt: number | null;
-  thumbnailUrl: string | null;
-  thumbnailImageId: number | null;
-  images: Array<{
-    id: number;
-    url: string;
-  }>;
+  submittedAt: number; // Add this field
   inferenceResult: {
     id: number;
     bboxTopLeftX: number;
     bboxTopLeftY: number;
     bboxWidth: number;
     bboxHeight: number;
-    bboxConfidence?: number;
-    bboxClassId?: number;
+    bboxConfidence: number;
+    bboxClassId: number;
     speciesProbabilities: number[];
     sexProbabilities: number[];
     abdomenStatusProbabilities: number[];
   } | null;
-  submittedAt: number;
+}
+
+// Specimen response format interface
+export interface SpecimenResponse {
+  id: number;
+  specimenId: string;
+  sessionId: number;
+  thumbnailUrl: string | null;
+  thumbnailImageId: number | null;
+  images: Array<ImageResponse>;
+  thumbnailImage: ImageResponse | null;
 }
 
 // Helper function to parse probability string to array
@@ -42,47 +45,85 @@ function parseProbabilityString(str: string): number[] {
 }
 
 // Helper to format specimen data consistently across endpoints
-export async function formatSpecimenResponse(specimen: Specimen): Promise<SpecimenResponse> {
-  // Get all images for this specimen
-  const images = await SpecimenImage.findAll({
-    where: { specimenId: specimen.id }
-  });
+export async function formatSpecimenResponse(specimen: Specimen, allImages: boolean = true): Promise<SpecimenResponse> {
+  let thumbnailImageObj = null;
+  let imagesToReturn: ImageResponse[] = [];
 
-  // Get the inference result if it exists
-  const inferenceResult = await InferenceResult.findOne({
-    where: { specimenId: specimen.id }
-  });
-
-  // Get the thumbnail image if it exists
-  const thumbnailImage = specimen.thumbnailImageId ? await SpecimenImage.findByPk(specimen.thumbnailImageId) : null;
+  if (allImages) {
+    // Get all images for this specimen
+    const images = await SpecimenImage.findAll({
+      where: { specimenId: specimen.id }
+    });
+    // For each image, get its inference result
+    const imagesResponses = await Promise.all(images.map(async (img) => {
+      const inferenceResult = await InferenceResult.findOne({
+        where: { specimenImageId: img.id }
+      });
+      return {
+        id: img.id,
+        url: `/specimens/${specimen.specimenId}/images/${img.id}`,
+        species: img.species,
+        sex: img.sex,
+        abdomenStatus: img.abdomenStatus,
+        capturedAt: img.capturedAt ? img.capturedAt.getTime() : null,
+        submittedAt: img.createdAt.getTime(), // Add this line
+        inferenceResult: inferenceResult ? {
+          id: inferenceResult.id,
+          bboxTopLeftX: inferenceResult.bboxTopLeftX,
+          bboxTopLeftY: inferenceResult.bboxTopLeftY,
+          bboxWidth: inferenceResult.bboxWidth,
+          bboxHeight: inferenceResult.bboxHeight,
+          bboxConfidence: inferenceResult.bboxConfidence,
+          bboxClassId: inferenceResult.bboxClassId,
+          speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
+          sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
+          abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
+        } : null
+      };
+    }));
+    imagesToReturn = imagesResponses;
+    thumbnailImageObj = imagesResponses.find(img => img.id === specimen.thumbnailImageId) || null;
+  } else {
+    // Only fetch the thumbnail image (if exists)
+    const thumbnailImage = specimen.thumbnailImageId ? await SpecimenImage.findByPk(specimen.thumbnailImageId) : null;
+    if (thumbnailImage) {
+      const inferenceResult = await InferenceResult.findOne({
+        where: { specimenImageId: thumbnailImage.id }
+      });
+      const thumbDetail = {
+        id: thumbnailImage.id,
+        url: `/specimens/${specimen.specimenId}/images/${thumbnailImage.id}`,
+        species: thumbnailImage.species,
+        sex: thumbnailImage.sex,
+        abdomenStatus: thumbnailImage.abdomenStatus,
+        capturedAt: thumbnailImage.capturedAt ? thumbnailImage.capturedAt.getTime() : null,
+        submittedAt: thumbnailImage.createdAt.getTime(), // Add this line
+        inferenceResult: inferenceResult ? {
+          id: inferenceResult.id,
+          bboxTopLeftX: inferenceResult.bboxTopLeftX,
+          bboxTopLeftY: inferenceResult.bboxTopLeftY,
+          bboxWidth: inferenceResult.bboxWidth,
+          bboxHeight: inferenceResult.bboxHeight,
+          bboxConfidence: inferenceResult.bboxConfidence,
+          bboxClassId: inferenceResult.bboxClassId,
+          speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
+          sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
+          abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
+        } : null
+      };
+      imagesToReturn = [thumbDetail];
+      thumbnailImageObj = thumbDetail;
+    }
+  }
 
   return {
     id: specimen.id,
     specimenId: specimen.specimenId,
     sessionId: specimen.sessionId,
-    species: specimen.species,
-    sex: specimen.sex,
-    abdomenStatus: specimen.abdomenStatus,
-    capturedAt: specimen.capturedAt ? specimen.capturedAt.getTime() : null,
-    thumbnailUrl: thumbnailImage ? `/specimens/${specimen.specimenId}/images/${thumbnailImage.id}` : null,
+    thumbnailUrl: specimen.thumbnailImageId && thumbnailImageObj ? thumbnailImageObj.url : null,
     thumbnailImageId: specimen.thumbnailImageId,
-    images: images.map(img => ({
-      id: img.id,
-      url: `/specimens/${specimen.specimenId}/images/${img.id}`
-    })),
-    inferenceResult: inferenceResult ? {
-      id: inferenceResult.id,
-      bboxTopLeftX: inferenceResult.bboxTopLeftX,
-      bboxTopLeftY: inferenceResult.bboxTopLeftY,
-      bboxWidth: inferenceResult.bboxWidth,
-      bboxHeight: inferenceResult.bboxHeight,
-      bboxConfidence: inferenceResult.bboxConfidence,
-      bboxClassId: inferenceResult.bboxClassId,
-      speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
-      sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
-      abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
-    } : null,
-    submittedAt: specimen.createdAt.getTime(),
+    images: imagesToReturn,
+    thumbnailImage: thumbnailImageObj,
   };
 }
 

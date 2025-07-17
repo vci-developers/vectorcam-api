@@ -33,8 +33,13 @@ export async function deleteSpecimen(
       return reply.code(404).send({ error: 'Specimen not found' });
     }
 
+    // Find all image IDs for this specimen
+    const specimenImages = await SpecimenImage.findAll({ where: { specimenId: specimen.id } });
+    const imageIds = specimenImages.map(img => img.id);
     // Delete associated inference result(s)
-    await InferenceResult.destroy({ where: { specimenId: specimen.id } });
+    if (imageIds.length > 0) {
+      await InferenceResult.destroy({ where: { specimenImageId: imageIds } });
+    }
     // Delete associated images
     await SpecimenImage.destroy({ where: { specimenId: specimen.id } });
     // Delete the specimen itself

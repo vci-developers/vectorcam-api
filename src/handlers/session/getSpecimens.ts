@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSession, findSessionById, handleError } from './common';
-import { Specimen } from '../../db/models';
+import { Specimen, SpecimenImage } from '../../db/models';
+import { formatSpecimenResponse } from '../specimen/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -24,9 +25,43 @@ export const schema = {
               specimenId: { type: 'string' },
               thumbnailUrl: { type: ['string', 'null'] },
               thumbnailImageId: { type: ['number', 'null'] },
-              species: { type: ['string', 'null'] },
-              sex: { type: ['string', 'null'] },
-              abdomenStatus: { type: ['string', 'null'] }
+              thumbnailImage: {
+                anyOf: [
+                  { type: 'null' },
+                  {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      url: { type: 'string' },
+                      species: { type: ['string', 'null'] },
+                      sex: { type: ['string', 'null'] },
+                      abdomenStatus: { type: ['string', 'null'] },
+                      capturedAt: { type: ['number', 'null'] },
+                      submittedAt: { type: 'number' },
+                      inferenceResult: {
+                        anyOf: [
+                          { type: 'null' },
+                          {
+                            type: 'object',
+                            properties: {
+                              id: { type: 'number' },
+                              bboxTopLeftX: { type: 'number' },
+                              bboxTopLeftY: { type: 'number' },
+                              bboxWidth: { type: 'number' },
+                              bboxHeight: { type: 'number' },
+                              bboxConfidence: { type: 'number' },
+                              bboxClassId: { type: 'number' },
+                              speciesProbabilities: { type: 'array', items: { type: 'number' } },
+                              sexProbabilities: { type: 'array', items: { type: 'number' } },
+                              abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
             }
           }
         }
@@ -53,16 +88,21 @@ export async function getSessionSpecimens(
       order: [['createdAt', 'DESC']],
     });
 
+    // For each specimen, get only the thumbnail image and relevant fields
+    const specimensWithThumbnail = await Promise.all(specimens.map(async specimen => {
+      const formatted = await formatSpecimenResponse(specimen, false);
+      // Only return the relevant fields (no images array)
+      return {
+        id: formatted.id,
+        specimenId: formatted.specimenId,
+        thumbnailUrl: formatted.thumbnailUrl,
+        thumbnailImageId: formatted.thumbnailImageId,
+        thumbnailImage: formatted.thumbnailImage
+      };
+    }));
+
     return reply.send({
-      specimens: specimens.map(specimen => ({
-        id: specimen.id,
-        specimenId: specimen.specimenId,
-        thumbnailUrl: specimen.thumbnailImageId ? `/specimens/${specimen.id}/images/${specimen.thumbnailImageId}` : null,
-        thumbnailImageId: specimen.thumbnailImageId,
-        species: specimen.species,
-        sex: specimen.sex,
-        abdomenStatus: specimen.abdomenStatus,
-      })),
+      specimens: specimensWithThumbnail
     });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to get session specimens');

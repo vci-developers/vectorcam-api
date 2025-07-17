@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSpecimen, handleError } from '../common';
-import { SpecimenImage } from '../../../db/models';
+import { SpecimenImage, InferenceResult } from '../../../db/models';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -22,11 +22,37 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               url: { type: 'string' },
+              species: { type: ['string', 'null'] },
+              sex: { type: ['string', 'null'] },
+              abdomenStatus: { type: ['string', 'null'] },
+              capturedAt: { type: ['number', 'null'] },
+              submittedAt: { type: 'number' },
+              inferenceResult: {
+                anyOf: [
+                  { type: 'null' },
+                  {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      bboxTopLeftX: { type: 'number' },
+                      bboxTopLeftY: { type: 'number' },
+                      bboxWidth: { type: 'number' },
+                      bboxHeight: { type: 'number' },
+                      bboxConfidence: { type: 'number' },
+                      bboxClassId: { type: 'number' },
+                      speciesProbabilities: { type: 'array', items: { type: 'number' } },
+                      sexProbabilities: { type: 'array', items: { type: 'number' } },
+                      abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                    }
+                  }
+                ]
+              },
               filemd5: { type: 'string' }
             }
           }
         },
-        thumbnailUrl: { type: ['string', 'null'] }
+        thumbnailUrl: { type: ['string', 'null'] },
+        thumbnailImageId: { type: ['number', 'null'] }
       }
     }
   }
@@ -59,10 +85,32 @@ export async function getImages(
     }
 
     // Format the response
-    const formattedImages = images.map(img => ({
-      id: img.id,
-      url: `/specimens/${specimen.specimenId}/images/${img.id}`,
-      filemd5: img.filemd5
+    const formattedImages = await Promise.all(images.map(async (img) => {
+      const inferenceResult = await InferenceResult.findOne({
+        where: { specimenImageId: img.id }
+      });
+      return {
+        id: img.id,
+        url: `/specimens/${specimen.specimenId}/images/${img.id}`,
+        species: img.species,
+        sex: img.sex,
+        abdomenStatus: img.abdomenStatus,
+        capturedAt: img.capturedAt ? img.capturedAt.getTime() : null,
+        submittedAt: img.createdAt.getTime(),
+        inferenceResult: inferenceResult ? {
+          id: inferenceResult.id,
+          bboxTopLeftX: inferenceResult.bboxTopLeftX,
+          bboxTopLeftY: inferenceResult.bboxTopLeftY,
+          bboxWidth: inferenceResult.bboxWidth,
+          bboxHeight: inferenceResult.bboxHeight,
+          bboxConfidence: inferenceResult.bboxConfidence,
+          bboxClassId: inferenceResult.bboxClassId,
+          speciesProbabilities: JSON.parse(inferenceResult.speciesProbabilities),
+          sexProbabilities: JSON.parse(inferenceResult.sexProbabilities),
+          abdomenStatusProbabilities: JSON.parse(inferenceResult.abdomenStatusProbabilities)
+        } : null,
+        filemd5: img.filemd5
+      };
     }));
 
     // Get the thumbnail URL

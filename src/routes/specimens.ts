@@ -6,6 +6,9 @@ import {
   uploadImage,
   getImages,
   getImage,
+  getImageInfo,
+  putImage,
+  deleteImage,
   initiateUpload,
   appendUpload,
   completeUpload,
@@ -24,7 +27,7 @@ import { schema as getSchema } from '../handlers/specimen/get';
 import { schema as updateSchema } from '../handlers/specimen/put';
 import { schema as uploadImageSchema } from '../handlers/specimen/images/uploadImage';
 import { schema as getImagesSchema } from '../handlers/specimen/images/getImages';
-import { schema as getImageSchema } from '../handlers/specimen/images/getImage';
+import { schema as getImageSchema, infoSchema as getImageInfoSchema } from '../handlers/specimen/images/getImage';
 import { schema as initiateUploadSchema } from '../handlers/specimen/upload/initiate'
 import { schema as appendUploadSchema } from '../handlers/specimen/upload/append'
 import { schema as completeUploadSchema } from '../handlers/specimen/upload/complete'
@@ -32,6 +35,8 @@ import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get
 import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
+import { schema as putImageSchema } from '../handlers/specimen/images/putImage';
+import { schema as deleteImageSchema } from '../handlers/specimen/images/deleteImage';
 import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
 
@@ -82,6 +87,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: getImageSchema
   }, getImage);
 
+  // Get image info (metadata only)
+  fastify.get('/:specimen_id/images/:image_id/info', {
+    schema: getImageInfoSchema
+  }, getImageInfo);
+
   // Get all specimen images - this must come after the more specific image routes
   fastify.get('/:specimen_id/images', {
     schema: getImagesSchema
@@ -111,6 +121,16 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.get('/:specimen_id/images/uploads/:upload_id', {
     schema: getUploadStatusSchema
   }, getUploadStatus);
+
+  // Update specimen image metadata
+  fastify.put('/:specimen_id/images/:image_id', {
+    schema: putImageSchema
+  }, putImage);
+
+  // Delete specimen image
+  fastify.delete('/:specimen_id/images/:image_id', {
+    schema: deleteImageSchema
+  }, deleteImage);
 
   // TUS endpoints for specimen images
   fastify.addContentTypeParser('application/offset+octet-stream', (request, payload, done) => done(null));

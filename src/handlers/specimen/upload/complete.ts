@@ -126,11 +126,8 @@ export default async function completeUpload(
       filemd5: calculatedMd5
     });
 
-    // If there's no current thumbnail
-    if (!specimen.thumbnailImageId) {
-      // Update specimen to use this as the thumbnail
-      await specimen.update({ thumbnailImageId: image.id });
-    }
+    // Update specimen to use this as the thumbnail
+    await specimen.update({ thumbnailImageId: image.id });
 
     // Update upload status
     await upload.update({

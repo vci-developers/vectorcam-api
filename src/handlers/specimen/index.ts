@@ -12,7 +12,10 @@ import {
 import {
   uploadImage,
   getImages,
-  getImage
+  getImage,
+  putImage,
+  deleteImage,
+  getImageInfo
 } from './images';
 import { deleteSpecimen } from './delete';
 import { exportSpecimensCSV } from './export';
@@ -26,10 +29,13 @@ export {
   uploadImage,
   getImages,
   getImage,
+  putImage,
+  deleteImage,
   initiateUpload,
   appendUpload,
   completeUpload,
   getUploadStatus,
   deleteSpecimen,
   exportSpecimensCSV,
+  getImageInfo,
 };

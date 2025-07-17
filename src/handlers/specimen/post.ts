@@ -4,26 +4,11 @@ import {
   handleError, 
   formatSpecimenResponse,
 } from './common';
-import { InferenceResult, Specimen } from '../../db/models';
+import { Specimen } from '../../db/models';
 
 interface CreateSpecimenRequest {
   specimenId: string;
   sessionId: number;
-  species?: string;
-  sex?: string;
-  abdomenStatus?: string;
-  capturedAt?: number;
-  inferenceResult?: {
-    bboxTopLeftX: number;
-    bboxTopLeftY: number;
-    bboxWidth: number;
-    bboxHeight: number;
-    bboxConfidence?: number;
-    bboxClassId?: number;
-    speciesProbabilities: number[];
-    sexProbabilities: number[];
-    abdomenStatusProbabilities: number[];
-  };
 }
 
 export const schema = {
@@ -34,34 +19,7 @@ export const schema = {
     required: ['sessionId', 'specimenId'],
     properties: {
       specimenId: { type: 'string' },
-      sessionId: { type: 'number' },
-      species: { type: 'string' },
-      sex: { type: 'string' },
-      abdomenStatus: { type: 'string' },
-      capturedAt: { type: 'number' },
-      inferenceResult: {
-        type: 'object',
-        properties: {
-          bboxTopLeftX: { type: 'number' },
-          bboxTopLeftY: { type: 'number' },
-          bboxWidth: { type: 'number' },
-          bboxHeight: { type: 'number' },
-          bboxConfidence: { type: 'number' },
-          bboxClassId: { type: 'number' },
-          speciesProbabilities: { 
-            type: 'array',
-            items: { type: 'number' }
-          },
-          sexProbabilities: { 
-            type: 'array',
-            items: { type: 'number' }
-          },
-          abdomenStatusProbabilities: { 
-            type: 'array',
-            items: { type: 'number' }
-          }
-        }
-      }
+      sessionId: { type: 'number' }
     }
   },
   response: {
@@ -75,35 +33,44 @@ export const schema = {
             id: { type: 'number' },
             specimenId: { type: 'string' },
             sessionId: { type: 'number' },
-            imageUrl: { type: ['string', 'null'] },
-            species: { type: ['string', 'null'] },
-            sex: { type: ['string', 'null'] },
-            abdomenStatus: { type: ['string', 'null'] },
-            capturedAt: { type: ['number', 'null'] },
-            submittedAt: { type: 'number' },
-            inferenceResult: {
-              type: ['object', 'null'],
-              properties: {
-                id: { type: 'number' },
-                bboxTopLeftX: { type: 'number' },
-                bboxTopLeftY: { type: 'number' },
-                bboxWidth: { type: 'number' },
-                bboxHeight: { type: 'number' },
-                bboxConfidence: { type: 'number' },
-                bboxClassId: { type: 'number' },
-                speciesProbabilities: { 
-                  type: 'array',
-                  items: { type: 'number' }
-                },
-                sexProbabilities: { 
-                  type: 'array',
-                  items: { type: 'number' }
-                },
-                abdomenStatusProbabilities: { 
-                  type: 'array',
-                  items: { type: 'number' }
+            thumbnailUrl: { type: ['string', 'null'] },
+            thumbnailImageId: { type: ['number', 'null'] },
+            thumbnailImage: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    url: { type: 'string' },
+                    species: { type: ['string', 'null'] },
+                    sex: { type: ['string', 'null'] },
+                    abdomenStatus: { type: ['string', 'null'] },
+                    capturedAt: { type: ['number', 'null'] },
+                    submittedAt: { type: 'number' },
+                    inferenceResult: {
+                      anyOf: [
+                        { type: 'null' },
+                        {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'number' },
+                            bboxTopLeftX: { type: 'number' },
+                            bboxTopLeftY: { type: 'number' },
+                            bboxWidth: { type: 'number' },
+                            bboxHeight: { type: 'number' },
+                            bboxConfidence: { type: 'number' },
+                            bboxClassId: { type: 'number' },
+                            speciesProbabilities: { type: 'array', items: { type: 'number' } },
+                            sexProbabilities: { type: 'array', items: { type: 'number' } },
+                            abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                          }
+                        }
+                      ]
+                    }
+                  }
                 }
-              }
+              ]
             }
           }
         }
@@ -120,11 +87,6 @@ export async function createSpecimen(
     const {
       specimenId,
       sessionId,
-      species,
-      sex,
-      abdomenStatus,
-      capturedAt,
-      inferenceResult,
     } = request.body;
 
     // Check if session exists
@@ -143,29 +105,9 @@ export async function createSpecimen(
     const specimen = await Specimen.create({
       specimenId,
       sessionId,
-      species,
-      sex,
-      abdomenStatus,
-      capturedAt: capturedAt ? new Date(capturedAt) : null,
     });
 
-    // Create inference result if provided
-    if (inferenceResult) {
-      await InferenceResult.create({
-        specimenId: specimen.id,
-        bboxTopLeftX: inferenceResult.bboxTopLeftX,
-        bboxTopLeftY: inferenceResult.bboxTopLeftY,
-        bboxWidth: inferenceResult.bboxWidth,
-        bboxHeight: inferenceResult.bboxHeight,
-        bboxConfidence: inferenceResult.bboxConfidence,
-        bboxClassId: inferenceResult.bboxClassId,
-        speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
-        sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
-        abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
-      });
-    }
-
-    const formattedResponse = await formatSpecimenResponse(specimen);
+    const formattedResponse = await formatSpecimenResponse(specimen, false);
 
     return reply.code(201).send({
       message: 'Specimen created successfully',

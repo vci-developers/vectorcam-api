@@ -2,7 +2,6 @@ import { Model, DataTypes } from 'sequelize';
 import sequelize from '../index';
 
 // Import models needed for associations
-import InferenceResult from './InferenceResult';
 import SpecimenImage from './SpecimenImage';
 
 class Specimen extends Model {
@@ -10,10 +9,6 @@ class Specimen extends Model {
   declare specimenId: string;
   declare sessionId: number;
   declare thumbnailImageId: number | null;
-  declare species: string | null;
-  declare sex: string | null;
-  declare abdomenStatus: string | null;
-  declare capturedAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -49,24 +44,6 @@ Specimen.init(
         key: 'id',
       },
     },
-    species: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-    },
-    sex: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-    },
-    abdomenStatus: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-      field: 'abdomen_status',
-    },
-    capturedAt: {
-      type: DataTypes.DATE,
-      allowNull: true,
-      field: 'captured_at',
-    },
   },
   {
     sequelize,
@@ -75,10 +52,6 @@ Specimen.init(
     timestamps: true,
   }
 );
-
-// Setup associations
-Specimen.hasOne(InferenceResult, { foreignKey: 'specimenId', as: 'inferenceResult' });
-InferenceResult.belongsTo(Specimen, { foreignKey: 'specimenId', as: 'specimen' });
 
 // Setup associations with SpecimenImage
 Specimen.belongsTo(SpecimenImage, { foreignKey: 'thumbnail_image_id', as: 'thumbnailImage' });

@@ -10,22 +10,7 @@ import { Specimen, InferenceResult, SpecimenImage } from '../../db/models';
 
 interface UpdateSpecimenRequest {
   specimenId?: string;
-  species?: string;
-  sex?: string;
-  abdomenStatus?: string;
-  capturedAt?: number;
   thumbnailImageId?: number;
-  inferenceResult?: {
-    bboxTopLeftX: number;
-    bboxTopLeftY: number;
-    bboxWidth: number;
-    bboxHeight: number;
-    bboxConfidence?: number;
-    bboxClassId?: number;
-    speciesProbabilities: number[];
-    sexProbabilities: number[];
-    abdomenStatusProbabilities: number[];
-  };
 }
 
 export const schema = {
@@ -41,34 +26,7 @@ export const schema = {
     type: 'object',
     properties: {
       specimenId: { type: 'string' },
-      species: { type: 'string' },
-      sex: { type: 'string' },
-      abdomenStatus: { type: 'string' },
-      capturedAt: { type: 'number' },
-      thumbnailImageId: { type: 'number' },
-      inferenceResult: {
-        type: 'object',
-        properties: {
-          bboxTopLeftX: { type: 'number' },
-          bboxTopLeftY: { type: 'number' },
-          bboxWidth: { type: 'number' },
-          bboxHeight: { type: 'number' },
-          bboxConfidence: { type: 'number' },
-          bboxClassId: { type: 'number' },
-          speciesProbabilities: { 
-            type: 'array',
-            items: { type: 'number' }
-          },
-          sexProbabilities: { 
-            type: 'array',
-            items: { type: 'number' }
-          },
-          abdomenStatusProbabilities: { 
-            type: 'array',
-            items: { type: 'number' }
-          }
-        }
-      }
+      thumbnailImageId: { type: 'number' }
     }
   },
   response: {
@@ -82,46 +40,44 @@ export const schema = {
             id: { type: 'number' },
             specimenId: { type: 'string' },
             sessionId: { type: 'number' },
-            species: { type: ['string', 'null'] },
-            sex: { type: ['string', 'null'] },
-            abdomenStatus: { type: ['string', 'null'] },
-            capturedAt: { type: ['number', 'null'] },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
-            images: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'number' },
-                  url: { type: 'string' }
+            thumbnailImage: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    url: { type: 'string' },
+                    species: { type: ['string', 'null'] },
+                    sex: { type: ['string', 'null'] },
+                    abdomenStatus: { type: ['string', 'null'] },
+                    capturedAt: { type: ['number', 'null'] },
+                    submittedAt: { type: 'number' },
+                    inferenceResult: {
+                      anyOf: [
+                        { type: 'null' },
+                        {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'number' },
+                            bboxTopLeftX: { type: 'number' },
+                            bboxTopLeftY: { type: 'number' },
+                            bboxWidth: { type: 'number' },
+                            bboxHeight: { type: 'number' },
+                            bboxConfidence: { type: 'number' },
+                            bboxClassId: { type: 'number' },
+                            speciesProbabilities: { type: 'array', items: { type: 'number' } },
+                            sexProbabilities: { type: 'array', items: { type: 'number' } },
+                            abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                          }
+                        }
+                      ]
+                    }
+                  }
                 }
-              }
-            },
-            submittedAt: { type: 'number' },
-            inferenceResult: {
-              type: ['object', 'null'],
-              properties: {
-                id: { type: 'number' },
-                bboxTopLeftX: { type: 'number' },
-                bboxTopLeftY: { type: 'number' },
-                bboxWidth: { type: 'number' },
-                bboxHeight: { type: 'number' },
-                bboxConfidence: { type: 'number' },
-                bboxClassId: { type: 'number' },
-                speciesProbabilities: { 
-                  type: 'array',
-                  items: { type: 'number' }
-                },
-                sexProbabilities: { 
-                  type: 'array',
-                  items: { type: 'number' }
-                },
-                abdomenStatusProbabilities: { 
-                  type: 'array',
-                  items: { type: 'number' }
-                }
-              }
+              ]
             }
           }
         }
@@ -136,7 +92,7 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, species, sex, abdomenStatus, capturedAt, thumbnailImageId, inferenceResult } = request.body;
+    const { specimenId, thumbnailImageId } = request.body;
     
     const specimen = await findSpecimen(specimen_id);
     if (!specimen) {
@@ -148,10 +104,9 @@ export async function updateSpecimen(
       const idExists = await Specimen.findOne({
         where: { 
           specimenId,
-          id: { [Op.ne]: specimen.id } // Not the current specimen
+          id: { [Op.ne]: specimen.id }
         }
       });
-      
       if (idExists) {
         return reply.code(409).send({ error: 'A specimen with this id already exists' });
       }
@@ -165,51 +120,14 @@ export async function updateSpecimen(
           specimenId: specimen.id
         }
       });
-
       if (!imageExists) {
         return reply.code(400).send({ error: 'The specified image does not exist or does not belong to this specimen' });
-      }
-    }
-
-    // Update the inference result if provided
-    if (inferenceResult) {
-      const existingResult = await findInferenceResultBySpecimenId(specimen.id);
-      if (existingResult) {
-        await existingResult.update({
-          bboxTopLeftX: inferenceResult.bboxTopLeftX,
-          bboxTopLeftY: inferenceResult.bboxTopLeftY,
-          bboxWidth: inferenceResult.bboxWidth,
-          bboxHeight: inferenceResult.bboxHeight,
-          bboxConfidence: inferenceResult.bboxConfidence,
-          bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
-          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
-        });
-      } else {
-        // Create a new inference result if specimen doesn't have one
-        await InferenceResult.create({
-          specimenId: specimen.id,
-          bboxTopLeftX: inferenceResult.bboxTopLeftX,
-          bboxTopLeftY: inferenceResult.bboxTopLeftY,
-          bboxWidth: inferenceResult.bboxWidth,
-          bboxHeight: inferenceResult.bboxHeight,
-          bboxConfidence: inferenceResult.bboxConfidence,
-          bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
-          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
-        });
       }
     }
 
     // Update the specimen with the new data
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
-      species: species !== undefined ? species : specimen.species,
-      sex: sex !== undefined ? sex : specimen.sex,
-      abdomenStatus: abdomenStatus !== undefined ? abdomenStatus : specimen.abdomenStatus,
-      capturedAt: capturedAt !== undefined ? new Date(capturedAt) : specimen.capturedAt,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId
     });
 
@@ -219,7 +137,7 @@ export async function updateSpecimen(
       return reply.code(500).send({ error: 'Failed to update specimen' });
     }
 
-    const response = await formatSpecimenResponse(updatedSpecimen);
+    const response = await formatSpecimenResponse(updatedSpecimen, false);
     return reply.send({
       message: 'Specimen updated successfully',
       specimen: response

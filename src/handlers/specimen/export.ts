@@ -121,19 +121,21 @@ export async function exportSpecimensCSV(
     // If inference results are requested, fetch them separately
     let inferenceResults: any = {};
     if (includeInferenceResult) {
+      // Gather all image IDs for the selected specimens
       const specimenIds = specimens.map(s => s.id);
+      const allImages = await SpecimenImage.findAll({ where: { specimenId: { [Op.in]: specimenIds } } });
+      const imageIds = allImages.map(img => img.id);
       const results = await InferenceResult.findAll({
-        where: { specimenId: { [Op.in]: specimenIds } }
+        where: { specimenImageId: { [Op.in]: imageIds } }
       });
-      
-      // Create a map for quick lookup
+      // Create a map for quick lookup by specimenImageId
       results.forEach(result => {
-        inferenceResults[result.specimenId] = result;
+        inferenceResults[result.specimenImageId] = result;
       });
     }
 
     // Generate CSV header
-    let csvHeader = 'ID,SpecimenID,ImageUrl,Species,Sex,AbdomenStatus,CapturedAt,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionHouseNumber,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
+    let csvHeader = 'SpecimenID,ImageID,ImageUrl,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionHouseNumber,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
     
     // Add inference result columns if requested
     if (includeInferenceResult) {
@@ -143,85 +145,82 @@ export async function exportSpecimensCSV(
     
     csvHeader += '\n';
 
-    // Generate CSV rows
+    // Generate CSV rows (one per image)
     let csv = csvHeader;
     for (const specimen of specimens) {
-      // Safe approach to access associated models
       const session = specimen.get('session') as any;
       const site = session?.site as any;
       const device = session?.device as any;
       const program = site?.program as any;
-      const thumbnailImage = specimen.get('thumbnailImage') as any;
-      const inferenceResult = inferenceResults[specimen.id] as any;
-      
-      // Format thumbnail image URL with domain
-      const imageUrl = thumbnailImage 
-        ? `${config.server.domain}/specimens/${specimen.specimenId}/images/${thumbnailImage.id}`
-        : 'N/A';
-      
-      const row = [
-        specimen.id,
-        specimen.specimenId,
-        imageUrl,
-        specimen.species || 'N/A',
-        specimen.sex || 'N/A',
-        specimen.abdomenStatus || 'N/A',
-        specimen.capturedAt?.toISOString() || 'N/A',
-        specimen.createdAt.toISOString(),
-        specimen.updatedAt.toISOString(),
-        specimen.sessionId,
-        session?.frontendId || 'N/A',
-        session?.houseNumber || 'N/A',
-        session?.collectorTitle || 'N/A',
-        session?.collectorName || 'N/A',
-        session?.collectionDate?.toISOString() || 'N/A',
-        session?.collectionMethod || 'N/A',
-        session?.specimenCondition || 'N/A',
-        session?.notes || 'N/A',
-        session?.createdAt?.toISOString() || 'N/A',
-        session?.completedAt?.toISOString() || 'N/A',
-        session?.submittedAt?.toISOString() || 'N/A',
-        session?.updatedAt?.toISOString() || 'N/A',
-        session?.siteId || 'N/A',
-        site?.district || 'N/A',
-        site?.subCounty || 'N/A',
-        site?.parish || 'N/A',
-        site?.sentinelSite || 'N/A',
-        site?.healthCenter || 'N/A',
-        program?.id || 'N/A',
-        program?.name || 'N/A',
-        program?.country || 'N/A',
-        session?.deviceId || 'N/A',
-        device?.model || 'N/A',
-        device?.registeredAt?.toISOString() || 'N/A'
-      ];
-
-      // Add inference result data if requested and exists
-      if (includeInferenceResult) {
-        if (inferenceResult) {
-          row.push(
-            inferenceResult.id,
-            inferenceResult.bboxTopLeftX,
-            inferenceResult.bboxTopLeftY,
-            inferenceResult.bboxWidth,
-            inferenceResult.bboxHeight,
-            inferenceResult.speciesProbabilities,
-            inferenceResult.sexProbabilities,
-            inferenceResult.abdomenStatusProbabilities,
-            inferenceResult.bboxConfidence || 'N/A',
-            inferenceResult.bboxClassId || 'N/A',
-            inferenceResult.createdAt.toISOString(),
-            inferenceResult.updatedAt.toISOString()
-          );
-        } else {
-          // Add empty values for inference result columns
-          row.push(
-            'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'
-          );
+      // Get all images for this specimen
+      const images = await SpecimenImage.findAll({ where: { specimenId: specimen.id } });
+      for (const img of images) {
+        // Get inference result for this image if requested
+        let inferenceResult = null;
+        if (includeInferenceResult) {
+          inferenceResult = await InferenceResult.findOne({ where: { specimenImageId: img.id } });
         }
+        const imageUrl = `${config.server.domain}/specimens/${specimen.specimenId}/images/${img.id}`;
+        const row = [
+          specimen.specimenId,
+          img.id,
+          imageUrl,
+          img.species || 'N/A',
+          img.sex || 'N/A',
+          img.abdomenStatus || 'N/A',
+          img.capturedAt ? img.capturedAt.toISOString() : 'N/A',
+          img.createdAt.toISOString(),
+          img.updatedAt.toISOString(),
+          specimen.sessionId,
+          session?.frontendId || 'N/A',
+          session?.houseNumber || 'N/A',
+          session?.collectorTitle || 'N/A',
+          session?.collectorName || 'N/A',
+          session?.collectionDate?.toISOString() || 'N/A',
+          session?.collectionMethod || 'N/A',
+          session?.specimenCondition || 'N/A',
+          session?.notes || 'N/A',
+          session?.createdAt?.toISOString() || 'N/A',
+          session?.completedAt?.toISOString() || 'N/A',
+          session?.submittedAt?.toISOString() || 'N/A',
+          session?.updatedAt?.toISOString() || 'N/A',
+          session?.siteId || 'N/A',
+          site?.district || 'N/A',
+          site?.subCounty || 'N/A',
+          site?.parish || 'N/A',
+          site?.sentinelSite || 'N/A',
+          site?.healthCenter || 'N/A',
+          program?.id || 'N/A',
+          program?.name || 'N/A',
+          program?.country || 'N/A',
+          session?.deviceId || 'N/A',
+          device?.model || 'N/A',
+          device?.registeredAt?.toISOString() || 'N/A'
+        ];
+        if (includeInferenceResult) {
+          if (inferenceResult) {
+            row.push(
+              inferenceResult.id,
+              inferenceResult.bboxTopLeftX,
+              inferenceResult.bboxTopLeftY,
+              inferenceResult.bboxWidth,
+              inferenceResult.bboxHeight,
+              inferenceResult.speciesProbabilities,
+              inferenceResult.sexProbabilities,
+              inferenceResult.abdomenStatusProbabilities,
+              inferenceResult.bboxConfidence || 'N/A',
+              inferenceResult.bboxClassId || 'N/A',
+              inferenceResult.createdAt.toISOString(),
+              inferenceResult.updatedAt.toISOString()
+            );
+          } else {
+            row.push(
+              'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'
+            );
+          }
+        }
+        csv += row.join(',') + '\n';
       }
-      
-      csv += row.join(',') + '\n';
     }
 
     // Set response headers for file download

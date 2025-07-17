@@ -18,11 +18,6 @@ export const schema = {
         id: { type: 'number' },
         specimenId: { type: 'string' },
         sessionId: { type: 'number' },
-        submittedAt: { type: 'number' },
-        species: { type: ['string', 'null'] },
-        sex: { type: ['string', 'null'] },
-        abdomenStatus: { type: ['string', 'null'] },
-        capturedAt: { type: ['number', 'null'] },
         thumbnailUrl: { type: ['string', 'null'] },
         thumbnailImageId: { type: ['number', 'null'] },
         images: {
@@ -31,33 +26,66 @@ export const schema = {
             type: 'object',
             properties: {
               id: { type: 'number' },
-              url: { type: 'string' }
+              url: { type: 'string' },
+              species: { type: ['string', 'null'] },
+              sex: { type: ['string', 'null'] },
+              abdomenStatus: { type: ['string', 'null'] },
+              capturedAt: { type: ['number', 'null'] },
+              submittedAt: { type: 'number' },
+              inferenceResult: {
+                type: ['object', 'null'],
+                properties: {
+                  id: { type: 'number' },
+                  bboxTopLeftX: { type: 'number' },
+                  bboxTopLeftY: { type: 'number' },
+                  bboxWidth: { type: 'number' },
+                  bboxHeight: { type: 'number' },
+                  bboxConfidence: { type: 'number' },
+                  bboxClassId: { type: 'number' },
+                  speciesProbabilities: { type: 'array', items: { type: 'number' } },
+                  sexProbabilities: { type: 'array', items: { type: 'number' } },
+                  abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                }
+              }
             }
           }
         },
-        inferenceResult: {
-          type: ['object', 'null'],
-          properties: {
-            id: { type: 'number' },
-            bboxTopLeftX: { type: 'number' },
-            bboxTopLeftY: { type: 'number' },
-            bboxWidth: { type: 'number' },
-            bboxHeight: { type: 'number' },
-            bboxConfidence: { type: 'number' },
-            bboxClassId: { type: 'number' },
-            speciesProbabilities: { 
-              type: 'array',
-              items: { type: 'number' }
-            },
-            sexProbabilities: { 
-              type: 'array',
-              items: { type: 'number' }
-            },
-            abdomenStatusProbabilities: { 
-              type: 'array',
-              items: { type: 'number' }
+        thumbnailImage: {
+          anyOf: [
+            { type: 'null' },
+            {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+                url: { type: 'string' },
+                species: { type: ['string', 'null'] },
+                sex: { type: ['string', 'null'] },
+                abdomenStatus: { type: ['string', 'null'] },
+                capturedAt: { type: ['number', 'null'] },
+                submittedAt: { type: 'number' },
+                inferenceResult: {
+                  anyOf: [
+                    { type: 'null' },
+                    {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'number' },
+                        bboxTopLeftX: { type: 'number' },
+                        bboxTopLeftY: { type: 'number' },
+                        bboxWidth: { type: 'number' },
+                        bboxHeight: { type: 'number' },
+                        bboxConfidence: { type: 'number' },
+                        bboxClassId: { type: 'number' },
+                        speciesProbabilities: { type: 'array', items: { type: 'number' } },
+                        sexProbabilities: { type: 'array', items: { type: 'number' } },
+                        abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                      }
+                    }
+                  ]
+                }
+              }
             }
-          }
+          ]
         },
         session: {
           type: 'object',
@@ -135,7 +163,7 @@ export async function getSpecimenDetails(
 
     // Format response with associations
     const specimenData = specimen.get({ plain: true }) as any;
-    const baseResponse = await formatSpecimenResponse(specimen);
+    const baseResponse = await formatSpecimenResponse(specimen, true);
     
     const response = {
       ...baseResponse,

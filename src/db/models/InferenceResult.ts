@@ -5,7 +5,7 @@ import sequelize from '../index';
 class InferenceResult extends Model {
   // Instance properties with type annotations
   declare id: number;
-  declare specimenId: number;
+  declare specimenImageId: number;
   declare bboxTopLeftX: number;
   declare bboxTopLeftY: number;
   declare bboxWidth: number;
@@ -26,14 +26,14 @@ InferenceResult.init(
       primaryKey: true,
       autoIncrement: true,
     },
-    specimenId: {
+    specimenImageId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'specimens',
+        model: 'specimen_images',
         key: 'id',
       },
-      field: 'specimen_id',
+      field: 'specimen_image_id',
     },
     bboxTopLeftX: {
       type: DataTypes.FLOAT,
