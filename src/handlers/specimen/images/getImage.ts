@@ -52,9 +52,9 @@ export const infoSchema = {
                 bboxHeight: { type: 'number' },
                 bboxConfidence: { type: 'number' },
                 bboxClassId: { type: 'number' },
-                speciesProbabilities: { type: 'array', items: { type: 'number' } },
-                sexProbabilities: { type: 'array', items: { type: 'number' } },
-                abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                speciesLogits: { type: 'array', items: { type: 'number' } },
+                sexLogits: { type: 'array', items: { type: 'number' } },
+                abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
               }
             }
           ]

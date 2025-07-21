@@ -41,9 +41,9 @@ export const schema = {
                       bboxHeight: { type: 'number' },
                       bboxConfidence: { type: 'number' },
                       bboxClassId: { type: 'number' },
-                      speciesProbabilities: { type: 'array', items: { type: 'number' } },
-                      sexProbabilities: { type: 'array', items: { type: 'number' } },
-                      abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                      speciesLogits: { type: 'array', items: { type: 'number' } },
+                      sexLogits: { type: 'array', items: { type: 'number' } },
+                      abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
                     }
                   }
                 ]
@@ -106,9 +106,9 @@ export async function getImageList(
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: JSON.parse(inferenceResult.speciesProbabilities),
-          sexProbabilities: JSON.parse(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: JSON.parse(inferenceResult.abdomenStatusProbabilities)
+          speciesLogits: JSON.parse(inferenceResult.speciesLogits),
+          sexLogits: JSON.parse(inferenceResult.sexLogits),
+          abdomenStatusLogits: JSON.parse(inferenceResult.abdomenStatusLogits)
         } : null,
         filemd5: img.filemd5
       };

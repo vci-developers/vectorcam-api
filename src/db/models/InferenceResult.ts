@@ -10,9 +10,9 @@ class InferenceResult extends Model {
   declare bboxTopLeftY: number;
   declare bboxWidth: number;
   declare bboxHeight: number;
-  declare speciesProbabilities: string;
-  declare sexProbabilities: string;
-  declare abdomenStatusProbabilities: string;
+  declare speciesLogits: string;
+  declare sexLogits: string;
+  declare abdomenStatusLogits: string;
   declare bboxConfidence: number;
   declare bboxClassId: number;
   declare createdAt: Date;
@@ -55,20 +55,20 @@ InferenceResult.init(
       allowNull: false,
       field: 'bbox_height',
     },
-    speciesProbabilities: {
+    speciesLogits: {
       type: DataTypes.TEXT,
       allowNull: false,
-      field: 'species_probabilities',
+      field: 'species_logits',
     },
-    sexProbabilities: {
+    sexLogits: {
       type: DataTypes.TEXT,
       allowNull: false,
-      field: 'sex_probabilities',
+      field: 'sex_logits',
     },
-    abdomenStatusProbabilities: {
+    abdomenStatusLogits: {
       type: DataTypes.TEXT,
       allowNull: false,
-      field: 'abdomen_status_probabilities',
+      field: 'abdomen_status_logits',
     },
     bboxConfidence: {
       type: DataTypes.FLOAT,

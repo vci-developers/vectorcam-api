@@ -17,9 +17,9 @@ export interface ImageResponse {
     bboxHeight: number;
     bboxConfidence: number;
     bboxClassId: number;
-    speciesProbabilities: number[];
-    sexProbabilities: number[];
-    abdomenStatusProbabilities: number[];
+    speciesLogits: number[];
+    sexLogits: number[];
+    abdomenStatusLogits: number[];
   } | null;
 }
 
@@ -75,9 +75,9 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
-          sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
+          speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
+          sexLogits: parseProbabilityString(inferenceResult.sexLogits),
+          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits)
         } : null
       };
     }));
@@ -106,9 +106,9 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: parseProbabilityString(inferenceResult.speciesProbabilities),
-          sexProbabilities: parseProbabilityString(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: parseProbabilityString(inferenceResult.abdomenStatusProbabilities)
+          speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
+          sexLogits: parseProbabilityString(inferenceResult.sexLogits),
+          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits)
         } : null
       };
       imagesToReturn = [thumbDetail];

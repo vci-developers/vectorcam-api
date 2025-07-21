@@ -14,9 +14,9 @@ interface UpdateImageDataRequestBody {
     bboxHeight: number;
     bboxConfidence?: number;
     bboxClassId?: number;
-    speciesProbabilities: number[];
-    sexProbabilities: number[];
-    abdomenStatusProbabilities: number[];
+    speciesLogits: number[];
+    sexLogits: number[];
+    abdomenStatusLogits: number[];
   };
 }
 
@@ -47,9 +47,9 @@ export const schema = {
           bboxHeight: { type: 'number' },
           bboxConfidence: { type: 'number' },
           bboxClassId: { type: 'number' },
-          speciesProbabilities: { type: 'array', items: { type: 'number' } },
-          sexProbabilities: { type: 'array', items: { type: 'number' } },
-          abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+          speciesLogits: { type: 'array', items: { type: 'number' } },
+          sexLogits: { type: 'array', items: { type: 'number' } },
+          abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
         }
       }
     }
@@ -82,9 +82,9 @@ export const schema = {
                     bboxHeight: { type: 'number' },
                     bboxConfidence: { type: 'number' },
                     bboxClassId: { type: 'number' },
-                    speciesProbabilities: { type: 'array', items: { type: 'number' } },
-                    sexProbabilities: { type: 'array', items: { type: 'number' } },
-                    abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
+                    speciesLogits: { type: 'array', items: { type: 'number' } },
+                    sexLogits: { type: 'array', items: { type: 'number' } },
+                    abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
                   }
                 }
               ]
@@ -137,9 +137,9 @@ export async function updateImageData(
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
-          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
+          speciesLogits: JSON.stringify(inferenceResult.speciesLogits),
+          sexLogits: JSON.stringify(inferenceResult.sexLogits),
+          abdomenStatusLogits: JSON.stringify(inferenceResult.abdomenStatusLogits)
         });
       } else {
         result = await InferenceResult.create({
@@ -150,9 +150,9 @@ export async function updateImageData(
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
-          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
+          speciesLogits: JSON.stringify(inferenceResult.speciesLogits),
+          sexLogits: JSON.stringify(inferenceResult.sexLogits),
+          abdomenStatusLogits: JSON.stringify(inferenceResult.abdomenStatusLogits)
         });
       }
     } else {
@@ -176,9 +176,9 @@ export async function updateImageData(
         bboxHeight: result.bboxHeight,
         bboxConfidence: result.bboxConfidence,
         bboxClassId: result.bboxClassId,
-        speciesProbabilities: JSON.parse(result.speciesProbabilities),
-        sexProbabilities: JSON.parse(result.sexProbabilities),
-        abdomenStatusProbabilities: JSON.parse(result.abdomenStatusProbabilities)
+        speciesLogits: JSON.parse(result.speciesLogits),
+        sexLogits: JSON.parse(result.sexLogits),
+        abdomenStatusLogits: JSON.parse(result.abdomenStatusLogits)
       } : null,
       filemd5: image.filemd5
     };

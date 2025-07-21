@@ -140,7 +140,7 @@ export async function exportSpecimensCSV(
     // Add inference result columns if requested
     if (includeInferenceResult) {
         console.log(includeInferenceResult)
-        csvHeader += ',InferenceResultID,BboxTopLeftX,BboxTopLeftY,BboxWidth,BboxHeight,SpeciesProbabilities,SexProbabilities,AbdomenStatusProbabilities,BboxConfidence,BboxClassId,InferenceResultCreatedAt,InferenceResultUpdatedAt';
+        csvHeader += ',InferenceResultID,BboxTopLeftX,BboxTopLeftY,BboxWidth,BboxHeight,SpeciesLogits,SexLogits,AbdomenStatusLogits,BboxConfidence,BboxClassId,InferenceResultCreatedAt,InferenceResultUpdatedAt';
     }
     
     csvHeader += '\n';
@@ -205,9 +205,9 @@ export async function exportSpecimensCSV(
               inferenceResult.bboxTopLeftY,
               inferenceResult.bboxWidth,
               inferenceResult.bboxHeight,
-              inferenceResult.speciesProbabilities,
-              inferenceResult.sexProbabilities,
-              inferenceResult.abdomenStatusProbabilities,
+              inferenceResult.speciesLogits,
+              inferenceResult.sexLogits,
+              inferenceResult.abdomenStatusLogits,
               inferenceResult.bboxConfidence || 'N/A',
               inferenceResult.bboxClassId || 'N/A',
               inferenceResult.createdAt.toISOString(),
