@@ -1,24 +1,14 @@
 import { FastifyInstance } from 'fastify';
 import { 
   createSpecimen,
+  getSpecimenList,
   getSpecimenDetails,
   updateSpecimen,
-  uploadImage,
-  getImages,
-  getImage,
-  getImageInfo,
-  putImage,
-  deleteImage,
-  initiateUpload,
-  appendUpload,
-  completeUpload,
-  getUploadStatus,
   deleteSpecimen,
   exportSpecimensCSV,
+  upload,
+  images,
 } from '../handlers/specimen';
-import { getSpecimenList } from '../handlers/specimen/getList';
-import { getUploadList } from '../handlers/specimen/upload/getList';
-import { tusHandler } from '../handlers/specimen/images/tusServer';
 import fastifyMultipart from '@fastify/multipart';
 
 // Import schemas from handler files
@@ -26,8 +16,7 @@ import { schema as createSchema } from '../handlers/specimen/post';
 import { schema as getSchema } from '../handlers/specimen/get';
 import { schema as updateSchema } from '../handlers/specimen/put';
 import { schema as uploadImageSchema } from '../handlers/specimen/images/uploadImage';
-import { schema as getImagesSchema } from '../handlers/specimen/images/getImages';
-import { schema as getImageSchema, infoSchema as getImageInfoSchema } from '../handlers/specimen/images/getImage';
+import { schema as getImageSchema } from '../handlers/specimen/images/getImage';
 import { schema as initiateUploadSchema } from '../handlers/specimen/upload/initiate'
 import { schema as appendUploadSchema } from '../handlers/specimen/upload/append'
 import { schema as completeUploadSchema } from '../handlers/specimen/upload/complete'
@@ -37,6 +26,10 @@ import { schema as getUploadListSchema } from '../handlers/specimen/upload/getLi
 import { schema as deleteSchema } from '../handlers/specimen/delete';
 import { schema as putImageSchema } from '../handlers/specimen/images/putImage';
 import { schema as deleteImageSchema } from '../handlers/specimen/images/deleteImage';
+import { schema as createImageDataSchema } from '../handlers/specimen/images/data/post';
+import { schema as updateImageDataSchema } from '../handlers/specimen/images/data/put';
+import { schema as getImageListSchema } from '../handlers/specimen/images/data/getList';
+import { schema as getImageDataSchema } from '../handlers/specimen/images/data/get';
 import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
 
@@ -80,62 +73,74 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Upload specimen image
   fastify.post('/:specimen_id/images', {
     schema: uploadImageSchema
-  }, uploadImage);
+  }, images.uploadImage);
 
   // Get a specific specimen image by ID
   fastify.get('/:specimen_id/images/:image_id', {
     schema: getImageSchema
-  }, getImage);
+  }, images.getImage);
 
-  // Get image info (metadata only)
-  fastify.get('/:specimen_id/images/:image_id/info', {
-    schema: getImageInfoSchema
-  }, getImageInfo);
-
-  // Get all specimen images - this must come after the more specific image routes
+  // Specimen image endpoints
   fastify.get('/:specimen_id/images', {
-    schema: getImagesSchema
-  }, getImages);
-
-  // Initiate multipart upload
-  fastify.post('/:specimen_id/images/uploads', {
-    schema: initiateUploadSchema
-  }, initiateUpload);
-
-  // Append bytes to upload
-  fastify.put('/:specimen_id/images/uploads/:upload_id', {
-    schema: appendUploadSchema
-  }, appendUpload);
-
-  // Complete multipart upload
-  fastify.post('/:specimen_id/images/uploads/:upload_id/complete', {
-    schema: completeUploadSchema
-  }, completeUpload);
-
-  // Get uploads by specimen
-  fastify.get('/:specimen_id/images/uploads', {
-    schema: getUploadListSchema
-  }, getUploadList);
-
-  // Get upload status
-  fastify.get('/:specimen_id/images/uploads/:upload_id', {
-    schema: getUploadStatusSchema
-  }, getUploadStatus);
+    schema: getImageListSchema
+  }, images.data.getImageList);
 
   // Update specimen image metadata
   fastify.put('/:specimen_id/images/:image_id', {
     schema: putImageSchema
-  }, putImage);
+  }, images.putImage);
 
   // Delete specimen image
   fastify.delete('/:specimen_id/images/:image_id', {
     schema: deleteImageSchema
-  }, deleteImage);
+  }, images.deleteImage);
+
+  // Initiate multipart upload
+  fastify.post('/:specimen_id/images/uploads', {
+    schema: initiateUploadSchema
+  }, upload.initiateUpload);
+
+  // Append bytes to upload
+  fastify.put('/:specimen_id/images/uploads/:upload_id', {
+    schema: appendUploadSchema
+  }, upload.appendUpload);
+
+  // Complete multipart upload
+  fastify.post('/:specimen_id/images/uploads/:upload_id/complete', {
+    schema: completeUploadSchema
+  }, upload.completeUpload);
+
+  // Get uploads by specimen
+  fastify.get('/:specimen_id/images/uploads', {
+    schema: getUploadListSchema
+  }, upload.getUploadList);
+
+  // Get upload status
+  fastify.get('/:specimen_id/images/uploads/:upload_id', {
+    schema: getUploadStatusSchema
+  }, upload.getUploadStatus);
 
   // TUS endpoints for specimen images
   fastify.addContentTypeParser('application/offset+octet-stream', (request, payload, done) => done(null));
-  fastify.all('/:specimen_id/images/tus', tusHandler);
-  fastify.all('/:specimen_id/images/tus/*', tusHandler);
+  fastify.all('/:specimen_id/images/tus', images.tusHandler);
+  fastify.all('/:specimen_id/images/tus/*', images.tusHandler);
+
+  // Specimen image data endpoints
+  fastify.get('/:specimen_id/images/data', {
+    schema: getImageListSchema
+  }, images.data.getImageList);
+
+  fastify.post('/:specimen_id/images/data', {
+    schema: createImageDataSchema
+  }, images.data.createImageData);
+
+  fastify.get('/:specimen_id/images/data/:image_id', {
+    schema: getImageDataSchema
+  }, images.data.getImageData);
+
+  fastify.put('/:specimen_id/images/data/:image_id', {
+    schema: updateImageDataSchema
+  }, images.data.updateImageData);
 
   done();
 } 

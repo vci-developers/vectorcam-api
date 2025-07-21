@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSpecimen, handleError } from '../common';
-import { SpecimenImage, InferenceResult } from '../../../db/models';
+import SpecimenImage from '../../../../db/models/SpecimenImage';
+import { InferenceResult } from '../../../../db/models';
+import { findSpecimen } from '../../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -58,7 +59,7 @@ export const schema = {
   }
 };
 
-export async function getImages(
+export async function getImageList(
   request: FastifyRequest<{ Params: { specimen_id: string } }>,
   reply: FastifyReply
 ): Promise<void> {

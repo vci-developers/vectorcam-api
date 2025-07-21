@@ -30,7 +30,7 @@ export const schema = {
   }
 };
 
-export default async function appendUpload(
+export async function appendUpload(
   request: FastifyRequest<{ 
     Params: { 
       specimen_id: string,

@@ -41,7 +41,7 @@ export const schema = {
   }
 };
 
-export default async function initiateUpload(
+export async function initiateUpload(
   request: FastifyRequest<{ 
     Params: { specimen_id: string },
     Body: { contentType: string, filemd5: string }

@@ -1,28 +1,14 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult } from '../../../db/models';
 import { findSpecimen, handleError } from '../common';
-
-interface PutImageRequestBody {
-  species?: string;
-  sex?: string;
-  abdomenStatus?: string;
-  capturedAt?: number;
-  inferenceResult?: {
-    bboxTopLeftX: number;
-    bboxTopLeftY: number;
-    bboxWidth: number;
-    bboxHeight: number;
-    bboxConfidence?: number;
-    bboxClassId?: number;
-    speciesProbabilities: number[];
-    sexProbabilities: number[];
-    abdomenStatusProbabilities: number[];
-  };
-}
+import { uploadFileStream } from '../../../services/s3.service';
+import { createHash } from 'crypto';
+import { Readable } from 'stream';
 
 export const schema = {
   tags: ['Specimen Images'],
-  description: 'Update a specimen image metadata',
+  description: 'Replace a specimen image file',
+  consumes: ['multipart/form-data'],
   params: {
     type: 'object',
     properties: {
@@ -30,29 +16,6 @@ export const schema = {
       image_id: { type: 'number' }
     },
     required: ['specimen_id', 'image_id']
-  },
-  body: {
-    type: 'object',
-    properties: {
-      species: { type: 'string' },
-      sex: { type: 'string' },
-      abdomenStatus: { type: 'string' },
-      capturedAt: { type: 'number' },
-      inferenceResult: {
-        type: 'object',
-        properties: {
-          bboxTopLeftX: { type: 'number' },
-          bboxTopLeftY: { type: 'number' },
-          bboxWidth: { type: 'number' },
-          bboxHeight: { type: 'number' },
-          bboxConfidence: { type: 'number' },
-          bboxClassId: { type: 'number' },
-          speciesProbabilities: { type: 'array', items: { type: 'number' } },
-          sexProbabilities: { type: 'array', items: { type: 'number' } },
-          abdomenStatusProbabilities: { type: 'array', items: { type: 'number' } }
-        }
-      }
-    }
   },
   response: {
     200: {
@@ -98,12 +61,40 @@ export const schema = {
 };
 
 export async function putImage(
-  request: FastifyRequest<{ Params: { specimen_id: string; image_id: number }; Body: PutImageRequestBody }>,
+  request: FastifyRequest<{ Params: { specimen_id: string; image_id: number } }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
     const { specimen_id, image_id } = request.params;
-    const { species, sex, abdomenStatus, capturedAt, inferenceResult } = request.body;
+    let fileData, fileBuffer, contentType, fileExtension, md5Hash, fileName, fileStream, imageKey;
+
+    if (!(request.isMultipart && request.isMultipart())) {
+      return reply.code(400).send({ error: 'Request must be multipart/form-data with a file' });
+    }
+
+    // Parse all parts
+    const parts = request.parts();
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        fileData = part;
+        break;
+      }
+    }
+
+    if (!fileData) {
+      return reply.code(400).send({ error: 'No file provided' });
+    }
+
+    contentType = fileData.mimetype;
+    if (!contentType.startsWith('image/')) {
+      return reply.code(400).send({ error: 'Only image files are allowed' });
+    }
+    fileExtension = contentType.split('/')[1];
+    fileBuffer = await fileData.toBuffer();
+    md5Hash = createHash('md5').update(fileBuffer).digest('hex');
+    fileName = `specimens/${specimen_id}/${md5Hash}.${fileExtension}`;
+    fileStream = Readable.from(fileBuffer);
+    imageKey = await uploadFileStream(fileName, fileStream, contentType);
 
     // Find the specimen
     const specimen = await findSpecimen(specimen_id);
@@ -117,47 +108,16 @@ export async function putImage(
       return reply.code(404).send({ error: 'Image not found' });
     }
 
-    // Update image metadata
+    // Update image record with new file info only
     await image.update({
-      species,
-      sex,
-      abdomenStatus,
-      capturedAt: capturedAt ? new Date(capturedAt) : null
+      imageKey,
+      filemd5: md5Hash
     });
 
-    // Update or create inference result
-    let result = null;
-    if (inferenceResult) {
-      result = await InferenceResult.findOne({ where: { specimenImageId: image.id } });
-      if (result) {
-        await result.update({
-          bboxTopLeftX: inferenceResult.bboxTopLeftX,
-          bboxTopLeftY: inferenceResult.bboxTopLeftY,
-          bboxWidth: inferenceResult.bboxWidth,
-          bboxHeight: inferenceResult.bboxHeight,
-          bboxConfidence: inferenceResult.bboxConfidence,
-          bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
-          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
-        });
-      } else {
-        result = await InferenceResult.create({
-          specimenImageId: image.id,
-          bboxTopLeftX: inferenceResult.bboxTopLeftX,
-          bboxTopLeftY: inferenceResult.bboxTopLeftY,
-          bboxWidth: inferenceResult.bboxWidth,
-          bboxHeight: inferenceResult.bboxHeight,
-          bboxConfidence: inferenceResult.bboxConfidence,
-          bboxClassId: inferenceResult.bboxClassId,
-          speciesProbabilities: JSON.stringify(inferenceResult.speciesProbabilities),
-          sexProbabilities: JSON.stringify(inferenceResult.sexProbabilities),
-          abdomenStatusProbabilities: JSON.stringify(inferenceResult.abdomenStatusProbabilities)
-        });
-      }
-    } else {
-      result = await InferenceResult.findOne({ where: { specimenImageId: image.id } });
-    }
+    await specimen.update({ thumbnailImageId: image.id });
+
+    // Get inference result if exists
+    let result = await InferenceResult.findOne({ where: { specimenImageId: image.id } });
 
     // Build the updated image object for response
     const updatedImage = {
@@ -183,7 +143,7 @@ export async function putImage(
       filemd5: image.filemd5
     };
 
-    return reply.send({ message: 'Image updated successfully', image: updatedImage });
+    return reply.send({ message: 'Image file replaced successfully', image: updatedImage });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to update specimen image');
   }

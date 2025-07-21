@@ -27,7 +27,7 @@ export const schema = {
   }
 };
 
-export default async function getUploadStatus(
+export async function getUploadStatus(
   request: FastifyRequest<{ 
     Params: { 
       specimen_id: string,

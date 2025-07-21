@@ -16,6 +16,13 @@ export const schema = {
       upload_id: { type: 'string', pattern: '^\\d+$' }
     }
   },
+  body: {
+    type: 'object',
+    properties: {
+      imageId: { type: 'number' }
+    },
+    required: []
+  },
   response: {
     200: {
       type: 'object',
@@ -28,17 +35,21 @@ export const schema = {
   }
 };
 
-export default async function completeUpload(
-  request: FastifyRequest<{ 
-    Params: { 
+export async function completeUpload(
+  request: FastifyRequest<{
+    Params: {
       specimen_id: string,
-      upload_id: string 
+      upload_id: string
+    },
+    Body: {
+      imageId?: number
     }
   }>,
   reply: FastifyReply
 ) {
   try {
     const { specimen_id, upload_id } = request.params;
+    const { imageId } = request.body || {};
 
     const specimen = await findSpecimen(specimen_id);
     if (!specimen) {
@@ -112,19 +123,37 @@ export default async function completeUpload(
       // Set the upload status to failed instead of deleting the record
       await upload.update({ status: 'failed' });
 
-      return reply.code(400).send({ 
+      return reply.code(400).send({
         error: 'File integrity check failed',
         expected: upload.filemd5,
         received: calculatedMd5
       });
     }
 
-    // Create SpecimenImage record
-    const image = await SpecimenImage.create({
-      specimenId: upload.specimenId,
-      imageKey: upload.s3Key,
-      filemd5: calculatedMd5
-    });
+    let image;
+    if (imageId) {
+      // Try to find the existing image
+      image = await SpecimenImage.findOne({ where: { id: imageId, specimenId: upload.specimenId } });
+      if (image) {
+        await image.update({
+          imageKey: upload.s3Key,
+          filemd5: calculatedMd5
+        });
+      } else {
+        image = await SpecimenImage.create({
+          specimenId: upload.specimenId,
+          imageKey: upload.s3Key,
+          filemd5: calculatedMd5
+        });
+      }
+    } else {
+      // Create SpecimenImage record
+      image = await SpecimenImage.create({
+        specimenId: upload.specimenId,
+        imageKey: upload.s3Key,
+        filemd5: calculatedMd5
+      });
+    }
 
     // Update specimen to use this as the thumbnail
     await specimen.update({ thumbnailImageId: image.id });
