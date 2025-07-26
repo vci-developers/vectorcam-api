@@ -1,8 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Specimen, SpecimenImage } from '../../../db/models';
-import { formatSpecimenResponse, handleError, findSpecimen } from '../../specimen/common';
-import { findSession } from '../common';
+import { formatSpecimenResponse, handleError } from '../../specimen/common';
+import { findSession, findSessionSpecimen } from '../common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -91,8 +91,8 @@ export async function updateSessionSpecimen(
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });
     }
-    // Use session.id (number) for findSpecimen
-    const specimen = await findSpecimen(specimen_id, undefined, session.id);
+    
+    const specimen = await findSessionSpecimen(session.id, specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

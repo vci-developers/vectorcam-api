@@ -132,26 +132,6 @@ export function isValidId(id: string): boolean {
   return !isNaN(Number(id)) && Number(id) > 0;
 }
 
-// Helper function to find a specimen by either ID or key, or by (sessionId, specimenId)
-export async function findSpecimen(
-  specimenIdOrId: string,
-  include?: any[],
-  sessionId?: number
-): Promise<Specimen | null> {
-  if (sessionId !== undefined) {
-    // Find by (sessionId, specimenId)
-    return Specimen.findOne({
-      where: { sessionId, specimenId: specimenIdOrId },
-      include
-    });
-  }
-  // Fallback to previous logic
-  return Specimen.findOne({
-    where: { specimenId: specimenIdOrId },
-    include
-  });
-}
-
 // Check if session exists by ID
 export async function findSessionById(id: number): Promise<Session | null> {
   return Session.findByPk(id);

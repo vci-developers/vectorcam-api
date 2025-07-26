@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, Site, Device } from '../../../db/models';
-import { formatSpecimenResponse, findSpecimen, handleError } from '../../specimen/common';
-import { findSession } from '../common';
+import { formatSpecimenResponse, handleError } from '../../specimen/common';
+import { findSession, findSessionSpecimen } from '../common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -163,8 +163,8 @@ export async function getSessionSpecimen(
         ]
       }
     ];
-    // Use session.id (number) for findSpecimen
-    const specimen = await findSpecimen(specimen_id, include, session.id);
+
+    const specimen = await findSessionSpecimen(session.id, specimen_id, include);
 
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });

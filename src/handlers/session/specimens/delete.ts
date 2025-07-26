@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, MultipartUpload } from '../../../db/models';
-import { handleError, findSpecimen } from '../../specimen/common';
-import { findSession } from '../common';
+import { handleError } from '../../specimen/common';
+import { findSession, findSessionSpecimen } from '../common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -39,8 +39,8 @@ export async function deleteSessionSpecimen(
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });
     }
-    // Use session.id (number) for findSpecimen
-    const specimen = await findSpecimen(specimen_id, undefined, session.id);
+
+    const specimen = await findSessionSpecimen(session.id, specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

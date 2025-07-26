@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SpecimenImage, InferenceResult } from '../../../db/models';
-import { findSpecimen, handleError } from '../common';
+import { SpecimenImage, InferenceResult, Specimen } from '../../../db/models';
+import { handleError } from '../common';
 import { uploadFileStream } from '../../../services/s3.service';
 import { createHash } from 'crypto';
 import { Readable } from 'stream';
@@ -12,7 +12,7 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      specimen_id: { type: 'string' },
+      specimen_id: { type: 'number' },
       image_id: { type: 'number' }
     },
     required: ['specimen_id', 'image_id']
@@ -97,7 +97,7 @@ export async function putImage(
     imageKey = await uploadFileStream(fileName, fileStream, contentType);
 
     // Find the specimen
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

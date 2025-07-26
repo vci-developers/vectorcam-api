@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { getFileStream } from '../../../services/s3.service';
-import { findSpecimen, handleError } from '../common';
-import { SpecimenImage } from '../../../db/models';
+import { handleError } from '../common';
+import { Specimen, SpecimenImage } from '../../../db/models';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -9,66 +9,12 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      specimen_id: { type: 'string' },
+      specimen_id: { type: 'number' },
       image_id: { type: 'string' }
     },
     required: ['specimen_id', 'image_id']
   }
   // No response schema as this returns a binary stream
-};
-
-export const infoSchema = {
-  tags: ['Specimen Images'],
-  description: 'Get specimen image metadata and inference result',
-  params: {
-    type: 'object',
-    properties: {
-      specimen_id: { type: 'string' },
-      image_id: { type: 'string' }
-    },
-    required: ['specimen_id', 'image_id']
-  },
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        id: { type: 'number' },
-        url: { type: 'string' },
-        species: { type: ['string', 'null'] },
-        sex: { type: ['string', 'null'] },
-        abdomenStatus: { type: ['string', 'null'] },
-        capturedAt: { type: ['number', 'null'] },
-        submittedAt: { type: 'number' },
-        inferenceResult: {
-          anyOf: [
-            { type: 'null' },
-            {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                bboxTopLeftX: { type: 'number' },
-                bboxTopLeftY: { type: 'number' },
-                bboxWidth: { type: 'number' },
-                bboxHeight: { type: 'number' },
-                bboxConfidence: { type: 'number' },
-                bboxClassId: { type: 'number' },
-                speciesLogits: { type: 'array', items: { type: 'number' } },
-                sexLogits: { type: 'array', items: { type: 'number' } },
-                abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
-              }
-            }
-          ]
-        },
-        filemd5: { type: 'string' }
-      }
-    },
-    404: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' }
-      }
-    }
-  }
 };
 
 export async function getImage(
@@ -83,7 +29,7 @@ export async function getImage(
   try {
     const { specimen_id, image_id } = request.params;
     
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

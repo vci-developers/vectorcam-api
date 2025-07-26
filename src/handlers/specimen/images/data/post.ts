@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SpecimenImage, InferenceResult } from '../../../../db/models';
-import { findSpecimen, handleError } from '../../common';
+import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models';
+import { handleError } from '../../common';
 
 interface CreateImageDataRequestBody {
   species?: string;
@@ -26,7 +26,7 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      specimen_id: { type: 'string' }
+      specimen_id: { type: 'number' }
     },
     required: ['specimen_id']
   },
@@ -97,7 +97,7 @@ export const schema = {
 };
 
 export async function createImageData(
-  request: FastifyRequest<{ Params: { specimen_id: string }; Body: CreateImageDataRequestBody }>,
+  request: FastifyRequest<{ Params: { specimen_id: number }; Body: CreateImageDataRequestBody }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
@@ -105,7 +105,7 @@ export async function createImageData(
     const { species, sex, abdomenStatus, capturedAt, inferenceResult } = request.body;
 
     // Find the specimen
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

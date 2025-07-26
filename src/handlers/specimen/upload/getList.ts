@@ -1,7 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { MultipartUpload, Specimen } from '../../../db/models';
 import { Op, Order } from 'sequelize';
-import { findSpecimen } from '../common';
 
 export const schema = {
   tags: ['Specimens'],
@@ -9,7 +8,7 @@ export const schema = {
     type: 'object',
     required: ['specimen_id'],
     properties: {
-      specimen_id: { type: 'string', description: 'Specimen ID or specimen identifier' }
+      specimen_id: { type: 'number', description: 'Specimen ID or specimen identifier' }
     }
   },
   querystring: {
@@ -70,7 +69,7 @@ interface QueryParams {
 
 export async function getUploadList(
   request: FastifyRequest<{ 
-    Params: { specimen_id: string };
+    Params: { specimen_id: number };
     Querystring: QueryParams;
   }>,
   reply: FastifyReply
@@ -86,7 +85,7 @@ export async function getUploadList(
     } = request.query;
 
     // First, find the specimen to get its ID
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
 
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });

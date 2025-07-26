@@ -1,9 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { MultipartUpload } from '../../../db/models';
+import { MultipartUpload, Specimen } from '../../../db/models';
 import { uploadPart } from '../../../services/s3.service';
 import { Readable } from 'stream';
-import { findSpecimen } from '../common';
-import { MultipartFile } from '@fastify/multipart';
 
 const FLUSH_THRESHOLD = 5 * 1024 * 1024; // 5MB
 
@@ -14,7 +12,7 @@ export const schema = {
     type: 'object',
     required: ['specimen_id', 'upload_id'],
     properties: {
-      specimen_id: { type: 'string' },
+      specimen_id: { type: 'number' },
       upload_id: { type: 'string', pattern: '^\\d+$' }
     }
   },
@@ -33,7 +31,7 @@ export const schema = {
 export async function appendUpload(
   request: FastifyRequest<{ 
     Params: { 
-      specimen_id: string,
+      specimen_id: number,
       upload_id: string 
     }
   }>,
@@ -47,7 +45,7 @@ export async function appendUpload(
       return reply.code(400).send({ error: 'Request must be multipart form data' });
     }
 
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

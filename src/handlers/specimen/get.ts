@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSpecimen, formatSpecimenResponse, handleError } from './common';
-import { Session, Site, Device } from '../../db/models';
+import { formatSpecimenResponse, handleError } from './common';
+import { Session, Site, Device, Specimen } from '../../db/models';
 
 export const schema = {
   tags: ['Specimens'],
@@ -8,7 +8,7 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      specimen_id: { type: 'string' }
+      specimen_id: { type: 'number' }
     }
   },
   response: {
@@ -131,7 +131,7 @@ export const schema = {
 };
 
 export async function getSpecimenDetails(
-  request: FastifyRequest<{ Params: { specimen_id: string } }>,
+  request: FastifyRequest<{ Params: { specimen_id: number } }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
@@ -155,7 +155,7 @@ export async function getSpecimenDetails(
         ]
       }
     ];
-    const specimen = await findSpecimen(specimen_id, include);
+    const specimen = await Specimen.findByPk(specimen_id, { include });
 
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });

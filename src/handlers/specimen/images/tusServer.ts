@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../../config/environment';
-import { findSpecimen } from '../common';
 import { SpecimenImage, Specimen } from '../../../db/models';
 import { createHash } from 'crypto';
 import { Op } from 'sequelize';
@@ -50,7 +49,7 @@ async function getTusServer(): Promise<any> {
           err.status_code = 400;
           throw err;
         }
-        const specimen = await findSpecimen(specimen_id);
+        const specimen = await Specimen.findByPk(specimen_id);
         if (!specimen) {
           const err: any = new Error('Specimen not found.');
           err.status_code = 404;
@@ -82,7 +81,7 @@ async function getTusServer(): Promise<any> {
           const match = req.url.match(/\/specimens\/(.+?)\/images\/tus/);
           const specimen_id = match ? match[1] : null;
           if (!specimen_id) return {};
-          const specimen: Specimen | null = await findSpecimen(specimen_id);
+          const specimen: Specimen | null = await Specimen.findByPk(specimen_id);
           if (!specimen) return {};
           // S3 key is in upload.storage.key
           const imageKey: string | undefined = upload.storage?.path;

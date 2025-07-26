@@ -101,3 +101,15 @@ export async function findSession(
     include
   });
 } 
+
+export async function findSessionSpecimen(sessionId: number, specimenId: string, include?: any): Promise<Specimen | null> {
+  if (isValidId(specimenId)) {
+    const specimen = await Specimen.findByPk(Number(specimenId), { include });
+    if (specimen) return specimen;
+  }
+
+  return Specimen.findOne({
+    where: { sessionId, specimenId },
+    include
+  })
+}

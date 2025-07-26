@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { MultipartUpload } from '../../../db/models';
-import { findSpecimen } from '../common';
+import { MultipartUpload, Specimen } from '../../../db/models';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -9,7 +8,7 @@ export const schema = {
     type: 'object',
     required: ['specimen_id', 'upload_id'],
     properties: {
-      specimen_id: { type: 'string' },
+      specimen_id: { type: 'number' },
       upload_id: { type: 'string', pattern: '^\\d+$' }
     }
   },
@@ -30,7 +29,7 @@ export const schema = {
 export async function getUploadStatus(
   request: FastifyRequest<{ 
     Params: { 
-      specimen_id: string,
+      specimen_id: number,
       upload_id: string 
     }
   }>,
@@ -39,7 +38,7 @@ export async function getUploadStatus(
   try {
     const { specimen_id, upload_id } = request.params;
 
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

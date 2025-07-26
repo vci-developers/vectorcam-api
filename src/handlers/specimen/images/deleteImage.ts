@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SpecimenImage, InferenceResult } from '../../../db/models';
-import { handleError, findSpecimen } from '../common';
+import { SpecimenImage, InferenceResult, Specimen } from '../../../db/models';
+import { handleError } from '../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -8,7 +8,7 @@ export const schema = {
   params: {
     type: 'object',
     properties: {
-      specimen_id: { type: 'string' },
+      specimen_id: { type: 'number' },
       image_id: { type: 'number' }
     },
     required: ['specimen_id', 'image_id']
@@ -24,13 +24,13 @@ export const schema = {
 };
 
 export async function deleteImage(
-  request: FastifyRequest<{ Params: { specimen_id: string; image_id: number } }>,
+  request: FastifyRequest<{ Params: { specimen_id: number; image_id: number } }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
     const { specimen_id, image_id } = request.params;
     // Check if the specimen exists
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }

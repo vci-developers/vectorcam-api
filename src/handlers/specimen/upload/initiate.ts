@@ -1,8 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { MultipartUpload } from '../../../db/models';
+import { MultipartUpload, Specimen } from '../../../db/models';
 import { initiateMultipartUpload } from '../../../services/s3.service';
 import { createHash } from 'crypto';
-import { findSpecimen } from '../common';
 
 const ACCEPTED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
@@ -13,7 +12,7 @@ export const schema = {
     type: 'object',
     required: ['specimen_id'],
     properties: {
-      specimen_id: { type: 'string' }
+      specimen_id: { type: 'number' }
     }
   },
   body: {
@@ -43,7 +42,7 @@ export const schema = {
 
 export async function initiateUpload(
   request: FastifyRequest<{ 
-    Params: { specimen_id: string },
+    Params: { specimen_id: number },
     Body: { contentType: string, filemd5: string }
   }>,
   reply: FastifyReply
@@ -61,7 +60,7 @@ export async function initiateUpload(
       });
     }
 
-    const specimen = await findSpecimen(specimen_id);
+    const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }
