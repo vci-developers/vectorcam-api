@@ -150,7 +150,7 @@ export async function createImageData(
     // Build the response object
     const responseImage = {
       id: newImage.id,
-      url: `/specimens/${specimen.specimenId || specimen.id}/images/${newImage.id}`,
+      url: `/specimens/${specimen.id}/images/${newImage.id}`,
       species: newImage.species,
       sex: newImage.sex,
       abdomenStatus: newImage.abdomenStatus,

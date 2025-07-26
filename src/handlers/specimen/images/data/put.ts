@@ -162,7 +162,7 @@ export async function updateImageData(
     // Build the updated image object for response
     const updatedImage = {
       id: image.id,
-      url: `/specimens/${specimen.specimenId || specimen.id}/images/${image.id}`,
+      url: `/specimens/${specimen.id}/images/${image.id}`,
       species: image.species,
       sex: image.sex,
       abdomenStatus: image.abdomenStatus,

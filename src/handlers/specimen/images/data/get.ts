@@ -69,7 +69,7 @@ export async function getImageData(
       });
       return reply.code(200).send({
         id: image.id,
-        url: `/specimens/${specimen.specimenId}/images/${image.id}`,
+        url: `/specimens/${specimen.id}/images/${image.id}`,
         species: image.species,
         sex: image.sex,
         abdomenStatus: image.abdomenStatus,

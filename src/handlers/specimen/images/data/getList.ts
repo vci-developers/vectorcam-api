@@ -91,7 +91,7 @@ export async function getImageList(
       });
       return {
         id: img.id,
-        url: `/specimens/${specimen.specimenId}/images/${img.id}`,
+        url: `/specimens/${specimen.id}/images/${img.id}`,
         species: img.species,
         sex: img.sex,
         abdomenStatus: img.abdomenStatus,
@@ -118,7 +118,7 @@ export async function getImageList(
     if (specimen.thumbnailImageId) {
       const thumbnail = images.find(img => img.id === specimen.thumbnailImageId);
       if (thumbnail) {
-        thumbnailUrl = `/specimens/${specimen.specimenId}/images/${thumbnail.id}`;
+        thumbnailUrl = `/specimens/${specimen.id}/images/${thumbnail.id}`;
       }
     }
 

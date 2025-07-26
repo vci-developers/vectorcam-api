@@ -160,7 +160,7 @@ export async function exportSpecimensCSV(
         if (includeInferenceResult) {
           inferenceResult = await InferenceResult.findOne({ where: { specimenImageId: img.id } });
         }
-        const imageUrl = `${config.server.domain}/specimens/${specimen.specimenId}/images/${img.id}`;
+        const imageUrl = `${config.server.domain}/specimens/${specimen.id}/images/${img.id}`;
         const row = [
           specimen.specimenId,
           img.id,

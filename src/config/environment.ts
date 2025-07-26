@@ -50,7 +50,7 @@ const testConfig = {
     port: parseInt(process.env.PORT || '8080', 10),
     nodeEnv: 'test',
     logLevel: 'error',
-    domain: process.env.DOMAIN || 'https://api.vectorcam.com',
+    domain: process.env.DOMAIN || 'https://api.vectorcam.org',
   },
   sentry: {
     enabled: process.env.SENTRY_ENABLED === 'true',
@@ -80,7 +80,7 @@ const productionConfig = {
     port: parseInt(process.env.PORT || '8080', 10),
     nodeEnv: 'production',
     logLevel: 'info',
-    domain: process.env.DOMAIN || 'https://api.vectorcam.com',
+    domain: process.env.DOMAIN || 'https://api.vectorcam.org',
   },
   sentry: {
     enabled: process.env.SENTRY_ENABLED === 'true',

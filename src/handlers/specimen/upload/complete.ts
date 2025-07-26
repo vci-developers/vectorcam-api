@@ -177,7 +177,7 @@ export async function completeUpload(
     return reply.code(200).send({
       message: 'Upload completed successfully',
       imageId: image.id,
-      imageUrl: `/specimens/${specimen.specimenId}/images/${image.id}`
+      imageUrl: `/specimens/${specimen.id}/images/${image.id}`
     });
   } catch (error) {
     request.log.error(error);

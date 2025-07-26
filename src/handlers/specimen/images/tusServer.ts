@@ -132,7 +132,7 @@ async function getTusServer(): Promise<any> {
               status_code: 204,
               body: JSON.stringify({
                 imageId: image.id,
-                imageUrl: `/specimens/${specimen.specimenId}/images/${image.id}`
+                imageUrl: `/specimens/${specimen.id}/images/${image.id}`
               })
             };
           } else {
@@ -156,7 +156,7 @@ async function getTusServer(): Promise<any> {
               status_code: 204,
               body: JSON.stringify({
                 imageId: newImage.id,
-                imageUrl: `/specimens/${specimen.specimenId}/images/${newImage.id}`
+                imageUrl: `/specimens/${specimen.id}/images/${newImage.id}`
               })
             };
           }

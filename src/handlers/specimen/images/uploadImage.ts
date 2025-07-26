@@ -92,7 +92,7 @@ export async function uploadImage(
     return reply.code(201).send({
       message: 'Image uploaded successfully',
       imageId: newImage.id,
-      imageUrl: `/specimens/${specimen.specimenId}/images/${newImage.id}`
+      imageUrl: `/specimens/${specimen.id}/images/${newImage.id}`
     });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to upload specimen image');

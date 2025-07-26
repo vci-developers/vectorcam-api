@@ -61,7 +61,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
       });
       return {
         id: img.id,
-        url: `/specimens/${specimen.specimenId}/images/${img.id}`,
+        url: `/specimens/${specimen.id}/images/${img.id}`,
         species: img.species,
         sex: img.sex,
         abdomenStatus: img.abdomenStatus,
@@ -92,7 +92,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
       });
       const thumbDetail = {
         id: thumbnailImage.id,
-        url: `/specimens/${specimen.specimenId}/images/${thumbnailImage.id}`,
+        url: `/specimens/${specimen.id}/images/${thumbnailImage.id}`,
         species: thumbnailImage.species,
         sex: thumbnailImage.sex,
         abdomenStatus: thumbnailImage.abdomenStatus,
