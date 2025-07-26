@@ -5,7 +5,7 @@ export { deleteSession } from './delete';
 export { getSessionList } from './getList';
 export { getSessionsByUser } from './getByUser';
 export { getSessionsBySite } from './getBySite';
-export { getSessionSpecimens } from './getSpecimens'; 
+export { getSessionSpecimens } from './specimens/getList'; 
 export { exportSessionsCSV } from './export';
 export { 
   getSessionSurvey,

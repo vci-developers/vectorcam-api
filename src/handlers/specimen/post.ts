@@ -5,6 +5,7 @@ import {
   formatSpecimenResponse,
 } from './common';
 import { Specimen } from '../../db/models';
+import { findSessionSpecimen } from '../session/common';
 
 interface CreateSpecimenRequest {
   specimenId: string;
@@ -96,7 +97,7 @@ export async function createSpecimen(
     }
 
     // Check if specimenId is unique
-    const existingSpecimen = await Specimen.findOne({ where: { specimenId } });
+    const existingSpecimen = await findSessionSpecimen(session.id, specimenId);
     if (existingSpecimen) {
       return reply.code(409).send({ error: 'A specimen with this id already exists' });
     }

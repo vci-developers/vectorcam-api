@@ -7,6 +7,7 @@ interface CreateImageDataRequestBody {
   sex?: string;
   abdomenStatus?: string;
   capturedAt?: number;
+  filemd5: string;
   inferenceResult?: {
     bboxTopLeftX: number;
     bboxTopLeftY: number;
@@ -37,6 +38,7 @@ export const schema = {
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
       capturedAt: { type: 'number' },
+      filemd5: { type: 'string' },
       inferenceResult: {
         type: 'object',
         properties: {
@@ -52,7 +54,8 @@ export const schema = {
         },
         required: ['bboxTopLeftX', 'bboxTopLeftY', 'bboxWidth', 'bboxHeight', 'speciesLogits', 'sexLogits', 'abdomenStatusLogits']
       }
-    }
+    },
+    required: ['filemd5']
   },
   response: {
     201: {
@@ -69,6 +72,7 @@ export const schema = {
             abdomenStatus: { type: ['string', 'null'] },
             capturedAt: { type: ['number', 'null'] },
             submittedAt: { type: 'number' },
+            filemd5: { type: 'string' },
             inferenceResult: {
               anyOf: [
                 { type: 'null' },
@@ -102,12 +106,18 @@ export async function createImageData(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { species, sex, abdomenStatus, capturedAt, inferenceResult } = request.body;
+    const { species, sex, abdomenStatus, capturedAt, filemd5, inferenceResult } = request.body;
 
     // Find the specimen
     const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
+    }
+
+    // Check for uniqueness of filemd5 under the same specimen
+    const existingImage = await SpecimenImage.findOne({ where: { filemd5, specimenId: specimen.id } });
+    if (existingImage) {
+      return reply.code(409).send({ error: 'A specimen image with this filemd5 already exists for this specimen' });
     }
 
     // Create the SpecimenImage record
@@ -118,7 +128,7 @@ export async function createImageData(
       abdomenStatus,
       capturedAt: capturedAt ? new Date(capturedAt) : null,
       imageKey: '', // Placeholder, as imageKey is required in the model but not provided here
-      filemd5: '' // Placeholder, as filemd5 is required in the model but not provided here
+      filemd5 // Now required
     });
 
     let createdInferenceResult = null;
@@ -146,6 +156,7 @@ export async function createImageData(
       abdomenStatus: newImage.abdomenStatus,
       capturedAt: newImage.capturedAt ? newImage.capturedAt.getTime() : null,
       submittedAt: newImage.createdAt.getTime(),
+      filemd5: newImage.filemd5,
       inferenceResult: createdInferenceResult
         ? {
             id: createdInferenceResult.id,

@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen } from '../../../db/models';
-import { handleError } from '../common';
+import { handleError, findSpecimenImage } from '../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -9,7 +9,7 @@ export const schema = {
     type: 'object',
     properties: {
       specimen_id: { type: 'number' },
-      image_id: { type: 'number' }
+      image_id: { type: 'string' }
     },
     required: ['specimen_id', 'image_id']
   },
@@ -34,15 +34,15 @@ export async function deleteImage(
     if (!specimen) {
       return reply.code(404).send({ error: 'Specimen not found' });
     }
-    // Check if the image exists and belongs to the specimen
-    const image = await SpecimenImage.findOne({ where: { id: image_id, specimenId: specimen.id } });
+    // Check if the image exists and belongs to the specimen (by id or filemd5)
+    const image = await findSpecimenImage(specimen.id, image_id);
     if (!image) {
       return reply.code(404).send({ error: 'Image not found for this specimen' });
     }
     // Delete inference result if exists
-    await InferenceResult.destroy({ where: { specimenImageId: image_id } });
+    await InferenceResult.destroy({ where: { specimenImageId: image.id } });
     // Delete the image
-    await SpecimenImage.destroy({ where: { id: image_id } });
+    await SpecimenImage.destroy({ where: { id: image.id } });
     return reply.send({ message: 'Image deleted successfully' });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to delete specimen image');

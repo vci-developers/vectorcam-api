@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { getFileStream } from '../../../services/s3.service';
-import { handleError } from '../common';
+import { handleError, findSpecimenImage } from '../common';
 import { Specimen, SpecimenImage } from '../../../db/models';
 
 export const schema = {
@@ -34,37 +34,7 @@ export async function getImage(
       return reply.code(404).send({ error: 'Specimen not found' });
     }
 
-    // Check if image_id is a number (integer string)
-    const isNumericId = /^\d+$/.test(image_id);
-
-    let image: SpecimenImage | null = null;
-
-    if (isNumericId) {
-      // Try finding by id first
-      image = await SpecimenImage.findOne({
-        where: {
-          id: parseInt(image_id, 10),
-          specimenId: specimen.id
-        }
-      });
-      // If not found by id, try by filemd5
-      if (!image) {
-        image = await SpecimenImage.findOne({
-          where: {
-            filemd5: image_id,
-            specimenId: specimen.id
-          }
-        });
-      }
-    } else {
-      // Try finding by filemd5 first
-      image = await SpecimenImage.findOne({
-        where: {
-          filemd5: image_id,
-          specimenId: specimen.id
-        }
-      });
-    }
+    const image = await findSpecimenImage(specimen.id, image_id);
 
     if (!image) {
       return reply.code(404).send({ error: 'Image not found' });

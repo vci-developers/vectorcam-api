@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSession, findSessionById, handleError } from './common';
-import { Specimen, SpecimenImage } from '../../db/models';
-import { formatSpecimenResponse } from '../specimen/common';
+import { findSession, handleError } from '../common';
+import { Specimen } from '../../../db/models';
+import { formatSpecimenResponse } from '../../specimen/common';
 
 export const schema = {
   tags: ['Sessions'],

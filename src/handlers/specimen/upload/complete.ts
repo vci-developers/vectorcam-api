@@ -3,6 +3,7 @@ import { MultipartUpload, Specimen, SpecimenImage } from '../../../db/models';
 import { uploadPart, completeMultipartUpload, getFileStream } from '../../../services/s3.service';
 import { Readable } from 'stream';
 import { createHash } from 'crypto';
+import { findSpecimenImage } from '../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -18,7 +19,7 @@ export const schema = {
   body: {
     type: 'object',
     properties: {
-      imageId: { type: 'number' }
+      imageId: { type: 'string' }
     },
     required: []
   },
@@ -41,7 +42,7 @@ export async function completeUpload(
       upload_id: string
     },
     Body: {
-      imageId?: number
+      imageId?: string
     }
   }>,
   reply: FastifyReply
@@ -131,21 +132,28 @@ export async function completeUpload(
 
     let image;
     if (imageId) {
-      // Try to find the existing image
-      image = await SpecimenImage.findOne({ where: { id: imageId, specimenId: upload.specimenId } });
-      if (image) {
-        await image.update({
-          imageKey: upload.s3Key,
-          filemd5: calculatedMd5
-        });
-      } else {
-        image = await SpecimenImage.create({
-          specimenId: upload.specimenId,
-          imageKey: upload.s3Key,
-          filemd5: calculatedMd5
+      image = await findSpecimenImage(specimen.id, imageId);
+      if (!image) {
+        return reply.code(404).send({ error: 'Image not found' });
+      }
+      if (image?.filemd5 != calculatedMd5) {
+        return reply.code(400).send({
+          error: 'File md5 mismatch',
+          expected: image?.filemd5,
+          received: calculatedMd5
         });
       }
     } else {
+      // Check for uniqueness of filemd5 under the same specimen
+      const existingImage = await SpecimenImage.findOne({ 
+        where: { filemd5: calculatedMd5, specimenId: upload.specimenId } 
+      });
+      if (existingImage) {
+        return reply.code(409).send({ 
+          error: 'A specimen image with this filemd5 already exists for this specimen' 
+        });
+      }
+
       // Create SpecimenImage record
       image = await SpecimenImage.create({
         specimenId: upload.specimenId,

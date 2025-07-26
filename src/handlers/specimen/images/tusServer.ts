@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { config } from '../../../config/environment';
 import { SpecimenImage, Specimen } from '../../../db/models';
+import { findSpecimenImage } from '../common';
 import { createHash } from 'crypto';
 import { Op } from 'sequelize';
 import { getFileStream } from '../../../services/s3.service';
@@ -57,14 +58,14 @@ async function getTusServer(): Promise<any> {
         }
         let excludeImageId: number | undefined = undefined;
         if (imageId) {
-          // Validate imageId belongs to this specimen
-          const image = await SpecimenImage.findOne({ where: { id: imageId, specimenId: specimen.id } });
+          // Validate imageId belongs to this specimen (id or filemd5)
+          const image = await findSpecimenImage(specimen.id, imageId);
           if (!image) {
             const err: any = new Error('Invalid imageId: not found or does not belong to this specimen.');
             err.status_code = 404;
             throw err;
           }
-          excludeImageId = Number(imageId);
+          excludeImageId = image.id;
         }
         if (filemd5) {
           const collision = await checkMd5Collision(specimen.id, filemd5, excludeImageId);
@@ -107,8 +108,8 @@ async function getTusServer(): Promise<any> {
           }
 
           if (imageId) {
-            // Replace existing image
-            const image = await SpecimenImage.findOne({ where: { id: imageId, specimenId: specimen.id } });
+            // Replace existing image (id or filemd5)
+            const image = await findSpecimenImage(specimen.id, imageId);
             if (!image) {
               return {
                 status_code: 400,
@@ -116,7 +117,7 @@ async function getTusServer(): Promise<any> {
               };
             }
             // Check for MD5 collision with other images for this specimen
-            const collision = await checkMd5Collision(specimen.id, filemd5, Number(imageId));
+            const collision = await checkMd5Collision(specimen.id, filemd5, image.id);
             if (collision) {
               return {
                 status_code: 409,

@@ -144,6 +144,22 @@ export async function findInferenceResultBySpecimenId(specimenId: number): Promi
   });
 }
 
+// Helper to find a specimen image by id or filemd5
+export async function findSpecimenImage(specimenId: number, imageId: string | number): Promise<SpecimenImage | null> {
+  // Try numeric id first if possible
+  if (typeof imageId === 'number' || (/^\d+$/.test(imageId))) {
+    const idNum = typeof imageId === 'number' ? imageId : parseInt(imageId, 10);
+    let image = await SpecimenImage.findOne({ where: { id: idNum, specimenId } });
+    if (image) return image;
+    // If not found, try as filemd5
+    image = await SpecimenImage.findOne({ where: { filemd5: String(imageId), specimenId } });
+    return image;
+  } else {
+    // Not a number, treat as filemd5
+    return await SpecimenImage.findOne({ where: { filemd5: String(imageId), specimenId } });
+  }
+}
+
 // Common error handler
 export function handleError(error: any, request: FastifyRequest, reply: FastifyReply, defaultMessage: string): void {
   console.error(`Error in ${request.method} ${request.url}:`, error);

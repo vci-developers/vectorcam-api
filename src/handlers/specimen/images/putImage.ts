@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen } from '../../../db/models';
-import { handleError } from '../common';
+import { handleError, findSpecimenImage } from '../common';
 import { uploadFileStream } from '../../../services/s3.service';
 import { createHash } from 'crypto';
 import { Readable } from 'stream';
@@ -13,7 +13,7 @@ export const schema = {
     type: 'object',
     properties: {
       specimen_id: { type: 'number' },
-      image_id: { type: 'number' }
+      image_id: { type: 'string' }
     },
     required: ['specimen_id', 'image_id']
   },
@@ -94,7 +94,6 @@ export async function putImage(
     md5Hash = createHash('md5').update(fileBuffer).digest('hex');
     fileName = `specimens/${specimen_id}/${md5Hash}.${fileExtension}`;
     fileStream = Readable.from(fileBuffer);
-    imageKey = await uploadFileStream(fileName, fileStream, contentType);
 
     // Find the specimen
     const specimen = await Specimen.findByPk(specimen_id);
@@ -103,10 +102,18 @@ export async function putImage(
     }
 
     // Find the image
-    const image = await SpecimenImage.findOne({ where: { id: image_id, specimenId: specimen.id } });
+    const image = await findSpecimenImage(specimen.id, image_id);
     if (!image) {
       return reply.code(404).send({ error: 'Image not found' });
     }
+
+    // If the uploaded file's md5 does not match the current filemd5, abort
+    if (image.filemd5 && md5Hash !== image.filemd5) {
+      return reply.code(400).send({ error: 'Uploaded image filemd5 does not match the existing image filemd5' });
+    }
+
+    // Only upload if md5 matches
+    imageKey = await uploadFileStream(fileName, fileStream, contentType);
 
     // Update image record with new file info only
     await image.update({

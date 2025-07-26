@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { SpecimenImage, InferenceResult, Specimen } from "../../../../db/models";
-import { handleError } from "../../common";
+import { handleError, findSpecimenImage } from '../../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -60,32 +60,7 @@ export async function getImageData(
       if (!specimen) {
         return reply.code(404).send({ error: 'Specimen not found' });
       }
-      // Check if image_id is a number (integer string)
-      const isNumericId = /^\d+$/.test(image_id);
-      let image: SpecimenImage | null = null;
-      if (isNumericId) {
-        image = await SpecimenImage.findOne({
-          where: {
-            id: parseInt(image_id, 10),
-            specimenId: specimen.id
-          }
-        });
-        if (!image) {
-          image = await SpecimenImage.findOne({
-            where: {
-              filemd5: image_id,
-              specimenId: specimen.id
-            }
-          });
-        }
-      } else {
-        image = await SpecimenImage.findOne({
-          where: {
-            filemd5: image_id,
-            specimenId: specimen.id
-          }
-        });
-      }
+      let image: SpecimenImage | null = await findSpecimenImage(specimen.id, image_id);
       if (!image) {
         return reply.code(404).send({ error: 'Image not found' });
       }

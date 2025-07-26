@@ -24,7 +24,7 @@ import { schema as deleteSchema } from '../handlers/session/delete';
 import { schema as getListSchema } from '../handlers/session/getList';
 import { schema as getByUserSchema } from '../handlers/session/getByUser';
 import { schema as getBySiteSchema } from '../handlers/session/getBySite';
-import { schema as getSpecimensSchema } from '../handlers/session/getSpecimens';
+import { schema as getSpecimensSchema } from '../handlers/session/specimens/getList';
 import { ExportSessionsCSVRequest, schema as exportSessionsCSVSchema } from '../handlers/session/export';
 import { ExportSurveillanceFormsCSVRequest, schema as exportSurveillanceFormsCSVSchema } from '../handlers/session/survey/exportSurvey';
 import { schema as getSurveySchema } from '../handlers/session/survey/getSurvey';

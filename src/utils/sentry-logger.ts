@@ -38,7 +38,30 @@ export class SentryLogger implements FastifyBaseLogger {
     this.logger.error(obj, ...args);
     const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
     
-    // Capture error messages in Sentry
+    // Check if this is a client error (4xx) that shouldn't be captured
+    let isClientError = false;
+    
+    if (args.length > 0 && args[0] instanceof Error) {
+      const error = args[0] as any;
+      // Only check for explicit 4xx status codes
+      if (error.statusCode >= 400 && error.statusCode < 500) {
+        isClientError = true;
+      }
+    }
+    
+    // Also check for common client error patterns in the message
+    if (msg.includes('Client error') || 
+        msg.includes('Validation error') ||
+        msg.includes('not captured in Sentry')) {
+      isClientError = true;
+    }
+    
+    // Don't capture client errors in Sentry
+    if (isClientError) {
+      return;
+    }
+    
+    // Capture actual server errors in Sentry
     if (args.length > 0 && args[0] instanceof Error) {
       sentryService.captureException(args[0], {
         extra: {

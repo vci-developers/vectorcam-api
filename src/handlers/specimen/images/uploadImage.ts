@@ -66,7 +66,13 @@ export async function uploadImage(
     
     // Generate a file name using the MD5 hash
     const fileName = `specimens/${specimen.specimenId}/${md5Hash}.${fileExtension}`;
-    
+
+    // Check for uniqueness of filemd5 under the same specimen
+    const existingImage = await SpecimenImage.findOne({ where: { filemd5: md5Hash, specimenId: specimen.id } });
+    if (existingImage) {
+      return reply.code(409).send({ error: 'A specimen image with this filemd5 already exists for this specimen' });
+    }
+
     // Create a fresh readable stream from the buffer for upload
     const fileStream = Readable.from(fileBuffer);
     

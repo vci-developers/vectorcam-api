@@ -50,11 +50,41 @@ export async function sentryErrorHandler(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  // Get the status code from the error, default to 500 for server errors
+  const statusCode = (error as any).statusCode || 500;
+  
+  // Handle client errors (4xx) - these should not be captured by Sentry
+  if (statusCode >= 400 && statusCode < 500) {
+    // Log client errors at info level only
+    request.log.info({
+      error: error.message,
+      statusCode,
+      url: request.url,
+      method: request.method,
+      code: (error as any).code,
+      validation: (error as any).validation,
+    }, 'Client error');
+    
+    // Prepare response object
+    const response: any = {
+      error: error.message || 'Client error'
+    };
+    
+    // Add validation details if it's a validation error
+    if ((error as any).validation) {
+      response.validation = (error as any).validation;
+    }
+    
+    // Return the error response to the client
+    return reply.status(statusCode).send(response);
+  }
+
+  // For server errors (5xx), capture in Sentry and log as error
   // Add error context
   sentryService.setContext('error', {
     message: error.message,
     stack: error.stack,
-    statusCode: reply.statusCode,
+    statusCode,
     url: request.url,
     method: request.method,
   });
@@ -70,11 +100,16 @@ export async function sentryErrorHandler(
       body: request.body,
     },
     response: {
-      statusCode: reply.statusCode,
+      statusCode,
       headers: reply.getHeaders(),
     },
   });
 
-  // Log the error to the server logger as well
-  request.log.error(error, 'Request error captured by Sentry');
+  // Log server errors
+  request.log.error(error, 'Server error captured by Sentry');
+  
+  // Return a generic server error response
+  return reply.status(statusCode).send({
+    error: 'Internal server error'
+  });
 } 

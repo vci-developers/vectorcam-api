@@ -100,6 +100,8 @@ async function setupServer(): Promise<void> {
 
     // Register Sentry middleware
     server.addHook('onRequest', sentryMiddleware);
+    
+    // Set the Sentry error handler to handle all errors properly
     server.setErrorHandler(sentryErrorHandler);
 
     // Start the server

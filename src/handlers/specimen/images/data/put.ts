@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models';
-import { handleError } from '../../common';
+import { handleError, findSpecimenImage } from '../../common';
 
 interface UpdateImageDataRequestBody {
   species?: string;
@@ -27,7 +27,7 @@ export const schema = {
     type: 'object',
     properties: {
       specimen_id: { type: 'number' },
-      image_id: { type: 'number' }
+      image_id: { type: 'string' }
     },
     required: ['specimen_id', 'image_id']
   },
@@ -112,7 +112,7 @@ export async function updateImageData(
     }
 
     // Find the image
-    const image = await SpecimenImage.findOne({ where: { id: image_id, specimenId: specimen.id } });
+    const image = await findSpecimenImage(specimen.id, image_id);
     if (!image) {
       return reply.code(404).send({ error: 'Image not found' });
     }
