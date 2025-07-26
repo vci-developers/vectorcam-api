@@ -23,7 +23,6 @@ Specimen.init(
     specimenId: {
       type: DataTypes.STRING(255),
       allowNull: false,
-      unique: true,
     },
     sessionId: {
       type: DataTypes.INTEGER,
@@ -50,6 +49,12 @@ Specimen.init(
     tableName: 'specimens',
     underscored: true,
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['session_id', 'specimen_id']
+      }
+    ]
   }
 );
 
