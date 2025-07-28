@@ -15,9 +15,9 @@ interface CreateImageDataRequestBody {
     bboxHeight: number;
     bboxConfidence?: number;
     bboxClassId?: number;
-    speciesLogits: number[];
-    sexLogits: number[];
-    abdomenStatusLogits: number[];
+    speciesLogits?: number[];
+    sexLogits?: number[];
+    abdomenStatusLogits?: number[];
   };
 }
 
@@ -52,7 +52,7 @@ export const schema = {
           sexLogits: { type: 'array', items: { type: 'number' } },
           abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
         },
-        required: ['bboxTopLeftX', 'bboxTopLeftY', 'bboxWidth', 'bboxHeight', 'speciesLogits', 'sexLogits', 'abdomenStatusLogits']
+        required: ['bboxTopLeftX', 'bboxTopLeftY', 'bboxWidth', 'bboxHeight']
       }
     },
     required: ['filemd5']
@@ -141,9 +141,9 @@ export async function createImageData(
         bboxHeight: inferenceResult.bboxHeight,
         bboxConfidence: inferenceResult.bboxConfidence,
         bboxClassId: inferenceResult.bboxClassId,
-        speciesLogits: JSON.stringify(inferenceResult.speciesLogits),
-        sexLogits: JSON.stringify(inferenceResult.sexLogits),
-        abdomenStatusLogits: JSON.stringify(inferenceResult.abdomenStatusLogits)
+        speciesLogits: inferenceResult.speciesLogits ? JSON.stringify(inferenceResult.speciesLogits) : null,
+        sexLogits: inferenceResult.sexLogits ? JSON.stringify(inferenceResult.sexLogits) : null,
+        abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null
       });
     }
 
@@ -166,9 +166,9 @@ export async function createImageData(
             bboxHeight: createdInferenceResult.bboxHeight,
             bboxConfidence: createdInferenceResult.bboxConfidence,
             bboxClassId: createdInferenceResult.bboxClassId,
-            speciesLogits: JSON.parse(createdInferenceResult.speciesLogits),
-            sexLogits: JSON.parse(createdInferenceResult.sexLogits),
-            abdomenStatusLogits: JSON.parse(createdInferenceResult.abdomenStatusLogits)
+            speciesLogits: createdInferenceResult.speciesLogits ? JSON.parse(createdInferenceResult.speciesLogits) : null,
+            sexLogits: createdInferenceResult.sexLogits ? JSON.parse(createdInferenceResult.sexLogits) : null,
+            abdomenStatusLogits: createdInferenceResult.abdomenStatusLogits ? JSON.parse(createdInferenceResult.abdomenStatusLogits) : null
           }
         : null
     };
