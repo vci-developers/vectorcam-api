@@ -110,7 +110,10 @@ export async function findSessionSpecimen(sessionId: number, specimenId: string,
   if (specimen) return specimen;
   
   if (isValidId(specimenId)) {
-    const specimen = await Specimen.findByPk(Number(specimenId), { include });
+    const specimen = await Specimen.findOne({
+      where: { id: Number(specimenId), sessionId },
+      include
+    });
     if (specimen) return specimen;
   }
 
