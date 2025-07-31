@@ -67,12 +67,12 @@ export async function getProgramList(
     const whereClause: any = {};
     if (name) {
       whereClause.name = {
-        [Op.iLike]: `%${name}%`
+        [Op.like]: `%${name}%`
       };
     }
     if (country) {
       whereClause.country = {
-        [Op.iLike]: `%${country}%`
+        [Op.like]: `%${country}%`
       };
     }
 

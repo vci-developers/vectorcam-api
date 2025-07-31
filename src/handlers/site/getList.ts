@@ -86,27 +86,27 @@ export async function getSiteList(
     }
     if (district) {
       whereClause.district = {
-        [Op.iLike]: `%${district}%`
+        [Op.like]: `%${district}%`
       };
     }
     if (subCounty) {
       whereClause.subCounty = {
-        [Op.iLike]: `%${subCounty}%`
+        [Op.like]: `%${subCounty}%`
       };
     }
     if (parish) {
       whereClause.parish = {
-        [Op.iLike]: `%${parish}%`
+        [Op.like]: `%${parish}%`
       };
     }
     if (sentinelSite) {
       whereClause.sentinelSite = {
-        [Op.iLike]: `%${sentinelSite}%`
+        [Op.like]: `%${sentinelSite}%`
       };
     }
     if (healthCenter) {
       whereClause.healthCenter = {
-        [Op.iLike]: `%${healthCenter}%`
+        [Op.like]: `%${healthCenter}%`
       };
     }
 

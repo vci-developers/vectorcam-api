@@ -13,6 +13,7 @@ export const schema = {
       programId: { type: 'number', description: 'Filter by program ID' },
       specimenId: { type: 'string', description: 'Filter by specimen ID (partial match)' },
       hasImages: { type: 'boolean', description: 'Filter specimens that have images' },
+      includeAllImages: { type: 'boolean', description: 'Include all images for each specimen (default: false, only thumbnail)' },
       dateFrom: { type: 'string', format: 'date', description: 'Filter specimens captured from this date (YYYY-MM-DD)' },
       dateTo: { type: 'string', format: 'date', description: 'Filter specimens captured to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -35,6 +36,41 @@ export const schema = {
               sessionId: { type: 'number' },
               thumbnailUrl: { type: 'string', nullable: true },
               thumbnailImageId: { type: 'number', nullable: true },
+              images: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    url: { type: 'string' },
+                    species: { type: ['string', 'null'] },
+                    sex: { type: ['string', 'null'] },
+                    abdomenStatus: { type: ['string', 'null'] },
+                    capturedAt: { type: ['number', 'null'] },
+                    submittedAt: { type: 'number' },
+                    inferenceResult: {
+                      anyOf: [
+                        { type: 'null' },
+                        {
+                          type: 'object',
+                          properties: {
+                            id: { type: 'number' },
+                            bboxTopLeftX: { type: 'number' },
+                            bboxTopLeftY: { type: 'number' },
+                            bboxWidth: { type: 'number' },
+                            bboxHeight: { type: 'number' },
+                            bboxConfidence: { type: 'number' },
+                            bboxClassId: { type: 'number' },
+                            speciesLogits: { type: 'array', items: { type: 'number' } },
+                            sexLogits: { type: 'array', items: { type: 'number' } },
+                            abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
               thumbnailImage: {
                 anyOf: [
                   { type: 'null' },
@@ -90,6 +126,7 @@ interface QueryParams {
   programId?: number;
   specimenId?: string;
   hasImages?: boolean;
+  includeAllImages?: boolean;
   dateFrom?: string;
   dateTo?: string;
   limit?: number;
@@ -109,6 +146,7 @@ export async function getSpecimenList(
       programId,
       specimenId,
       hasImages,
+      includeAllImages,
       dateFrom,
       dateTo,
       limit = 20,
@@ -125,7 +163,7 @@ export async function getSpecimenList(
     }
     if (specimenId) {
       whereClause.specimenId = {
-        [Op.iLike]: `%${specimenId}%`
+        [Op.like]: `%${specimenId}%`
       };
     }
 
@@ -196,7 +234,7 @@ export async function getSpecimenList(
     // Format response
     const formattedSpecimens = await Promise.all(
       specimens.map(async (specimen) => {
-        return await formatSpecimenResponse(specimen, false);
+        return await formatSpecimenResponse(specimen, includeAllImages || false);
       })
     );
 

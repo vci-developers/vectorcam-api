@@ -116,22 +116,22 @@ export async function getSessionList(
     }
     if (houseNumber) {
       whereClause.houseNumber = {
-        [Op.iLike]: `%${houseNumber}%`
+        [Op.like]: `%${houseNumber}%`
       };
     }
     if (collectorName) {
       whereClause.collectorName = {
-        [Op.iLike]: `%${collectorName}%`
+        [Op.like]: `%${collectorName}%`
       };
     }
     if (collectionMethod) {
       whereClause.collectionMethod = {
-        [Op.iLike]: `%${collectionMethod}%`
+        [Op.like]: `%${collectionMethod}%`
       };
     }
     if (specimenCondition) {
       whereClause.specimenCondition = {
-        [Op.iLike]: `%${specimenCondition}%`
+        [Op.like]: `%${specimenCondition}%`
       };
     }
 

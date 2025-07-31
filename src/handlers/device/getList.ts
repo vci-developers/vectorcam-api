@@ -72,7 +72,7 @@ export async function getDeviceList(
     }
     if (model) {
       whereClause.model = {
-        [Op.iLike]: `%${model}%`
+        [Op.like]: `%${model}%`
       };
     }
 
