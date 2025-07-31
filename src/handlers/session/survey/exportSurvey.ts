@@ -3,6 +3,22 @@ import { Op } from 'sequelize';
 import { handleError } from '../common';
 import { SurveillanceForm, Session, Site, Device, Program } from '../../../db/models';
 
+// Function to properly escape CSV fields
+function escapeCSVField(field: any): string {
+  if (field === null || field === undefined) {
+    return 'N/A';
+  }
+  
+  const stringField = String(field);
+  
+  // If the field contains comma, newline, or quote, wrap it in quotes and escape internal quotes
+  if (stringField.includes(',') || stringField.includes('\n') || stringField.includes('\r') || stringField.includes('"')) {
+    return '"' + stringField.replace(/"/g, '""') + '"';
+  }
+  
+  return stringField;
+}
+
 export const schema = {
   tags: ['Sessions'],
   description: 'Export surveillance forms data',
@@ -116,40 +132,40 @@ export async function exportSurveillanceFormsCSV(
       
       const row = [
         form.id,
-        form.numPeopleSleptInHouse || 'N/A',
-        form.wasIrsConducted ? 'Yes' : (form.wasIrsConducted === false ? 'No' : 'N/A'),
-        form.monthsSinceIrs || 'N/A',
-        form.numLlinsAvailable || 'N/A',
-        form.llinType || 'N/A',
-        form.llinBrand || 'N/A',
-        form.numPeopleSleptUnderLlin || 'N/A',
-        form.createdAt.toISOString(),
-        form.updatedAt.toISOString(),
+        escapeCSVField(form.numPeopleSleptInHouse),
+        escapeCSVField(form.wasIrsConducted ? 'Yes' : (form.wasIrsConducted === false ? 'No' : 'N/A')),
+        escapeCSVField(form.monthsSinceIrs),
+        escapeCSVField(form.numLlinsAvailable),
+        escapeCSVField(form.llinType),
+        escapeCSVField(form.llinBrand),
+        escapeCSVField(form.numPeopleSleptUnderLlin),
+        escapeCSVField(form.createdAt.toISOString()),
+        escapeCSVField(form.updatedAt.toISOString()),
         form.sessionId,
-        session?.frontendId || 'N/A',
-        session?.houseNumber || 'N/A',
-        session?.collectorTitle || 'N/A',
-        session?.collectorName || 'N/A',
-        session?.collectionDate?.toISOString() || 'N/A',
-        session?.collectionMethod || 'N/A',
-        session?.specimenCondition || 'N/A',
-        session?.notes || 'N/A',
-        session?.createdAt?.toISOString() || 'N/A',
-        session?.completedAt?.toISOString() || 'N/A',
-        session?.submittedAt?.toISOString() || 'N/A',
-        session?.updatedAt?.toISOString() || 'N/A',
-        session?.siteId || 'N/A',
-        site?.district || 'N/A',
-        site?.subCounty || 'N/A',
-        site?.parish || 'N/A',
-        site?.sentinelSite || 'N/A',
-        site?.healthCenter || 'N/A',
-        program?.id || 'N/A',
-        program?.name || 'N/A',
-        program?.country || 'N/A',
-        session?.deviceId || 'N/A',
-        device?.model || 'N/A',
-        device?.registeredAt?.toISOString() || 'N/A'
+        escapeCSVField(session?.frontendId),
+        escapeCSVField(session?.houseNumber),
+        escapeCSVField(session?.collectorTitle),
+        escapeCSVField(session?.collectorName),
+        escapeCSVField(session?.collectionDate?.toISOString()),
+        escapeCSVField(session?.collectionMethod),
+        escapeCSVField(session?.specimenCondition),
+        escapeCSVField(session?.notes),
+        escapeCSVField(session?.createdAt?.toISOString()),
+        escapeCSVField(session?.completedAt?.toISOString()),
+        escapeCSVField(session?.submittedAt?.toISOString()),
+        escapeCSVField(session?.updatedAt?.toISOString()),
+        session?.siteId,
+        escapeCSVField(site?.district),
+        escapeCSVField(site?.subCounty),
+        escapeCSVField(site?.parish),
+        escapeCSVField(site?.sentinelSite),
+        escapeCSVField(site?.healthCenter),
+        program?.id,
+        escapeCSVField(program?.name),
+        escapeCSVField(program?.country),
+        session?.deviceId,
+        escapeCSVField(device?.model),
+        escapeCSVField(device?.registeredAt?.toISOString())
       ].join(',');
       
       csv += row + '\n';

@@ -4,6 +4,22 @@ import { handleError } from './common';
 import { Specimen, Session, Site, Device, Program, InferenceResult, SpecimenImage } from '../../db/models';
 import { config } from '../../config/environment';
 
+// Function to properly escape CSV fields
+function escapeCSVField(field: any): string {
+  if (field === null || field === undefined) {
+    return 'N/A';
+  }
+  
+  const stringField = String(field);
+  
+  // If the field contains comma, newline, or quote, wrap it in quotes and escape internal quotes
+  if (stringField.includes(',') || stringField.includes('\n') || stringField.includes('\r') || stringField.includes('"')) {
+    return '"' + stringField.replace(/"/g, '""') + '"';
+  }
+  
+  return stringField;
+}
+
 export const schema = {
   tags: ['Specimens'],
   description: 'Export specimens data',
@@ -162,60 +178,62 @@ export async function exportSpecimensCSV(
         }
         const imageUrl = `${config.server.domain}/specimens/${specimen.id}/images/${img.id}`;
         const row = [
-          specimen.specimenId,
-          img.id,
-          imageUrl,
-          img.species || 'N/A',
-          img.sex || 'N/A',
-          img.abdomenStatus || 'N/A',
-          img.capturedAt ? img.capturedAt.toISOString() : 'N/A',
-          img.createdAt.toISOString(),
-          img.updatedAt.toISOString(),
-          specimen.sessionId,
-          session?.frontendId || 'N/A',
-          session?.houseNumber || 'N/A',
-          session?.collectorTitle || 'N/A',
-          session?.collectorName || 'N/A',
-          session?.collectionDate?.toISOString() || 'N/A',
-          session?.collectionMethod || 'N/A',
-          session?.specimenCondition || 'N/A',
-          session?.notes || 'N/A',
-          session?.createdAt?.toISOString() || 'N/A',
-          session?.completedAt?.toISOString() || 'N/A',
-          session?.submittedAt?.toISOString() || 'N/A',
-          session?.updatedAt?.toISOString() || 'N/A',
-          session?.siteId || 'N/A',
-          site?.district || 'N/A',
-          site?.subCounty || 'N/A',
-          site?.parish || 'N/A',
-          site?.sentinelSite || 'N/A',
-          site?.healthCenter || 'N/A',
-          program?.id || 'N/A',
-          program?.name || 'N/A',
-          program?.country || 'N/A',
-          session?.deviceId || 'N/A',
-          device?.model || 'N/A',
-          device?.registeredAt?.toISOString() || 'N/A'
+          escapeCSVField(specimen.specimenId),
+          escapeCSVField(img.id),
+          escapeCSVField(imageUrl),
+          escapeCSVField(img.species),
+          escapeCSVField(img.sex),
+          escapeCSVField(img.abdomenStatus),
+          escapeCSVField(img.capturedAt ? img.capturedAt.toISOString() : null),
+          escapeCSVField(img.createdAt.toISOString()),
+          escapeCSVField(img.updatedAt.toISOString()),
+          escapeCSVField(specimen.sessionId),
+          escapeCSVField(session?.frontendId),
+          escapeCSVField(session?.houseNumber),
+          escapeCSVField(session?.collectorTitle),
+          escapeCSVField(session?.collectorName),
+          escapeCSVField(session?.collectionDate?.toISOString()),
+          escapeCSVField(session?.collectionMethod),
+          escapeCSVField(session?.specimenCondition),
+          escapeCSVField(session?.notes),
+          escapeCSVField(session?.createdAt?.toISOString()),
+          escapeCSVField(session?.completedAt?.toISOString()),
+          escapeCSVField(session?.submittedAt?.toISOString()),
+          escapeCSVField(session?.updatedAt?.toISOString()),
+          escapeCSVField(session?.siteId),
+          escapeCSVField(site?.district),
+          escapeCSVField(site?.subCounty),
+          escapeCSVField(site?.parish),
+          escapeCSVField(site?.sentinelSite),
+          escapeCSVField(site?.healthCenter),
+          escapeCSVField(program?.id),
+          escapeCSVField(program?.name),
+          escapeCSVField(program?.country),
+          escapeCSVField(session?.deviceId),
+          escapeCSVField(device?.model),
+          escapeCSVField(device?.registeredAt?.toISOString())
         ];
         if (includeInferenceResult) {
           if (inferenceResult) {
             row.push(
-              inferenceResult.id,
-              inferenceResult.bboxTopLeftX,
-              inferenceResult.bboxTopLeftY,
-              inferenceResult.bboxWidth,
-              inferenceResult.bboxHeight,
-              inferenceResult.speciesLogits,
-              inferenceResult.sexLogits,
-              inferenceResult.abdomenStatusLogits,
-              inferenceResult.bboxConfidence || 'N/A',
-              inferenceResult.bboxClassId || 'N/A',
-              inferenceResult.createdAt.toISOString(),
-              inferenceResult.updatedAt.toISOString()
+              escapeCSVField(inferenceResult.id),
+              escapeCSVField(inferenceResult.bboxTopLeftX),
+              escapeCSVField(inferenceResult.bboxTopLeftY),
+              escapeCSVField(inferenceResult.bboxWidth),
+              escapeCSVField(inferenceResult.bboxHeight),
+              escapeCSVField(inferenceResult.speciesLogits),
+              escapeCSVField(inferenceResult.sexLogits),
+              escapeCSVField(inferenceResult.abdomenStatusLogits),
+              escapeCSVField(inferenceResult.bboxConfidence),
+              escapeCSVField(inferenceResult.bboxClassId),
+              escapeCSVField(inferenceResult.createdAt.toISOString()),
+              escapeCSVField(inferenceResult.updatedAt.toISOString())
             );
           } else {
             row.push(
-              'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A'
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), 
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), 
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), escapeCSVField(null)
             );
           }
         }
