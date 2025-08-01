@@ -27,6 +27,7 @@ class Session extends Model {
   declare updatedAt: Date;
   declare latitude: number | null;
   declare longitude: number | null;
+  declare type: string;
 }
 
 Session.init(
@@ -119,6 +120,11 @@ Session.init(
       type: DataTypes.FLOAT,
       allowNull: true,
       field: 'latitude',
+    },
+    type: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      defaultValue: '',
     },
   },
   {

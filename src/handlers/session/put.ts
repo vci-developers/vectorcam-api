@@ -17,6 +17,7 @@ interface UpdateSessionRequest {
   deviceId?: number;
   latitude?: number;
   longitude?: number;
+  type: string;
 }
 
 export const schema = {
@@ -44,7 +45,8 @@ export const schema = {
       siteId: { type: 'number' },
       deviceId: { type: 'number' },
       latitude: { type: 'number' },
-      longitude: { type: 'number' }
+      longitude: { type: 'number' },
+      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] }
     }
   },
   response: {
@@ -70,7 +72,8 @@ export const schema = {
             siteId: { type: 'number' },
             deviceId: { type: 'number' },
             latitude: { type: ['number', 'null'] },
-            longitude: { type: ['number', 'null'] }
+            longitude: { type: ['number', 'null'] },
+            type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] }
           }
         }
       }
@@ -116,7 +119,8 @@ export async function updateSession(
       siteId,
       deviceId,
       latitude,
-      longitude
+      longitude,
+      type
     } = request.body;
 
     const session = await findSession(session_id);
@@ -165,7 +169,8 @@ export async function updateSession(
       siteId: siteId || session.siteId,
       deviceId: deviceId || session.deviceId,
       latitude: latitude !== undefined ? latitude : session.latitude,
-      longitude: longitude !== undefined ? longitude : session.longitude
+      longitude: longitude !== undefined ? longitude : session.longitude,
+      type: type !== undefined ? type : session.type
     });
 
     return reply.send({

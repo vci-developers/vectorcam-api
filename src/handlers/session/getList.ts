@@ -17,6 +17,7 @@ export const schema = {
       collectionMethod: { type: 'string', description: 'Filter by collection method (partial match)' },
       specimenCondition: { type: 'string', description: 'Filter by specimen condition (partial match)' },
       status: { type: 'string', enum: ['pending', 'completed', 'submitted'], description: 'Filter by session status' },
+      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
       dateFrom: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
       dateTo: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -49,7 +50,8 @@ export const schema = {
               siteId: { type: 'number' },
               deviceId: { type: 'number' },
               latitude: { type: ['number', 'null'] },
-              longitude: { type: ['number', 'null'] }
+              longitude: { type: ['number', 'null'] },
+              type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] }
             }
           }
         },
@@ -72,6 +74,7 @@ interface QueryParams {
   collectionMethod?: string;
   specimenCondition?: string;
   status?: 'pending' | 'completed' | 'submitted';
+  type?: 'SURVEILLANCE' | 'DATA_COLLECTION';
   dateFrom?: string;
   dateTo?: string;
   limit?: number;
@@ -95,6 +98,7 @@ export async function getSessionList(
       collectionMethod,
       specimenCondition,
       status,
+      type,
       dateFrom,
       dateTo,
       limit = 20,
@@ -133,6 +137,9 @@ export async function getSessionList(
       whereClause.specimenCondition = {
         [Op.like]: `%${specimenCondition}%`
       };
+    }
+    if (type) {
+      whereClause.type = type;
     }
 
     // Handle status filtering

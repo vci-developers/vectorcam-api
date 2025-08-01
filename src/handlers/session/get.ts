@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { formatSessionResponse, handleError, findSession } from './common';
-import { Session, Site, Device } from '../../db/models';
+import { Site, Device } from '../../db/models';
 
 export const schema = {
   tags: ['Sessions'],
@@ -32,6 +32,7 @@ export const schema = {
         deviceId: { type: 'number' },
         latitude: { type: ['number', 'null'] },
         longitude: { type: ['number', 'null'] },
+        type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
         site: {
           type: 'object',
           properties: {

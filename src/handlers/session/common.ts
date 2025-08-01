@@ -20,6 +20,7 @@ export interface SessionResponse {
   // Add new fields
   latitude: number | null;
   longitude: number | null;
+  type: string;
 }
 
 // Helper to format session data consistently across endpoints
@@ -41,6 +42,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     deviceId: session.deviceId,
     latitude: session.latitude,
     longitude: session.longitude,
+    type: session.type,
   };
 }
 

@@ -22,6 +22,7 @@ interface SubmitSessionRequest {
   deviceId: number;
   latitude?: number;
   longitude?: number;
+  type: string;
 }
 
 export const schema = {
@@ -29,7 +30,7 @@ export const schema = {
   description: 'Submit a new session',
   body: {
     type: 'object',
-    required: ['frontendId', 'siteId', 'deviceId'],
+    required: ['frontendId', 'siteId', 'deviceId', 'type'],
     properties: {
       frontendId: { type: 'string', maxLength: 64 },
       houseNumber: { type: 'string' },
@@ -44,7 +45,8 @@ export const schema = {
       siteId: { type: 'number' },
       deviceId: { type: 'number' },
       latitude: { type: 'number' },
-      longitude: { type: 'number' }
+      longitude: { type: 'number' },
+      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] }
     }
   },
   response: {
@@ -70,7 +72,8 @@ export const schema = {
             siteId: { type: 'number' },
             deviceId: { type: 'number' },
             latitude: { type: ['number', 'null'] },
-            longitude: { type: ['number', 'null'] }
+            longitude: { type: ['number', 'null'] },
+            type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] }
           }
         }
       }
@@ -115,7 +118,8 @@ export async function submitSession(
       siteId,
       deviceId,
       latitude,
-      longitude
+      longitude,
+      type
     } = request.body;
 
     // Check if site exists
@@ -155,7 +159,8 @@ export async function submitSession(
       siteId,
       deviceId,
       latitude,
-      longitude
+      longitude,
+      type
     });
 
     return reply.code(201).send({
