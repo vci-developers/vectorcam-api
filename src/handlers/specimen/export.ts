@@ -176,7 +176,10 @@ export async function exportSpecimensCSV(
         if (includeInferenceResult) {
           inferenceResult = await InferenceResult.findOne({ where: { specimenImageId: img.id } });
         }
-        const imageUrl = `${config.server.domain}/specimens/${specimen.id}/images/${img.id}`;
+        // Check if image file is uploaded by checking if imageKey exists and is not empty
+        const imageUrl = img.imageKey && img.imageKey.trim() !== '' 
+          ? `${config.server.domain}/specimens/${specimen.id}/images/${img.id}`
+          : '';
         const row = [
           escapeCSVField(specimen.specimenId),
           escapeCSVField(img.id),
