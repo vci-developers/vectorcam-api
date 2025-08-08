@@ -15,6 +15,9 @@ class InferenceResult extends Model {
   declare abdomenStatusLogits: string;
   declare bboxConfidence: number;
   declare bboxClassId: number;
+  declare speciesInferenceDuration: number;
+  declare sexInferenceDuration: number;
+  declare abdomenStatusInferenceDuration: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -57,17 +60,17 @@ InferenceResult.init(
     },
     speciesLogits: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
       field: 'species_logits',
     },
     sexLogits: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
       field: 'sex_logits',
     },
     abdomenStatusLogits: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
       field: 'abdomen_status_logits',
     },
     bboxConfidence: {
@@ -79,6 +82,21 @@ InferenceResult.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: 'bbox_class_id',
+    },
+    speciesInferenceDuration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'species_inference_duration',
+    },
+    sexInferenceDuration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'sex_inference_duration',
+    },
+    abdomenStatusInferenceDuration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'abdomen_status_inference_duration',
     },
     createdAt: {
       type: DataTypes.DATE,

@@ -61,7 +61,10 @@ export const schema = {
                             bboxClassId: { type: 'number' },
                             speciesLogits: { type: 'array', items: { type: 'number' } },
                             sexLogits: { type: 'array', items: { type: 'number' } },
-                            abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
+                            abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
+                            speciesInferenceDuration: { type: ['number', 'null'] },
+                            sexInferenceDuration: { type: ['number', 'null'] },
+                            abdomenStatusInferenceDuration: { type: ['number', 'null'] }
                           }
                         }
                       ]

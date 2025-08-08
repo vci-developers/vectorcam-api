@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models';
-import { handleError, findSpecimenImage } from '../../common';
+import { handleError, findSpecimenImage, parseProbabilityString } from '../../common';
 
 interface UpdateImageDataRequestBody {
   species?: string;
@@ -17,6 +17,9 @@ interface UpdateImageDataRequestBody {
     speciesLogits: number[];
     sexLogits: number[];
     abdomenStatusLogits: number[];
+    speciesInferenceDuration?: number;
+    sexInferenceDuration?: number;
+    abdomenStatusInferenceDuration?: number;
   };
 }
 
@@ -49,7 +52,10 @@ export const schema = {
           bboxClassId: { type: 'number' },
           speciesLogits: { type: 'array', items: { type: 'number' } },
           sexLogits: { type: 'array', items: { type: 'number' } },
-          abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
+          abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
+          speciesInferenceDuration: { type: 'number' },
+          sexInferenceDuration: { type: 'number' },
+          abdomenStatusInferenceDuration: { type: 'number' }
         }
       }
     }
@@ -84,7 +90,10 @@ export const schema = {
                     bboxClassId: { type: 'number' },
                     speciesLogits: { type: 'array', items: { type: 'number' } },
                     sexLogits: { type: 'array', items: { type: 'number' } },
-                    abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
+                    abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
+                    speciesInferenceDuration: { type: ['number', 'null'] },
+                    sexInferenceDuration: { type: ['number', 'null'] },
+                    abdomenStatusInferenceDuration: { type: ['number', 'null'] }
                   }
                 }
               ]
@@ -137,9 +146,12 @@ export async function updateImageData(
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesLogits: JSON.stringify(inferenceResult.speciesLogits),
-          sexLogits: JSON.stringify(inferenceResult.sexLogits),
-          abdomenStatusLogits: JSON.stringify(inferenceResult.abdomenStatusLogits)
+          speciesLogits: inferenceResult.speciesLogits ? JSON.stringify(inferenceResult.speciesLogits) : null,
+          sexLogits: inferenceResult.sexLogits ? JSON.stringify(inferenceResult.sexLogits) : null,
+          abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null,
+          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
+          sexInferenceDuration: inferenceResult.sexInferenceDuration,
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
         });
       } else {
         result = await InferenceResult.create({
@@ -150,9 +162,12 @@ export async function updateImageData(
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesLogits: JSON.stringify(inferenceResult.speciesLogits),
-          sexLogits: JSON.stringify(inferenceResult.sexLogits),
-          abdomenStatusLogits: JSON.stringify(inferenceResult.abdomenStatusLogits)
+          speciesLogits: inferenceResult.speciesLogits ? JSON.stringify(inferenceResult.speciesLogits) : null,
+          sexLogits: inferenceResult.sexLogits ? JSON.stringify(inferenceResult.sexLogits) : null,
+          abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null,
+          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
+          sexInferenceDuration: inferenceResult.sexInferenceDuration,
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
         });
       }
     } else {
@@ -176,9 +191,12 @@ export async function updateImageData(
         bboxHeight: result.bboxHeight,
         bboxConfidence: result.bboxConfidence,
         bboxClassId: result.bboxClassId,
-        speciesLogits: JSON.parse(result.speciesLogits),
-        sexLogits: JSON.parse(result.sexLogits),
-        abdomenStatusLogits: JSON.parse(result.abdomenStatusLogits)
+        speciesLogits: parseProbabilityString(result.speciesLogits),
+        sexLogits: parseProbabilityString(result.sexLogits),
+        abdomenStatusLogits: parseProbabilityString(result.abdomenStatusLogits),
+        speciesInferenceDuration: result.speciesInferenceDuration,
+        sexInferenceDuration: result.sexInferenceDuration,
+        abdomenStatusInferenceDuration: result.abdomenStatusInferenceDuration
       } : null,
       filemd5: image.filemd5
     };

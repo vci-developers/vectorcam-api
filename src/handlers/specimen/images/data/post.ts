@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models';
-import { handleError } from '../../common';
+import { handleError, parseProbabilityString } from '../../common';
 
 interface CreateImageDataRequestBody {
   species?: string;
@@ -18,6 +18,9 @@ interface CreateImageDataRequestBody {
     speciesLogits?: number[];
     sexLogits?: number[];
     abdomenStatusLogits?: number[];
+    speciesInferenceDuration?: number;
+    sexInferenceDuration?: number;
+    abdomenStatusInferenceDuration?: number;
   };
 }
 
@@ -50,7 +53,10 @@ export const schema = {
           bboxClassId: { type: 'number' },
           speciesLogits: { type: 'array', items: { type: 'number' } },
           sexLogits: { type: 'array', items: { type: 'number' } },
-          abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
+          abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
+          speciesInferenceDuration: { type: 'number' },
+          sexInferenceDuration: { type: 'number' },
+          abdomenStatusInferenceDuration: { type: 'number' }
         },
         required: ['bboxTopLeftX', 'bboxTopLeftY', 'bboxWidth', 'bboxHeight']
       }
@@ -88,7 +94,10 @@ export const schema = {
                     bboxClassId: { type: 'number' },
                     speciesLogits: { type: 'array', items: { type: 'number' } },
                     sexLogits: { type: 'array', items: { type: 'number' } },
-                    abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
+                    abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
+                    speciesInferenceDuration: { type: ['number', 'null'] },
+                    sexInferenceDuration: { type: ['number', 'null'] },
+                    abdomenStatusInferenceDuration: { type: ['number', 'null'] }
                   }
                 }
               ]
@@ -131,7 +140,7 @@ export async function createImageData(
       filemd5 // Now required
     });
 
-    let createdInferenceResult = null;
+    let createdInferenceResult: InferenceResult | null = null;
     if (inferenceResult) {
       createdInferenceResult = await InferenceResult.create({
         specimenImageId: newImage.id,
@@ -143,7 +152,10 @@ export async function createImageData(
         bboxClassId: inferenceResult.bboxClassId,
         speciesLogits: inferenceResult.speciesLogits ? JSON.stringify(inferenceResult.speciesLogits) : null,
         sexLogits: inferenceResult.sexLogits ? JSON.stringify(inferenceResult.sexLogits) : null,
-        abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null
+        abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null,
+        speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
+        sexInferenceDuration: inferenceResult.sexInferenceDuration,
+        abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
       });
     }
 
@@ -151,9 +163,9 @@ export async function createImageData(
     const responseImage = {
       id: newImage.id,
       url: `/specimens/${specimen.id}/images/${newImage.id}`,
-      species: newImage.species,
-      sex: newImage.sex,
-      abdomenStatus: newImage.abdomenStatus,
+      species: newImage.species || null,
+      sex: newImage.sex || null,
+      abdomenStatus: newImage.abdomenStatus || null,
       capturedAt: newImage.capturedAt ? newImage.capturedAt.getTime() : null,
       submittedAt: newImage.createdAt.getTime(),
       filemd5: newImage.filemd5,
@@ -166,9 +178,12 @@ export async function createImageData(
             bboxHeight: createdInferenceResult.bboxHeight,
             bboxConfidence: createdInferenceResult.bboxConfidence,
             bboxClassId: createdInferenceResult.bboxClassId,
-            speciesLogits: createdInferenceResult.speciesLogits ? JSON.parse(createdInferenceResult.speciesLogits) : null,
-            sexLogits: createdInferenceResult.sexLogits ? JSON.parse(createdInferenceResult.sexLogits) : null,
-            abdomenStatusLogits: createdInferenceResult.abdomenStatusLogits ? JSON.parse(createdInferenceResult.abdomenStatusLogits) : null
+            speciesLogits: parseProbabilityString(createdInferenceResult.speciesLogits),
+            sexLogits: parseProbabilityString(createdInferenceResult.sexLogits),
+            abdomenStatusLogits: parseProbabilityString(createdInferenceResult.abdomenStatusLogits),
+            speciesInferenceDuration: createdInferenceResult.speciesInferenceDuration || null,
+            sexInferenceDuration: createdInferenceResult.sexInferenceDuration || null,
+            abdomenStatusInferenceDuration: createdInferenceResult.abdomenStatusInferenceDuration || null
           }
         : null
     };

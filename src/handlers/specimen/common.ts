@@ -20,6 +20,9 @@ export interface ImageResponse {
     speciesLogits: number[];
     sexLogits: number[];
     abdomenStatusLogits: number[];
+    speciesInferenceDuration: number | null;
+    sexInferenceDuration: number | null;
+    abdomenStatusInferenceDuration: number | null;
   } | null;
 }
 
@@ -35,7 +38,10 @@ export interface SpecimenResponse {
 }
 
 // Helper function to parse probability string to array
-function parseProbabilityString(str: string): number[] {
+export function parseProbabilityString(str: string | null): number[] {
+  if (!str) {
+    return [];
+  }
   try {
     return JSON.parse(str);
   } catch (error) {
@@ -77,7 +83,10 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
           bboxClassId: inferenceResult.bboxClassId,
           speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
           sexLogits: parseProbabilityString(inferenceResult.sexLogits),
-          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits)
+          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
+          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
+          sexInferenceDuration: inferenceResult.sexInferenceDuration,
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
         } : null
       };
     }));
@@ -108,7 +117,10 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
           bboxClassId: inferenceResult.bboxClassId,
           speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
           sexLogits: parseProbabilityString(inferenceResult.sexLogits),
-          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits)
+          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
+          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
+          sexInferenceDuration: inferenceResult.sexInferenceDuration,
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
         } : null
       };
       imagesToReturn = [thumbDetail];

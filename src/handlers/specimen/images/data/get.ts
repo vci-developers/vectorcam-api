@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { SpecimenImage, InferenceResult, Specimen } from "../../../../db/models";
-import { handleError, findSpecimenImage } from '../../common';
+import { handleError, findSpecimenImage, parseProbabilityString } from '../../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -39,7 +39,10 @@ export const schema = {
                 bboxClassId: { type: 'number' },
                 speciesLogits: { type: 'array', items: { type: 'number' } },
                 sexLogits: { type: 'array', items: { type: 'number' } },
-                abdomenStatusLogits: { type: 'array', items: { type: 'number' } }
+                abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
+                speciesInferenceDuration: { type: ['number', 'null'] },
+                sexInferenceDuration: { type: ['number', 'null'] },
+                abdomenStatusInferenceDuration: { type: ['number', 'null'] }
               }
             }
           ]
@@ -83,9 +86,12 @@ export async function getImageData(
           bboxHeight: inferenceResult.bboxHeight,
           bboxConfidence: inferenceResult.bboxConfidence,
           bboxClassId: inferenceResult.bboxClassId,
-          speciesLogits: JSON.parse(inferenceResult.speciesLogits),
-          sexLogits: JSON.parse(inferenceResult.sexLogits),
-          abdomenStatusLogits: JSON.parse(inferenceResult.abdomenStatusLogits)
+          speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
+          sexLogits: parseProbabilityString(inferenceResult.sexLogits),
+          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
+          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
+          sexInferenceDuration: inferenceResult.sexInferenceDuration,
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
         } : null,
         filemd5: image.filemd5
       });

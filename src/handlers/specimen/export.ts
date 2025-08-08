@@ -156,7 +156,7 @@ export async function exportSpecimensCSV(
     // Add inference result columns if requested
     if (includeInferenceResult) {
         console.log(includeInferenceResult)
-        csvHeader += ',InferenceResultID,BboxTopLeftX,BboxTopLeftY,BboxWidth,BboxHeight,SpeciesLogits,SexLogits,AbdomenStatusLogits,BboxConfidence,BboxClassId,InferenceResultCreatedAt,InferenceResultUpdatedAt';
+        csvHeader += ',InferenceResultID,BboxTopLeftX,BboxTopLeftY,BboxWidth,BboxHeight,SpeciesLogits,SexLogits,AbdomenStatusLogits,BboxConfidence,BboxClassId,SpeciesInferenceDuration,SexInferenceDuration,AbdomenStatusInferenceDuration,InferenceResultCreatedAt,InferenceResultUpdatedAt';
     }
     
     csvHeader += '\n';
@@ -229,14 +229,19 @@ export async function exportSpecimensCSV(
               escapeCSVField(inferenceResult.abdomenStatusLogits),
               escapeCSVField(inferenceResult.bboxConfidence),
               escapeCSVField(inferenceResult.bboxClassId),
+              escapeCSVField(inferenceResult.speciesInferenceDuration),
+              escapeCSVField(inferenceResult.sexInferenceDuration),
+              escapeCSVField(inferenceResult.abdomenStatusInferenceDuration),
               escapeCSVField(inferenceResult.createdAt.toISOString()),
               escapeCSVField(inferenceResult.updatedAt.toISOString())
             );
           } else {
             row.push(
-              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), 
-              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), 
-              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), escapeCSVField(null)
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null),
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null),
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null),
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null),
+              escapeCSVField(null), escapeCSVField(null), escapeCSVField(null),
             );
           }
         }
