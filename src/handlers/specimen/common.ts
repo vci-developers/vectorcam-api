@@ -23,6 +23,7 @@ export interface ImageResponse {
     speciesInferenceDuration: number | null;
     sexInferenceDuration: number | null;
     abdomenStatusInferenceDuration: number | null;
+    bboxDetectionDuration: number | null;
   } | null;
 }
 
@@ -86,7 +87,8 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
           abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
           speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
           sexInferenceDuration: inferenceResult.sexInferenceDuration,
-          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
+          bboxDetectionDuration: inferenceResult.bboxDetectionDuration
         } : null
       };
     }));
@@ -120,7 +122,8 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
           abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
           speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
           sexInferenceDuration: inferenceResult.sexInferenceDuration,
-          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
+          bboxDetectionDuration: inferenceResult.bboxDetectionDuration
         } : null
       };
       imagesToReturn = [thumbDetail];

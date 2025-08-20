@@ -20,6 +20,7 @@ interface UpdateImageDataRequestBody {
     speciesInferenceDuration?: number;
     sexInferenceDuration?: number;
     abdomenStatusInferenceDuration?: number;
+    bboxDetectionDuration?: number;
   };
 }
 
@@ -55,7 +56,8 @@ export const schema = {
           abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
           speciesInferenceDuration: { type: 'number' },
           sexInferenceDuration: { type: 'number' },
-          abdomenStatusInferenceDuration: { type: 'number' }
+          abdomenStatusInferenceDuration: { type: 'number' },
+          bboxDetectionDuration: { type: 'number' }
         }
       }
     }
@@ -93,7 +95,8 @@ export const schema = {
                     abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
                     speciesInferenceDuration: { type: ['number', 'null'] },
                     sexInferenceDuration: { type: ['number', 'null'] },
-                    abdomenStatusInferenceDuration: { type: ['number', 'null'] }
+                    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
+                    bboxDetectionDuration: { type: ['number', 'null'] }
                   }
                 }
               ]
@@ -151,7 +154,8 @@ export async function updateImageData(
           abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null,
           speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
           sexInferenceDuration: inferenceResult.sexInferenceDuration,
-          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
+          bboxDetectionDuration: inferenceResult.bboxDetectionDuration
         });
       } else {
         result = await InferenceResult.create({
@@ -167,7 +171,8 @@ export async function updateImageData(
           abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null,
           speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
           sexInferenceDuration: inferenceResult.sexInferenceDuration,
-          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
+          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
+          bboxDetectionDuration: inferenceResult.bboxDetectionDuration
         });
       }
     } else {
@@ -196,7 +201,8 @@ export async function updateImageData(
         abdomenStatusLogits: parseProbabilityString(result.abdomenStatusLogits),
         speciesInferenceDuration: result.speciesInferenceDuration,
         sexInferenceDuration: result.sexInferenceDuration,
-        abdomenStatusInferenceDuration: result.abdomenStatusInferenceDuration
+        abdomenStatusInferenceDuration: result.abdomenStatusInferenceDuration,
+        bboxDetectionDuration: result.bboxDetectionDuration
       } : null,
       filemd5: image.filemd5
     };

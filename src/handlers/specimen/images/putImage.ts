@@ -50,7 +50,8 @@ export const schema = {
                     abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
                     speciesInferenceDuration: { type: ['number', 'null'] },
                     sexInferenceDuration: { type: ['number', 'null'] },
-                    abdomenStatusInferenceDuration: { type: ['number', 'null'] }
+                    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
+                    bboxDetectionDuration: { type: ['number', 'null'] }
                   }
                 }
               ]
@@ -151,7 +152,8 @@ export async function putImage(
         abdomenStatusLogits: parseProbabilityString(result.abdomenStatusLogits),
         speciesInferenceDuration: result.speciesInferenceDuration,
         sexInferenceDuration: result.sexInferenceDuration,
-        abdomenStatusInferenceDuration: result.abdomenStatusInferenceDuration
+        abdomenStatusInferenceDuration: result.abdomenStatusInferenceDuration,
+        bboxDetectionDuration: result.bboxDetectionDuration
       } : null,
       filemd5: image.filemd5
     };
