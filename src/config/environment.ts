@@ -42,6 +42,12 @@ const developmentConfig = {
     s3BucketName: process.env.S3_BUCKET_NAME || 'vectorcam-dev',
   },
   adminAuthToken: process.env.ADMIN_AUTH_TOKEN,
+  jwt: {
+    secret: process.env.JWT_SECRET || 'dev-jwt-secret',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-jwt-refresh-secret',
+    expiresIn: process.env.JWT_EXPIRES_IN || '1d',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '28d',
+  },
 };
 
 // Configuration for test environment
@@ -72,6 +78,12 @@ const testConfig = {
     s3BucketName: process.env.S3_BUCKET_NAME || 'vectorcam-test',
   },
   adminAuthToken: process.env.ADMIN_AUTH_TOKEN,
+  jwt: {
+    secret: process.env.JWT_SECRET || 'test-jwt-secret',
+    refreshSecret: process.env.JWT_REFRESH_SECRET || 'test-jwt-refresh-secret',
+    expiresIn: process.env.JWT_EXPIRES_IN || '1d',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '28d',
+  },
 };
 
 // Configuration for production environment
@@ -102,6 +114,12 @@ const productionConfig = {
     s3BucketName: process.env.S3_BUCKET_NAME,
   },
   adminAuthToken: process.env.ADMIN_AUTH_TOKEN,
+  jwt: {
+    secret: process.env.JWT_SECRET!,
+    refreshSecret: process.env.JWT_REFRESH_SECRET!,
+    expiresIn: process.env.JWT_EXPIRES_IN || '1d',
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '28d',
+  },
 };
 
 // Select the appropriate configuration based on the environment
