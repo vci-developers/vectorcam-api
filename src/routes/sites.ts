@@ -3,9 +3,13 @@ import {
   createSite,
   getSiteDetails,
   updateSite,
-  deleteSite 
+  deleteSite,
+  addSiteUserHandler, addSiteUserSchema,
+  getSiteUsersHandler, getSiteUsersSchema,
+  deleteSiteUserHandler, deleteSiteUserSchema
 } from '../handlers/site';
 import { getSiteList } from '../handlers/site/getList';
+import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
 
 // Import schemas from handler files
 import { schema as createSchema } from '../handlers/site/post';
@@ -39,6 +43,26 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   fastify.delete('/:site_id', {
     schema: deleteSchema
   }, deleteSite);
+
+  // Site user management routes (admin only)
+  
+  // Get all admin users for a site
+  fastify.get('/:siteId/users', {
+    preHandler: [adminAuthMiddleware],
+    schema: getSiteUsersSchema,
+  }, getSiteUsersHandler as any);
+
+  // Add admin user to site
+  fastify.post('/:siteId/users', {
+    preHandler: [adminAuthMiddleware],
+    schema: addSiteUserSchema,
+  }, addSiteUserHandler as any);
+
+  // Remove admin user from site
+  fastify.delete('/:siteId/users/:userId', {
+    preHandler: [adminAuthMiddleware],
+    schema: deleteSiteUserSchema,
+  }, deleteSiteUserHandler as any);
 
   done();
 } 

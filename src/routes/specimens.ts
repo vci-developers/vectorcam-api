@@ -32,6 +32,7 @@ import { schema as getImageListSchema } from '../handlers/specimen/images/data/g
 import { schema as getImageDataSchema } from '../handlers/specimen/images/data/get';
 import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
+import { flexibleAuthMiddleware } from '../middleware/mobileAuth.middleware';
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -41,8 +42,9 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Get all specimens with filters
   fastify.get('/', {
+    preHandler: [flexibleAuthMiddleware],
     schema: getListSchema
-  }, getSpecimenList);
+  }, getSpecimenList as any);
 
   // Create a new specimen
   fastify.post('/', {
@@ -51,8 +53,9 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Get specimen details
   fastify.get('/:specimen_id', {
+    preHandler: [flexibleAuthMiddleware],
     schema: getSchema
-  }, getSpecimenDetails);
+  }, getSpecimenDetails as any);
 
   // Update specimen
   fastify.put('/:specimen_id', {

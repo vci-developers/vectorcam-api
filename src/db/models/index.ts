@@ -9,6 +9,7 @@ import SpecimenImage from './SpecimenImage';
 import MultipartUpload from './MultipartUpload';
 import User from './User';
 import UserWhitelist from './UserWhitelist';
+import SiteUser from './SiteUser';
 
 export {
   Program,
@@ -21,5 +22,6 @@ export {
   SpecimenImage,
   MultipartUpload,
   User,
-  UserWhitelist
+  UserWhitelist,
+  SiteUser
 };
