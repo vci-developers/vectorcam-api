@@ -10,6 +10,8 @@ import MultipartUpload from './MultipartUpload';
 import User from './User';
 import UserWhitelist from './UserWhitelist';
 import SiteUser from './SiteUser';
+import AnnotationTask from './AnnotationTask';
+import Annotation from './Annotation';
 
 export {
   Program,
@@ -23,5 +25,7 @@ export {
   MultipartUpload,
   User,
   UserWhitelist,
-  SiteUser
+  SiteUser,
+  AnnotationTask,
+  Annotation
 };
