@@ -4,6 +4,9 @@ import { SiteUser, User, Site } from '../../../db/models';
 
 // Schema
 export const getSiteUsersSchema = {
+  tags: ['Site Users'],
+  summary: 'Get site users',
+  description: 'Get all admin users for a site with pagination (requires admin token)',
   params: Type.Object({
     siteId: Type.String()
   }),

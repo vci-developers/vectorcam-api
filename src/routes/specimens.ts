@@ -42,9 +42,8 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Get all specimens with filters
   fastify.get('/', {
-    preHandler: [flexibleAuthMiddleware],
     schema: getListSchema
-  }, getSpecimenList as any);
+  }, getSpecimenList);
 
   // Create a new specimen
   fastify.post('/', {
@@ -53,9 +52,8 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Get specimen details
   fastify.get('/:specimen_id', {
-    preHandler: [flexibleAuthMiddleware],
     schema: getSchema
-  }, getSpecimenDetails as any);
+  }, getSpecimenDetails);
 
   // Update specimen
   fastify.put('/:specimen_id', {

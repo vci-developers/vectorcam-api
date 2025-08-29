@@ -4,6 +4,9 @@ import { SiteUser, User } from '../../../db/models';
 
 // Schema
 export const deleteSiteUserSchema = {
+  tags: ['Site Users'],
+  summary: 'Remove user from site',
+  description: 'Remove an admin user from a site (requires admin token)',
   params: Type.Object({
     siteId: Type.String(),
     userId: Type.String()

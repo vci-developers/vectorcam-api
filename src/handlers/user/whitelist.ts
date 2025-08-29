@@ -6,7 +6,7 @@ interface WhitelistBody {
 }
 
 export const addToWhitelistSchema: any = {
-  tags: ['User Management'],
+  tags: ['Users'],
   summary: 'Add email to whitelist',
   description: 'Add an email to the whitelist (requires admin auth token)',
   headers: {
@@ -65,7 +65,7 @@ export const addToWhitelistSchema: any = {
 };
 
 export const getWhitelistSchema: any = {
-  tags: ['User Management'],
+  tags: ['Users'],
   summary: 'Get whitelist entries',
   description: 'Get all whitelist entries (requires admin auth token)',
   headers: {
@@ -108,7 +108,7 @@ export const getWhitelistSchema: any = {
 };
 
 export const removeFromWhitelistSchema: any = {
-  tags: ['User Management'],
+  tags: ['Users'],
   summary: 'Remove email from whitelist',
   description: 'Remove an email from the whitelist (requires admin auth token)',
   headers: {

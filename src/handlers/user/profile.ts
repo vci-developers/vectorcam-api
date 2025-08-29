@@ -48,7 +48,7 @@ export const getProfileSchema: any = {
 export const getUsersSchema: any = {
   tags: ['Users'],
   summary: 'Get all users',
-  description: 'Get list of all users (requires whitelist + admin privileges)',
+  description: 'Get list of all users (requires admin token)',
   headers: {
     type: 'object',
     properties: {

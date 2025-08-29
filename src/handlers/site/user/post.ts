@@ -4,6 +4,9 @@ import { SiteUser, User, Site } from '../../../db/models';
 
 // Schema
 export const addSiteUserSchema = {
+  tags: ['Site Users'],
+  summary: 'Add user to site',
+  description: 'Add an admin user to a site (requires admin token)',
   params: Type.Object({
     siteId: Type.String()
   }),

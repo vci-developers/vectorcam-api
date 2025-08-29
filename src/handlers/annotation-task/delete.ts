@@ -10,6 +10,9 @@ interface DeleteAnnotationTaskRequest extends FastifyRequest {
 }
 
 export const schema = {
+  tags: ['Annotations'],
+  summary: 'Delete annotation task',
+  description: 'Delete annotation task (requires admin token only)',
   params: {
     type: 'object',
     required: ['taskId'],

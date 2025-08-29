@@ -16,6 +16,9 @@ interface GetAnnotationTaskListRequest extends FastifyRequest {
 }
 
 export const schema = {
+  tags: ['Annotations'],
+  summary: 'Get annotation tasks list',
+  description: 'Get list of annotation tasks with filtering and pagination (requires admin token or superadmin user access)',
   querystring: {
     type: 'object',
     properties: {

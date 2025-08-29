@@ -16,6 +16,9 @@ interface GetAnnotationListRequest extends FastifyRequest {
 }
 
 export const schema = {
+  tags: ['Annotations'],
+  summary: 'Get annotations list',
+  description: 'Get list of annotations with filtering and pagination (requires admin token or superadmin user access)',
   querystring: {
     type: 'object',
     properties: {

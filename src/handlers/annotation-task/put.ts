@@ -18,6 +18,9 @@ interface UpdateAnnotationTaskRequest extends FastifyRequest {
 }
 
 export const schema = {
+  tags: ['Annotations'],
+  summary: 'Update annotation task',
+  description: 'Update annotation task data (requires admin token or superadmin user access - superadmin users can only update status)',
   params: {
     type: 'object',
     required: ['taskId'],

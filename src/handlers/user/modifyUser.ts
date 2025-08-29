@@ -10,7 +10,7 @@ interface ModifyUserParams {
 }
 
 export const modifyUserSchema: any = {
-  tags: ['User Management'],
+  tags: ['Users'],
   summary: 'Modify user privileges',
   description: 'Modify user privilege level (admin auth token required)',
   headers: {

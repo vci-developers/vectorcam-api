@@ -20,6 +20,9 @@ interface GetAnnotationRequest extends FastifyRequest {
 }
 
 export const schema = {
+  tags: ['Annotations'],
+  summary: 'Get annotation details',
+  description: 'Get detailed annotation information with related data (requires admin token or superadmin user access)',
   params: {
     type: 'object',
     required: ['annotationId'],
