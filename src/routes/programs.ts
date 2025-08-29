@@ -6,6 +6,7 @@ import {
   deleteProgram
 } from '../handlers/program';
 import { getProgramList } from '../handlers/program/getList';
+import { mobileAuthMiddleware } from '../middleware/mobileAuth.middleware';
 
 import { schema as createSchema } from '../handlers/program/post';
 import { schema as getSchema } from '../handlers/program/get';
@@ -16,22 +17,27 @@ import { schema as getListSchema } from '../handlers/program/getList';
 export default async function programRoutes(fastify: FastifyInstance) {
   // Get all programs with filters
   fastify.get('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: getListSchema,
-  }, getProgramList);
+  }, getProgramList as any);
 
   fastify.post('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: createSchema,
-  }, createProgram);
+  }, createProgram as any);
 
   fastify.get('/:program_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSchema,
-  }, getProgramDetails);
+  }, getProgramDetails as any);
 
   fastify.put('/:program_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateSchema,
-  }, updateProgram);
+  }, updateProgram as any);
 
   fastify.delete('/:program_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: deleteSchema,
-  }, deleteProgram);
+  }, deleteProgram as any);
 } 

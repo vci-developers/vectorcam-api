@@ -6,6 +6,7 @@ import {
   deleteDevice 
 } from '../handlers/device';
 import { getDeviceList } from '../handlers/device/getList';
+import { mobileAuthMiddleware } from '../middleware/mobileAuth.middleware';
 
 // Import schemas from handler files
 import { schema as createSchema } from '../handlers/device/post';
@@ -17,28 +18,33 @@ import { schema as getListSchema } from '../handlers/device/getList';
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Get all devices with filters
   fastify.get('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: getListSchema
-  }, getDeviceList);
+  }, getDeviceList as any);
 
   // Register a device
   fastify.post('/register', {
+    preHandler: [mobileAuthMiddleware],
     schema: createSchema
-  }, createDevice);
+  }, createDevice as any);
 
   // Get device details
   fastify.get('/:device_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSchema
-  }, getDeviceDetails);
+  }, getDeviceDetails as any);
 
   // Update device metadata
   fastify.put('/:device_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateSchema
-  }, updateDevice);
+  }, updateDevice as any);
 
   // Delete a device
   fastify.delete('/:device_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: deleteSchema
-  }, deleteDevice);
+  }, deleteDevice as any);
 
   done();
 } 

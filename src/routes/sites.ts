@@ -10,6 +10,7 @@ import {
 } from '../handlers/site';
 import { getSiteList } from '../handlers/site/getList';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
+import { mobileAuthMiddleware } from '../middleware/mobileAuth.middleware';
 
 // Import schemas from handler files
 import { schema as createSchema } from '../handlers/site/post';
@@ -21,28 +22,33 @@ import { schema as getListSchema } from '../handlers/site/getList';
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Get all sites with filters
   fastify.get('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: getListSchema
-  }, getSiteList);
+  }, getSiteList as any);
 
   // Register a new site
   fastify.post('/register', {
+    preHandler: [mobileAuthMiddleware],
     schema: createSchema
-  }, createSite);
+  }, createSite as any);
 
   // Get site details
   fastify.get('/:site_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSchema
-  }, getSiteDetails);
+  }, getSiteDetails as any);
 
   // Update an existing site
   fastify.put('/:site_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateSchema
-  }, updateSite);
+  }, updateSite as any);
 
   // Delete a site
   fastify.delete('/:site_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: deleteSchema
-  }, deleteSite);
+  }, deleteSite as any);
 
   // Site user management routes (admin only)
   

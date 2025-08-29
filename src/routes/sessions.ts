@@ -35,82 +35,98 @@ import { schema as createSessionSpecimenSchema } from '../handlers/session/speci
 import { schema as updateSessionSpecimenSchema } from '../handlers/session/specimens/put';
 import { schema as deleteSessionSpecimenSchema } from '../handlers/session/specimens/delete';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
+import { mobileAuthMiddleware } from '../middleware/mobileAuth.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   // Get all sessions with comprehensive filters
   fastify.get('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: getListSchema
-  }, getSessionList);
+  }, getSessionList as any);
 
   // Submit a new session
   fastify.post('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: submitSchema
-  }, submitSession);
+  }, submitSession as any);
 
   // Get session details by ID or frontendId (as string)
   fastify.get('/:session_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSchema
-  }, getSessionDetails);
+  }, getSessionDetails as any);
 
   // Update an existing session
   fastify.put('/:session_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateSchema
-  }, updateSession);
+  }, updateSession as any);
 
   // Delete a session
   fastify.delete('/:session_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: deleteSchema
-  }, deleteSession);
+  }, deleteSession as any);
 
   // Get sessions by user
   fastify.get('/users/:user_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getByUserSchema
-  }, getSessionsByUser);
+  }, getSessionsByUser as any);
 
   // Get sessions by site
   fastify.get('/sites/:site_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getBySiteSchema
-  }, getSessionsBySite);
+  }, getSessionsBySite as any);
 
   // Get specimens for a session
   fastify.get('/:session_id/specimens', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSpecimensSchema
-  }, getSessionSpecimens);
+  }, getSessionSpecimens as any);
 
   // Create a specimen under a session
   fastify.post('/:session_id/specimens', {
+    preHandler: [mobileAuthMiddleware],
     schema: createSessionSpecimenSchema
-  }, sessionSpecimenHandlers.createSessionSpecimen);
+  }, sessionSpecimenHandlers.createSessionSpecimen as any);
 
   // Get a single specimen under a session
   fastify.get('/:session_id/specimens/:specimen_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSessionSpecimenSchema
-  }, sessionSpecimenHandlers.getSessionSpecimen);
+  }, sessionSpecimenHandlers.getSessionSpecimen as any);
 
   // Update a specimen under a session
   fastify.put('/:session_id/specimens/:specimen_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateSessionSpecimenSchema
-  }, sessionSpecimenHandlers.updateSessionSpecimen);
+  }, sessionSpecimenHandlers.updateSessionSpecimen as any);
 
   // Delete a specimen under a session
   fastify.delete('/:session_id/specimens/:specimen_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: deleteSessionSpecimenSchema
-  }, sessionSpecimenHandlers.deleteSessionSpecimen);
+  }, sessionSpecimenHandlers.deleteSessionSpecimen as any);
 
   // Get session surveillance form
   fastify.get('/:session_id/survey', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSurveySchema
-  }, getSessionSurvey);
+  }, getSessionSurvey as any);
 
   // Create session surveillance form
   fastify.post('/:session_id/survey', {
+    preHandler: [mobileAuthMiddleware],
     schema: createSurveySchema
-  }, createSurvey);
+  }, createSurvey as any);
 
   // Update session surveillance form
   fastify.put('/:session_id/survey', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateSurveySchema
-  }, updateSurvey);
+  }, updateSurvey as any);
 
   // Export sessions as CSV
   fastify.get<ExportSessionsCSVRequest>('/export/csv', {

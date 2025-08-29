@@ -32,7 +32,7 @@ import { schema as getImageListSchema } from '../handlers/specimen/images/data/g
 import { schema as getImageDataSchema } from '../handlers/specimen/images/data/get';
 import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
-import { flexibleAuthMiddleware } from '../middleware/mobileAuth.middleware';
+import { mobileAuthMiddleware } from '../middleware/mobileAuth.middleware';
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -42,28 +42,33 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Get all specimens with filters
   fastify.get('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: getListSchema
-  }, getSpecimenList);
+  }, getSpecimenList as any);
 
   // Create a new specimen
   fastify.post('/', {
+    preHandler: [mobileAuthMiddleware],
     schema: createSchema
-  }, createSpecimen);
+  }, createSpecimen as any);
 
   // Get specimen details
   fastify.get('/:specimen_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getSchema
-  }, getSpecimenDetails);
+  }, getSpecimenDetails as any);
 
   // Update specimen
   fastify.put('/:specimen_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateSchema
-  }, updateSpecimen);
+  }, updateSpecimen as any);
 
   // Delete specimen
   fastify.delete('/:specimen_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: deleteSchema
-  }, deleteSpecimen);
+  }, deleteSpecimen as any);
 
   // Export specimens as CSV
   fastify.get<ExportSpecimensCSVRequest>('/export/csv', {
@@ -73,8 +78,9 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Upload specimen image
   fastify.post('/:specimen_id/images', {
+    preHandler: [mobileAuthMiddleware],
     schema: uploadImageSchema
-  }, images.uploadImage);
+  }, images.uploadImage as any);
 
   // Get a specific specimen image by ID
   fastify.get('/:specimen_id/images/:image_id', {
@@ -83,43 +89,51 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Specimen image endpoints
   fastify.get('/:specimen_id/images', {
+    preHandler: [mobileAuthMiddleware],
     schema: getImageListSchema
-  }, images.data.getImageList);
+  }, images.data.getImageList as any);
 
   // Update specimen image metadata
   fastify.put('/:specimen_id/images/:image_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: putImageSchema
-  }, images.putImage);
+  }, images.putImage as any);
 
   // Delete specimen image
   fastify.delete('/:specimen_id/images/:image_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: deleteImageSchema
-  }, images.deleteImage);
+  }, images.deleteImage as any);
 
   // Initiate multipart upload
   fastify.post('/:specimen_id/images/uploads', {
+    preHandler: [mobileAuthMiddleware],
     schema: initiateUploadSchema
-  }, upload.initiateUpload);
+  }, upload.initiateUpload as any);
 
   // Append bytes to upload
   fastify.put('/:specimen_id/images/uploads/:upload_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: appendUploadSchema
-  }, upload.appendUpload);
+  }, upload.appendUpload as any);
 
   // Complete multipart upload
   fastify.post('/:specimen_id/images/uploads/:upload_id/complete', {
+    preHandler: [mobileAuthMiddleware],
     schema: completeUploadSchema
-  }, upload.completeUpload);
+  }, upload.completeUpload as any);
 
   // Get uploads by specimen
   fastify.get('/:specimen_id/images/uploads', {
+    preHandler: [mobileAuthMiddleware],
     schema: getUploadListSchema
-  }, upload.getUploadList);
+  }, upload.getUploadList as any);
 
   // Get upload status
   fastify.get('/:specimen_id/images/uploads/:upload_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getUploadStatusSchema
-  }, upload.getUploadStatus);
+  }, upload.getUploadStatus as any);
 
   // TUS endpoints for specimen images
   fastify.addContentTypeParser('application/offset+octet-stream', (request, payload, done) => done(null));
@@ -128,20 +142,24 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Specimen image data endpoints
   fastify.get('/:specimen_id/images/data', {
+    preHandler: [mobileAuthMiddleware],
     schema: getImageListSchema
-  }, images.data.getImageList);
+  }, images.data.getImageList as any);
 
   fastify.post('/:specimen_id/images/data', {
+    preHandler: [mobileAuthMiddleware],
     schema: createImageDataSchema
-  }, images.data.createImageData);
+  }, images.data.createImageData as any);
 
   fastify.get('/:specimen_id/images/data/:image_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: getImageDataSchema
-  }, images.data.getImageData);
+  }, images.data.getImageData as any);
 
   fastify.put('/:specimen_id/images/data/:image_id', {
+    preHandler: [mobileAuthMiddleware],
     schema: updateImageDataSchema
-  }, images.data.updateImageData);
+  }, images.data.updateImageData as any);
 
   done();
 } 
