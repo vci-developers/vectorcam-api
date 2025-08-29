@@ -69,22 +69,19 @@ export async function loginHandler(request: FastifyRequest<{ Body: LoginBody }>,
 
     // Validate input
     if (!email || !password) {
-      reply.code(400).send({ error: 'Email and password are required' });
-      return;
+      return reply.code(400).send({ error: 'Email and password are required' });
     }
 
     // Find user by email
     const user = await User.findOne({ where: { email, isActive: true } });
     if (!user) {
-      reply.code(401).send({ error: 'Invalid email or password' });
-      return;
+      return reply.code(401).send({ error: 'Invalid email or password' });
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      reply.code(401).send({ error: 'Invalid email or password' });
-      return;
+      return reply.code(401).send({ error: 'Invalid email or password' });
     }
 
     // Generate tokens
@@ -100,7 +97,7 @@ export async function loginHandler(request: FastifyRequest<{ Body: LoginBody }>,
     const accessToken = jwt.sign(tokenPayload, config.jwt.secret, { expiresIn: accessTokenExpiry } as any);
     const refreshToken = jwt.sign(tokenPayload, config.jwt.refreshSecret, { expiresIn: refreshTokenExpiry } as any);
 
-    reply.code(200).send({
+    return reply.code(200).send({
       message: 'Login successful',
       user: {
         id: user.id,
@@ -114,7 +111,7 @@ export async function loginHandler(request: FastifyRequest<{ Body: LoginBody }>,
       },
     });
   } catch (error) {
-    request.log.error('Error in login handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

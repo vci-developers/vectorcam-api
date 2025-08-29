@@ -106,11 +106,10 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
     });
 
     if (!user) {
-      reply.code(404).send({ error: 'User not found' });
-      return;
+      return reply.code(404).send({ error: 'User not found' });
     }
 
-    reply.code(200).send({
+    return reply.code(200).send({
       message: 'Profile retrieved successfully',
       user: {
         id: user.id,
@@ -122,8 +121,8 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
       },
     });
   } catch (error) {
-    request.log.error('Error in get profile handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }
 
@@ -138,12 +137,12 @@ export async function getUsersHandler(request: FastifyRequest, reply: FastifyRep
       order: [['createdAt', 'DESC']],
     });
 
-    reply.code(200).send({
+    return reply.code(200).send({
       message: 'Users retrieved successfully',
       users,
     });
   } catch (error) {
-    request.log.error('Error in get users handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

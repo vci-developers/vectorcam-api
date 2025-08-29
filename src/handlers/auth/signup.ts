@@ -70,20 +70,17 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
 
     // Validate input
     if (!email || !password) {
-      reply.code(400).send({ error: 'Email and password are required' });
-      return;
+      return reply.code(400).send({ error: 'Email and password are required' });
     }
 
     if (password.length < 8) {
-      reply.code(400).send({ error: 'Password must be at least 8 characters long' });
-      return;
+      return reply.code(400).send({ error: 'Password must be at least 8 characters long' });
     }
 
     // Check if user already exists
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
-      reply.code(409).send({ error: 'User with this email already exists' });
-      return;
+      return reply.code(409).send({ error: 'User with this email already exists' });
     }
 
     // Hash password
@@ -109,7 +106,7 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
     const accessToken = jwt.sign(tokenPayload, config.jwt.secret, { expiresIn: accessTokenExpiry } as any);
     const refreshToken = jwt.sign(tokenPayload, config.jwt.refreshSecret, { expiresIn: refreshTokenExpiry } as any);
 
-    reply.code(201).send({
+    return reply.code(201).send({
       message: 'User created successfully',
       user: {
         id: user.id,
@@ -123,7 +120,7 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
       },
     });
   } catch (error) {
-    request.log.error('Error in signup handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

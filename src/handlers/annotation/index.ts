@@ -1,3 +1,3 @@
-export { default as list } from './getList';
-export { default as get } from './get';
-export { default as put } from './put';
+export { default as getAnnotationList } from './getList';
+export { default as getAnnotation } from './get';
+export { default as updateAnnotation } from './put';

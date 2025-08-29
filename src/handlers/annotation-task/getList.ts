@@ -120,8 +120,7 @@ export default async function getAnnotationTaskList(
       include: [
         {
           model: User,
-          as: 'user',
-          attributes: ['id', 'email', 'privilege']
+          as: 'user'
         }
       ],
       limit,
@@ -132,7 +131,7 @@ export default async function getAnnotationTaskList(
     // Format response
     const formattedTasks = tasks.map(task => formatAnnotationTaskResponse(task, true));
 
-    reply.send({
+    return reply.send({
       tasks: formattedTasks,
       total,
       limit,
@@ -142,6 +141,6 @@ export default async function getAnnotationTaskList(
 
   } catch (error: any) {
     request.log.error(error);
-    reply.code(500).send({ error: 'Internal Server Error' });
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 }

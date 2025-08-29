@@ -174,8 +174,7 @@ export default async function getAnnotation(
       });
       
       if (!annotation) {
-        reply.code(404).send({ error: 'Annotation not found or access denied' });
-        return;
+        return reply.code(404).send({ error: 'Annotation not found or access denied' });
       }
     }
 
@@ -184,50 +183,33 @@ export default async function getAnnotation(
       include: [
         {
           model: AnnotationTask,
-          as: 'annotationTask',
-          attributes: ['id', 'userId', 'title', 'description', 'status']
+          as: 'annotationTask'
         },
         {
           model: User,
-          as: 'annotator',
-          attributes: ['id', 'email']
+          as: 'annotator'
         },
         {
           model: Specimen,
           as: 'specimen',
-          attributes: ['id', 'specimenId', 'sessionId', 'thumbnailImageId'],
           include: [
             {
               model: SpecimenImage,
               as: 'thumbnailImage',
-              attributes: ['id', 'imageKey', 'species', 'sex', 'abdomenStatus'],
               include: [
                 {
                   model: InferenceResult,
                   as: 'inferenceResult',
-                  attributes: [
-                    'id', 
-                    'bboxTopLeftX', 
-                    'bboxTopLeftY', 
-                    'bboxWidth', 
-                    'bboxHeight',
-                    'speciesLogits',
-                    'sexLogits', 
-                    'abdomenStatusLogits', 
-                    'bboxConfidence'
-                  ]
                 }
               ]
             },
             {
               model: Session,
               as: 'session',
-              attributes: ['id', 'frontendId', 'siteId', 'collectorName', 'collectionDate'],
               include: [
                 {
                   model: Site,
-                  as: 'site',
-                  attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
+                  as: 'site'
                 }
               ]
             }
@@ -237,14 +219,13 @@ export default async function getAnnotation(
     });
 
     if (!annotation) {
-      reply.code(404).send({ error: 'Annotation not found' });
-      return;
+      return reply.code(404).send({ error: 'Annotation not found' });
     }
 
-    reply.send(formatAnnotationResponse(annotation, true));
+    return reply.send(formatAnnotationResponse(annotation, true));
 
   } catch (error: any) {
     request.log.error(error);
-    reply.code(500).send({ error: 'Internal Server Error' });
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 }

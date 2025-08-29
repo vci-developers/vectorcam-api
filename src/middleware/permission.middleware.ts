@@ -22,10 +22,7 @@ export function checkPermission(options: PermissionOptions) {
     try {
       const user = request.user as any;
       if (!user || !user.userId) {
-        return reply.status(401).send({
-          success: false,
-          error: 'Authentication required'
-        });
+        return reply.code(401).send({ error: 'Authentication required' });
       }
 
       const userId = user.userId;
@@ -34,27 +31,18 @@ export function checkPermission(options: PermissionOptions) {
       // Get the resource ID from request params
       const resourceId = (request.params as any)[paramName];
       if (!resourceId) {
-        return reply.status(400).send({
-          success: false,
-          error: `Missing ${paramName} parameter`
-        });
+        return reply.code(400).send({ error: `Missing ${paramName} parameter` });
       }
 
       const resourceIdNum = parseInt(resourceId);
       if (isNaN(resourceIdNum)) {
-        return reply.status(400).send({
-          success: false,
-          error: `Invalid ${paramName} parameter`
-        });
+        return reply.code(400).send({ error: `Invalid ${paramName} parameter` });
       }
 
       // Get user details
       const userRecord = await User.findByPk(userId);
       if (!userRecord) {
-        return reply.status(401).send({
-          success: false,
-          error: 'User not found'
-        });
+        return reply.code(401).send({ error: 'User not found' });
       }
 
       // Super admin can access everything
@@ -64,10 +52,7 @@ export function checkPermission(options: PermissionOptions) {
 
       // Regular users cannot access admin endpoints
       if (userRecord.privilege === 0) {
-        return reply.status(403).send({
-          success: false,
-          error: 'Insufficient privileges to access this resource'
-        });
+        return reply.code(403).send({ error: 'Insufficient privileges to access this resource' });
       }
 
       // Admin users (privilege = 1) need to have permissions checked
@@ -79,10 +64,7 @@ export function checkPermission(options: PermissionOptions) {
         );
 
         if (!hasPermission) {
-          return reply.status(403).send({
-            success: false,
-            error: 'Insufficient permissions to access this resource'
-          });
+          return reply.code(403).send({ error: 'Insufficient permissions to access this resource' });
         }
       }
 
@@ -90,11 +72,8 @@ export function checkPermission(options: PermissionOptions) {
       return;
 
     } catch (error: any) {
-      request.log.error('Permission middleware error:', error);
-      return reply.status(500).send({
-        success: false,
-        error: 'Internal server error'
-      });
+      request.log.error(error);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
   };
 }

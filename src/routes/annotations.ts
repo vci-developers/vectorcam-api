@@ -1,16 +1,13 @@
 import { FastifyInstance } from 'fastify';
-import getAnnotationTaskList from '../handlers/annotation-task/getList';
-import updateAnnotationTask from '../handlers/annotation-task/put';
-import deleteAnnotationTask from '../handlers/annotation-task/delete';
-import getAnnotationList from '../handlers/annotation/getList';
-import getAnnotation from '../handlers/annotation/get';
-import updateAnnotation from '../handlers/annotation/put';
+import { getAnnotationTaskList, updateAnnotationTask, deleteAnnotationTask, createAnnotationTasks } from '../handlers/annotation-task';
+import { getAnnotationList, getAnnotation, updateAnnotation } from '../handlers/annotation';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
 
 // Import schemas from handler files
 import { schema as getAnnotationTaskListSchema } from '../handlers/annotation-task/getList';
 import { schema as updateAnnotationTaskSchema } from '../handlers/annotation-task/put';
 import { schema as deleteAnnotationTaskSchema } from '../handlers/annotation-task/delete';
+import { schema as createAnnotationTasksSchema } from '../handlers/annotation-task/post';
 import { schema as getAnnotationListSchema } from '../handlers/annotation/getList';
 import { schema as getAnnotationSchema } from '../handlers/annotation/get';
 import { schema as updateAnnotationSchema } from '../handlers/annotation/put';
@@ -69,6 +66,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [flexibleAuth],
     schema: getAnnotationTaskListSchema
   }, getAnnotationTaskList as any);
+
+  // Create annotation tasks for unassigned specimens (admin token only)
+  fastify.post('/task', {
+    preHandler: [adminAuthMiddleware],
+    schema: createAnnotationTasksSchema
+  }, createAnnotationTasks as any);
 
   // Update annotation task (admin token and superadmin user)
   fastify.put('/task/:taskId', {

@@ -153,14 +153,13 @@ export default async function getAnnotationList(
       
       if (userTaskIds.length === 0) {
         // User has no tasks, return empty result
-        reply.send({
+        return reply.send({
           annotations: [],
           total: 0,
           limit,
           offset,
           hasMore: false
         });
-        return;
       }
       
       whereConditions.annotationTaskId = { [Op.in]: userTaskIds };
@@ -189,28 +188,23 @@ export default async function getAnnotationList(
       include: [
         {
           model: AnnotationTask,
-          as: 'annotationTask',
-          attributes: ['id', 'title', 'status']
+          as: 'annotationTask'
         },
         {
           model: User,
-          as: 'annotator',
-          attributes: ['id', 'email']
+          as: 'annotator'
         },
         {
           model: Specimen,
           as: 'specimen',
-          attributes: ['id', 'specimenId', 'sessionId'],
           include: [
             {
               model: Session,
               as: 'session',
-              attributes: ['id', 'siteId'],
               include: [
                 {
                   model: Site,
-                  as: 'site',
-                  attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
+                  as: 'site'
                 }
               ]
             }
@@ -225,7 +219,7 @@ export default async function getAnnotationList(
     // Format response
     const formattedAnnotations = annotations.map(annotation => formatAnnotationResponse(annotation, true));
 
-    reply.send({
+    return reply.code(200).send({
       annotations: formattedAnnotations,
       total,
       limit,
@@ -235,6 +229,6 @@ export default async function getAnnotationList(
 
   } catch (error: any) {
     request.log.error(error);
-    reply.code(500).send({ error: 'Internal Server Error' });
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 }

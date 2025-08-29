@@ -169,22 +169,19 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
 
     // Validate input
     if (!email) {
-      reply.code(400).send({ error: 'Email is required' });
-      return;
+      return reply.code(400).send({ error: 'Email is required' });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      reply.code(400).send({ error: 'Invalid email format' });
-      return;
+      return reply.code(400).send({ error: 'Invalid email format' });
     }
 
     // Check if email is already whitelisted
     const existingEntry = await UserWhitelist.findOne({ where: { email } });
     if (existingEntry) {
-      reply.code(409).send({ error: 'Email is already whitelisted' });
-      return;
+      return reply.code(409).send({ error: 'Email is already whitelisted' });
     }
 
     // Add to whitelist
@@ -192,7 +189,7 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       email,
     });
 
-    reply.code(201).send({
+    return reply.code(201).send({
       message: 'Email added to whitelist successfully',
       whitelist: {
         id: whitelistEntry.id,
@@ -200,8 +197,8 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       },
     });
   } catch (error) {
-    request.log.error('Error in add to whitelist handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }
 
@@ -216,13 +213,13 @@ export async function getWhitelistHandler(request: FastifyRequest, reply: Fastif
       order: [['id', 'DESC']],
     });
 
-    reply.code(200).send({
+    return reply.code(200).send({
       message: 'Whitelist entries retrieved successfully',
       whitelist: whitelistEntries,
     });
   } catch (error) {
-    request.log.error('Error in get whitelist handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }
 
@@ -236,24 +233,22 @@ export async function removeFromWhitelistHandler(request: FastifyRequest<{ Param
 
     // Validate input
     if (!id || isNaN(parseInt(id))) {
-      reply.code(400).send({ error: 'Valid whitelist entry ID is required' });
-      return;
+      return reply.code(400).send({ error: 'Valid whitelist entry ID is required' });
     }
 
     // Find and delete whitelist entry
     const whitelistEntry = await UserWhitelist.findByPk(parseInt(id));
     if (!whitelistEntry) {
-      reply.code(404).send({ error: 'Whitelist entry not found' });
-      return;
+      return reply.code(404).send({ error: 'Whitelist entry not found' });
     }
 
     await whitelistEntry.destroy();
 
-    reply.code(200).send({
+    return reply.code(200).send({
       message: 'Email removed from whitelist successfully',
     });
   } catch (error) {
-    request.log.error('Error in remove from whitelist handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

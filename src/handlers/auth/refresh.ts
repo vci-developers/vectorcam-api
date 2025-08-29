@@ -57,8 +57,7 @@ export async function refreshTokenHandler(request: FastifyRequest<{ Body: Refres
 
     // Validate input
     if (!refreshToken) {
-      reply.code(400).send({ error: 'Refresh token is required' });
-      return;
+      return reply.code(400).send({ error: 'Refresh token is required' });
     }
 
     // Verify refresh token
@@ -66,8 +65,7 @@ export async function refreshTokenHandler(request: FastifyRequest<{ Body: Refres
     try {
       decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as JwtRefreshPayload;
     } catch (error) {
-      reply.code(401).send({ error: 'Invalid refresh token' });
-      return;
+      return reply.code(401).send({ error: 'Invalid refresh token' });
     }
 
     // Verify user still exists and is active
@@ -80,8 +78,7 @@ export async function refreshTokenHandler(request: FastifyRequest<{ Body: Refres
     });
 
     if (!user) {
-      reply.code(401).send({ error: 'User not found or inactive' });
-      return;
+      return reply.code(401).send({ error: 'User not found or inactive' });
     }
 
     // Generate new access token
@@ -95,12 +92,12 @@ export async function refreshTokenHandler(request: FastifyRequest<{ Body: Refres
     
     const accessToken = jwt.sign(tokenPayload, config.jwt.secret, { expiresIn: accessTokenExpiry } as any);
 
-    reply.code(200).send({
+    return reply.code(200).send({
       message: 'Token refreshed successfully',
       accessToken,
     });
   } catch (error) {
-    request.log.error('Error in refresh token handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

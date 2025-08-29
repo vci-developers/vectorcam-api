@@ -13,15 +13,12 @@ export const deleteSiteUserSchema = {
   }),
   response: {
     200: Type.Object({
-      success: Type.Boolean(),
       message: Type.String()
     }),
     403: Type.Object({
-      success: Type.Boolean(),
       error: Type.String()
     }),
     404: Type.Object({
-      success: Type.Boolean(),
       error: Type.String()
     })
   }
@@ -48,22 +45,13 @@ export async function deleteSiteUserHandler(
     });
 
     if (deleted === 0) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Site user association not found'
-      });
+      return reply.code(404).send({ error: 'Site user association not found' });
     }
 
-    return reply.status(200).send({
-      success: true,
-      message: 'Site user association removed successfully'
-    });
+    return reply.code(200).send({ message: 'Site user association removed successfully' });
 
   } catch (error: any) {
-    request.log.error('Error deleting site user:', error);
-    return reply.status(500).send({
-      success: false,
-      error: 'Internal server error'
-    });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

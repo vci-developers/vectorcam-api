@@ -90,26 +90,23 @@ export async function modifyUserHandler(
 
     // Validate input
     if (!id || isNaN(parseInt(id))) {
-      reply.code(400).send({ error: 'Valid user ID is required' });
-      return;
+      return reply.code(400).send({ error: 'Valid user ID is required' });
     }
 
     if (![0, 1, 2].includes(privilege)) {
-      reply.code(400).send({ error: 'Invalid privilege level. Must be 0 (no privilege), 1 (admin), or 2 (superadmin)' });
-      return;
+      return reply.code(400).send({ error: 'Invalid privilege level. Must be 0 (no privilege), 1 (admin), or 2 (superadmin)' });
     }
 
     // Find user by ID
     const user = await User.findByPk(parseInt(id));
     if (!user) {
-      reply.code(404).send({ error: 'User not found' });
-      return;
+      return reply.code(404).send({ error: 'User not found' });
     }
 
     // Update user privilege
     await user.update({ privilege });
 
-    reply.code(200).send({
+    return reply.code(200).send({
       message: 'User privilege updated successfully',
       user: {
         id: user.id,
@@ -120,7 +117,7 @@ export async function modifyUserHandler(
       },
     });
   } catch (error) {
-    request.log.error('Error in modify user handler:', error);
-    reply.code(500).send({ error: 'Internal server error' });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

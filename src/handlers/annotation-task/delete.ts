@@ -53,11 +53,7 @@ export default async function deleteAnnotationTask(
     const task = await AnnotationTask.findByPk(taskId);
 
     if (!task) {
-      reply.code(404).send({
-        success: false,
-        error: 'Annotation task not found'
-      });
-      return;
+      return reply.code(404).send({ error: 'Annotation task not found' });
     }
 
     // Check if there are any annotations associated with this task
@@ -66,22 +62,18 @@ export default async function deleteAnnotationTask(
     });
 
     if (annotationCount > 0) {
-      reply.code(400).send({
-        success: false,
-        error: `Cannot delete annotation task. It has ${annotationCount} associated annotations.`
-      });
-      return;
+      return reply.code(400).send({ error: `Cannot delete annotation task. It has ${annotationCount} associated annotations.` });
     }
 
     // Delete the task
     await task.destroy();
 
-    reply.send({
+    return reply.send({
       message: 'Annotation task deleted successfully'
     });
 
   } catch (error: any) {
     request.log.error(error);
-    reply.code(500).send({ error: 'Internal Server Error' });
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 }

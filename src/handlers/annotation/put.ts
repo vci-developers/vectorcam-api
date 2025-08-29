@@ -90,7 +90,6 @@ export default async function updateAnnotation(
           model: AnnotationTask,
           as: 'annotationTask',
           where: { userId: request.user.id },
-          attributes: ['id']
         }]
       });
     } else {
@@ -99,20 +98,19 @@ export default async function updateAnnotation(
     }
 
     if (!annotation) {
-      reply.code(404).send({ error: 'Annotation not found or access denied' });
-      return;
+      return reply.code(404).send({ error: 'Annotation not found or access denied' });
     }
 
     // Update the annotation
     await annotation.update(updates);
 
-    reply.send({
+    return reply.send({
       message: 'Annotation updated successfully',
       annotation: formatAnnotationResponse(annotation)
     });
 
   } catch (error: any) {
     request.log.error(error);
-    reply.code(500).send({ error: 'Internal Server Error' });
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 }

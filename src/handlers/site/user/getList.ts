@@ -16,13 +16,12 @@ export const getSiteUsersSchema = {
   }),
   response: {
     200: Type.Object({
-      success: Type.Boolean(),
       data: Type.Array(Type.Object({
         id: Type.Number(),
         userId: Type.Number(),
         siteId: Type.Number(),
-        createdAt: Type.String(),
-        updatedAt: Type.String(),
+        createdAt: Type.Number(),
+        updatedAt: Type.Number(),
         user: Type.Object({
           id: Type.Number(),
           email: Type.String(),
@@ -38,11 +37,9 @@ export const getSiteUsersSchema = {
       })
     }),
     403: Type.Object({
-      success: Type.Boolean(),
       error: Type.String()
     }),
     404: Type.Object({
-      success: Type.Boolean(),
       error: Type.String()
     })
   }
@@ -72,10 +69,7 @@ export async function getSiteUsersHandler(
     // Verify site exists
     const site = await Site.findByPk(siteIdNum);
     if (!site) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Site not found'
-      });
+      return reply.code(404).send({ error: 'Site not found' });
     }
 
     // Get site users with pagination
@@ -97,8 +91,8 @@ export async function getSiteUsersHandler(
       id: siteUser.id,
       userId: siteUser.userId,
       siteId: siteUser.siteId,
-      createdAt: siteUser.createdAt.toISOString(),
-      updatedAt: siteUser.updatedAt.toISOString(),
+      createdAt: siteUser.createdAt.getTime(),
+      updatedAt: siteUser.updatedAt.getTime(),
       user: {
         id: (siteUser as any).user.id,
         email: (siteUser as any).user.email,
@@ -107,8 +101,7 @@ export async function getSiteUsersHandler(
       }
     }));
 
-    return reply.status(200).send({
-      success: true,
+    return reply.code(200).send({
       data: formattedSiteUsers,
       pagination: {
         page: pageNum,
@@ -119,10 +112,7 @@ export async function getSiteUsersHandler(
     });
 
   } catch (error: any) {
-    request.log.error('Error getting site users:', error);
-    return reply.status(500).send({
-      success: false,
-      error: 'Internal server error'
-    });
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
   }
 }

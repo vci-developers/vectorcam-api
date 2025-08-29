@@ -85,8 +85,7 @@ export default async function updateAnnotationTask(
       });
       
       if (!task) {
-        reply.code(404).send({ error: 'Annotation task not found or access denied' });
-        return;
+        return reply.code(404).send({ error: 'Annotation task not found or access denied' });
       }
       
       // Superadmin users can only update status
@@ -100,8 +99,7 @@ export default async function updateAnnotationTask(
       }
       
       if (Object.keys(filteredUpdates).length === 0) {
-        reply.code(400).send({ error: 'Superadmin users can only update status field' });
-        return;
+        return reply.code(400).send({ error: 'Superadmin users can only update status field' });
       }
       
       // Update with filtered fields
@@ -111,21 +109,20 @@ export default async function updateAnnotationTask(
       task = await AnnotationTask.findByPk(taskId);
       
       if (!task) {
-        reply.code(404).send({ error: 'Annotation task not found' });
-        return;
+        return reply.code(404).send({ error: 'Annotation task not found' });
       }
       
       // Update the task with all provided fields
       await task.update(updates);
     }
 
-    reply.send({
+    return reply.send({
       message: 'Annotation task updated successfully',
       task: formatAnnotationTaskResponse(task)
     });
 
   } catch (error: any) {
     request.log.error(error);
-    reply.code(500).send({ error: 'Internal Server Error' });
+    return reply.code(500).send({ error: 'Internal Server Error' });
   }
 }
