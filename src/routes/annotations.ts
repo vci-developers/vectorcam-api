@@ -1,7 +1,8 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAnnotationTaskList, updateAnnotationTask, deleteAnnotationTask, createAnnotationTasks } from '../handlers/annotation-task';
 import { getAnnotationList, getAnnotation, updateAnnotation } from '../handlers/annotation';
 import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
+import { requireWhitelisted } from '../middleware/auth.middleware';
 
 // Import schemas from handler files
 import { schema as getAnnotationTaskListSchema } from '../handlers/annotation-task/getList';
@@ -15,8 +16,9 @@ import { schema as updateAnnotationSchema } from '../handlers/annotation/put';
 /**
  * Flexible authentication middleware that supports both adminAuth token and user authentication
  * Sets a flag to indicate which auth method was used
+ * For JWT users, also checks if their email is whitelisted
  */
-async function flexibleAuth(request: any, reply: any) {
+async function flexibleAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const authHeader = request.headers['authorization'];
   const expectedAdminToken = process.env.ADMIN_AUTH_TOKEN;
   
@@ -45,12 +47,13 @@ async function flexibleAuth(request: any, reply: any) {
     };
     request.isAdminToken = false;
     
+    // Check if user email is whitelisted using existing middleware
+    await requireWhitelisted(request, reply);
+    
     // Only superadmin users (privilege = 2) can access
     if (request.user.privilege !== 2) {
       return reply.code(403).send({ error: 'Forbidden: Only superadmin users or admin token can access annotations' });
     }
-    
-    return; // Continue to next handler
   } catch (error) {
     return reply.code(401).send({ error: 'Unauthorized: Invalid token' });
   }

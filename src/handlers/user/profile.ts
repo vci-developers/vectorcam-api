@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { User } from '../../db/models';
+import { User, UserWhitelist } from '../../db/models';
 
 export const getProfileSchema: any = {
   tags: ['Users'],
@@ -24,8 +24,7 @@ export const getProfileSchema: any = {
             email: { type: 'string' },
             privilege: { type: 'number' },
             isActive: { type: 'boolean' },
-            createdAt: { type: 'string' },
-            updatedAt: { type: 'string' },
+            isWhitelisted: { type: 'boolean' },
           },
         },
       },
@@ -109,6 +108,12 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
       return reply.code(404).send({ error: 'User not found' });
     }
 
+    const userWhiteList = await UserWhitelist.findOne({
+      where: {
+        email: user.email,
+      },
+    });
+
     return reply.code(200).send({
       message: 'Profile retrieved successfully',
       user: {
@@ -116,8 +121,7 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
         email: user.email,
         privilege: user.privilege,
         isActive: user.isActive,
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
+        isWhitelisted: !!userWhiteList,
       },
     });
   } catch (error) {

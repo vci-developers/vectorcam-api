@@ -18,6 +18,7 @@ declare module 'fastify' {
       email: string;
       privilege: number;
     };
+    isAdminToken?: boolean;
   }
 }
 
@@ -90,24 +91,20 @@ export function requireSuperAdmin(request: FastifyRequest, reply: FastifyReply, 
  * Middleware to require user email to be whitelisted
  * User must be authenticated first
  */
-export function requireWhitelisted(request: FastifyRequest, reply: FastifyReply, done: HookHandlerDoneFunction): void {
+export async function requireWhitelisted(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   if (!request.user) {
-    reply.code(401).send({ error: 'Unauthorized: User not authenticated' });
-    return done(new Error('Unauthorized'));
+    return reply.code(401).send({ error: 'Unauthorized: User not authenticated' });
   }
 
   // Check if user email is whitelisted
-  UserWhitelist.findOne({ where: { email: request.user.email } })
-    .then((whitelistEntry) => {
-      if (!whitelistEntry) {
-        reply.code(403).send({ error: 'Forbidden: User email is not whitelisted for this resource' });
-        return done(new Error('Forbidden'));
-      }
-      done();
-    })
-    .catch((error) => {
-      request.log.error('Error checking whitelist:', error);
-      reply.code(500).send({ error: 'Internal server error' });
-      return done(new Error('Internal server error'));
-    });
+  try {
+    const whitelistEntry = await UserWhitelist.findOne({ where: { email: request.user.email } });
+    if (!whitelistEntry) {
+      return reply.code(403).send({ error: 'Forbidden: User email is not whitelisted for this resource' });
+    }
+    // If whitelisted, continue without sending a response (let the next handler take over)
+  } catch (error) {
+    request.log.error(error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
 }
