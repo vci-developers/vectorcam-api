@@ -109,8 +109,30 @@ export async function getSessionList(
 
     // Build where clause
     const whereClause: any = {};
+    
+    // Apply site access restrictions first
+    const siteAccess = request.siteAccess;
+    if (siteAccess && siteAccess.userSites.length > 0) {
+      // User has limited site access, restrict to their sites
+      whereClause.siteId = {
+        [Op.in]: siteAccess.userSites
+      };
+    }
+    
+    // If user provides a specific siteId filter, apply it (but only if they have access)
     if (siteId) {
-      whereClause.siteId = siteId;
+      if (siteAccess && siteAccess.userSites.length > 0) {
+        // User has limited access - only allow if they have access to this site
+        if (siteAccess.userSites.includes(siteId)) {
+          whereClause.siteId = siteId;
+        } else {
+          // User doesn't have access to this site - return empty result
+          whereClause.siteId = -1; // This will return no results
+        }
+      } else {
+        // User has full access or admin/mobile token
+        whereClause.siteId = siteId;
+      }
     }
     if (deviceId) {
       whereClause.deviceId = deviceId;

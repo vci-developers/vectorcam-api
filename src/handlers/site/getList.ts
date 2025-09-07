@@ -81,6 +81,16 @@ export async function getSiteList(
 
     // Build where clause
     const whereClause: any = {};
+    
+    // Apply site access restrictions first
+    const siteAccess = request.siteAccess;
+    if (siteAccess && siteAccess.userSites.length > 0) {
+      // User has limited site access, restrict to their sites
+      whereClause.id = {
+        [Op.in]: siteAccess.userSites
+      };
+    }
+    
     if (programId) {
       whereClause.programId = programId;
     }

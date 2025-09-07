@@ -34,110 +34,123 @@ import { schema as getSessionSpecimenSchema } from '../handlers/session/specimen
 import { schema as createSessionSpecimenSchema } from '../handlers/session/specimens/post';
 import { schema as updateSessionSpecimenSchema } from '../handlers/session/specimens/put';
 import { schema as deleteSessionSpecimenSchema } from '../handlers/session/specimens/delete';
-import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
-import { mobileAuthMiddleware } from '../middleware/mobileAuth.middleware';
+import { requireAdminAuth } from '../middleware/auth.middleware';
+import { 
+  siteAccessMiddleware,
+  requireSiteReadAccess,
+  requireSiteWriteAccess,
+  requireSpecificSiteReadAccess
+} from '../middleware/siteAccess.middleware';
+import {
+  requireSpecificSessionReadAccess,
+  requireSpecificSessionWriteAccess,
+  requireSiteSessionAccess
+} from '../middleware/sessionAccess.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
-  // Get all sessions with comprehensive filters
+  // Register site access middleware for all routes
+  fastify.addHook('preHandler', siteAccessMiddleware);
+
+  // Get all sessions with comprehensive filters (requires read access)
   fastify.get('/', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSiteReadAccess],
     schema: getListSchema
   }, getSessionList as any);
 
-  // Submit a new session
+  // Submit a new session (requires write access)
   fastify.post('/', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSiteWriteAccess],
     schema: submitSchema
   }, submitSession as any);
 
-  // Get session details by ID or frontendId (as string)
+  // Get session details by ID or frontendId (requires access to specific session)
   fastify.get('/:session_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionReadAccess],
     schema: getSchema
   }, getSessionDetails as any);
 
-  // Update an existing session
+  // Update an existing session (requires write access to specific session)
   fastify.put('/:session_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionWriteAccess],
     schema: updateSchema
   }, updateSession as any);
 
-  // Delete a session
+  // Delete a session (requires write access to specific session)
   fastify.delete('/:session_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionWriteAccess],
     schema: deleteSchema
   }, deleteSession as any);
 
-  // Get sessions by user
+  // Get sessions by user (requires read access)
   fastify.get('/users/:user_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSiteReadAccess],
     schema: getByUserSchema
   }, getSessionsByUser as any);
 
-  // Get sessions by site
+  // Get sessions by site (requires access to specific site)
   fastify.get('/sites/:site_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSiteReadAccess],
     schema: getBySiteSchema
   }, getSessionsBySite as any);
 
-  // Get specimens for a session
+  // Get specimens for a session (requires access to specific session)
   fastify.get('/:session_id/specimens', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionReadAccess],
     schema: getSpecimensSchema
   }, getSessionSpecimens as any);
 
-  // Create a specimen under a session
+  // Create a specimen under a session (requires write access to specific session)
   fastify.post('/:session_id/specimens', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionWriteAccess],
     schema: createSessionSpecimenSchema
   }, sessionSpecimenHandlers.createSessionSpecimen as any);
 
-  // Get a single specimen under a session
+  // Get a single specimen under a session (requires access to specific session)
   fastify.get('/:session_id/specimens/:specimen_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionReadAccess],
     schema: getSessionSpecimenSchema
   }, sessionSpecimenHandlers.getSessionSpecimen as any);
 
-  // Update a specimen under a session
+  // Update a specimen under a session (requires write access to specific session)
   fastify.put('/:session_id/specimens/:specimen_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionWriteAccess],
     schema: updateSessionSpecimenSchema
   }, sessionSpecimenHandlers.updateSessionSpecimen as any);
 
-  // Delete a specimen under a session
+  // Delete a specimen under a session (requires write access to specific session)
   fastify.delete('/:session_id/specimens/:specimen_id', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionWriteAccess],
     schema: deleteSessionSpecimenSchema
   }, sessionSpecimenHandlers.deleteSessionSpecimen as any);
 
-  // Get session surveillance form
+  // Get session surveillance form (requires access to specific session)
   fastify.get('/:session_id/survey', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionReadAccess],
     schema: getSurveySchema
   }, getSessionSurvey as any);
 
-  // Create session surveillance form
+  // Create session surveillance form (requires write access to specific session)
   fastify.post('/:session_id/survey', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionWriteAccess],
     schema: createSurveySchema
   }, createSurvey as any);
 
-  // Update session surveillance form
+  // Update session surveillance form (requires write access to specific session)
   fastify.put('/:session_id/survey', {
-    preHandler: [mobileAuthMiddleware],
+    preHandler: [requireSpecificSessionWriteAccess],
     schema: updateSurveySchema
   }, updateSurvey as any);
 
   // Export sessions as CSV
   fastify.get<ExportSessionsCSVRequest>('/export/csv', {
     schema: exportSessionsCSVSchema,
-    preHandler: [adminAuthMiddleware],
+    preHandler: [requireAdminAuth],
   }, exportSessionsCSV);
 
   // Export surveillance forms as CSV
   fastify.get<ExportSurveillanceFormsCSVRequest>('/export/surveillance-forms/csv', {
     schema: exportSurveillanceFormsCSVSchema,
-    preHandler: [adminAuthMiddleware],
+    preHandler: [requireAdminAuth],
   }, exportSurveillanceFormsCSV);
 
   done();

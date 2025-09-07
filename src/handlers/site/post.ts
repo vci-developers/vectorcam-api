@@ -54,6 +54,12 @@ export async function createSite(
   try {
     const { programId, district, subCounty, parish, sentinelSite, healthCenter } = request.body;
 
+    // Validate user can create sites
+    const siteAccess = request.siteAccess;
+    if (!siteAccess?.canWrite || siteAccess.userSites.length !== 0) {
+      return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to create sites' });
+    }
+
     // Check if program exists
     const program = await findProgramById(programId);
     if (!program) {

@@ -49,11 +49,7 @@ export const schema = {
                 type: 'object',
                 properties: {
                   id: { type: 'number' },
-                  email: { type: 'string' },
-                  privilege: { type: 'number' },
-                  isActive: { type: 'boolean' },
-                  createdAt: { type: 'number' },
-                  updatedAt: { type: 'number' }
+                  email: { type: 'string' }
                 }
               }
             }

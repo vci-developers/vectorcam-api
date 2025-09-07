@@ -128,6 +128,17 @@ export async function submitSession(
       return reply.code(404).send({ error: 'Site not found' });
     }
 
+    // Validate user can create sessions
+    const siteAccess = request.siteAccess;
+    if (!siteAccess?.canWrite) {
+      return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to create sessions' });
+    }
+
+    // If user has limited site access, ensure they can access this specific site
+    if (siteAccess.userSites.length > 0 && !siteAccess.userSites.includes(siteId)) {
+      return reply.code(403).send({ error: 'Forbidden: No access to create sessions for this site' });
+    }
+
     // Check if device exists
     const device = await findDeviceById(deviceId);
     if (!device) {
