@@ -1,8 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAnnotationTaskList, updateAnnotationTask, deleteAnnotationTask, createAnnotationTasks } from '../handlers/annotation-task';
 import { getAnnotationList, getAnnotation, updateAnnotation } from '../handlers/annotation';
-import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
-import { requireWhitelisted } from '../middleware/auth.middleware';
 
 // Import schemas from handler files
 import { schema as getAnnotationTaskListSchema } from '../handlers/annotation-task/getList';
@@ -12,52 +10,7 @@ import { schema as createAnnotationTasksSchema } from '../handlers/annotation-ta
 import { schema as getAnnotationListSchema } from '../handlers/annotation/getList';
 import { schema as getAnnotationSchema } from '../handlers/annotation/get';
 import { schema as updateAnnotationSchema } from '../handlers/annotation/put';
-
-/**
- * Flexible authentication middleware that supports both adminAuth token and user authentication
- * Sets a flag to indicate which auth method was used
- * For JWT users, also checks if their email is whitelisted
- */
-async function flexibleAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  const authHeader = request.headers['authorization'];
-  const expectedAdminToken = process.env.ADMIN_AUTH_TOKEN;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return reply.code(401).send({ error: 'Unauthorized: Missing or invalid Authorization header' });
-  }
-
-  const token = authHeader.slice('Bearer '.length).trim();
-  
-  // Check if it's an admin token first
-  if (expectedAdminToken && token === expectedAdminToken) {
-    request.isAdminToken = true;
-    return; // Continue to next handler
-  }
-  
-  // Otherwise, try JWT authentication
-  try {
-    const jwt = require('jsonwebtoken');
-    const { config } = require('../config/environment');
-    const decoded = jwt.verify(token, config.jwt.secret);
-    
-    request.user = {
-      id: decoded.userId,
-      email: decoded.email,
-      privilege: decoded.privilege,
-    };
-    request.isAdminToken = false;
-    
-    // Check if user email is whitelisted using existing middleware
-    await requireWhitelisted(request, reply);
-    
-    // Only superadmin users (privilege = 2) can access
-    if (request.user.privilege !== 2) {
-      return reply.code(403).send({ error: 'Forbidden: Only superadmin users or admin token can access annotations' });
-    }
-  } catch (error) {
-    return reply.code(401).send({ error: 'Unauthorized: Invalid token' });
-  }
-}
+import { requireAdminAuth, requireSuperAdmin } from '../middleware/auth.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   
@@ -66,25 +19,25 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Get annotation tasks list
   // Admin token: all tasks, Superadmin user: only their own tasks
   fastify.get('/task', {
-    preHandler: [flexibleAuth],
+    preHandler: [requireSuperAdmin],
     schema: getAnnotationTaskListSchema
   }, getAnnotationTaskList as any);
 
   // Create annotation tasks for unassigned specimens (admin token only)
   fastify.post('/task', {
-    preHandler: [adminAuthMiddleware],
+    preHandler: [requireAdminAuth],
     schema: createAnnotationTasksSchema
   }, createAnnotationTasks as any);
 
   // Update annotation task (admin token and superadmin user)
   fastify.put('/task/:taskId', {
-    preHandler: [flexibleAuth],
+    preHandler: [requireSuperAdmin],
     schema: updateAnnotationTaskSchema
   }, updateAnnotationTask as any);
 
   // Delete annotation task (admin token only)
   fastify.delete('/task/:taskId', {
-    preHandler: [adminAuthMiddleware],
+    preHandler: [requireAdminAuth],
     schema: deleteAnnotationTaskSchema
   }, deleteAnnotationTask as any);
 
@@ -92,19 +45,19 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   
   // Get annotations list (admin token and superadmin user)
   fastify.get('/', {
-    preHandler: [flexibleAuth],
+    preHandler: [requireSuperAdmin],
     schema: getAnnotationListSchema
   }, getAnnotationList as any);
 
   // Get single annotation with related data (admin token and superadmin user)
   fastify.get('/:annotationId', {
-    preHandler: [flexibleAuth],
+    preHandler: [requireSuperAdmin],
     schema: getAnnotationSchema
   }, getAnnotation as any);
 
   // Update annotation (admin token and superadmin user)
   fastify.put('/:annotationId', {
-    preHandler: [flexibleAuth],
+    preHandler: [requireSuperAdmin],
     schema: updateAnnotationSchema
   }, updateAnnotation as any);
 

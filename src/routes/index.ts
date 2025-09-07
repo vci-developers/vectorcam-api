@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { authMiddleware } from '../middleware/auth.middleware';
 import programRoutes from './programs';
 import siteRoutes from './sites';
 import deviceRoutes from './devices';
@@ -14,6 +15,9 @@ import annotationRoutes from './annotations';
  * Register all routes with the Fastify instance
  */
 export default async function routes(server: FastifyInstance): Promise<void> {
+  // Register unified auth middleware globally
+  server.addHook('preHandler', authMiddleware);
+  
   // Register health check routes at root level
   server.register(healthRoutes);
   
