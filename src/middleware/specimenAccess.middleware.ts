@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session } from '../db/models';
-import { HookHandlerDoneFunction } from 'fastify';
 
 /**
  * Common function to check specimen access
@@ -9,7 +8,6 @@ import { HookHandlerDoneFunction } from 'fastify';
 async function checkSpecimenAccess(
   request: FastifyRequest,
   reply: FastifyReply,
-  done: HookHandlerDoneFunction,
   requireWrite: boolean
 ): Promise<void> {
   const siteAccess = request.siteAccess;
@@ -20,12 +18,12 @@ async function checkSpecimenAccess(
   
   if (!permissionCheck) {
     reply.code(403).send({ error: permissionError });
-    return done(new Error('Forbidden'));
+    return;
   }
 
   // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
   if (siteAccess!.userSites.length === 0) {
-    return done();
+    return;
   }
 
   // Extract specimen ID from request parameters
@@ -33,7 +31,7 @@ async function checkSpecimenAccess(
   
   if (!specimenId) {
     reply.code(400).send({ error: 'Bad Request: Specimen ID not found in request' });
-    return done(new Error('Bad Request'));
+    return;
   }
 
   try {
@@ -49,7 +47,7 @@ async function checkSpecimenAccess(
 
     if (!specimen) {
       reply.code(404).send({ error: 'Specimen not found' });
-      return done(new Error('Not Found'));
+      return;
     }
 
     const specimenData = specimen.get({ plain: true }) as any;
@@ -57,20 +55,18 @@ async function checkSpecimenAccess(
 
     if (!sessionSiteId) {
       reply.code(500).send({ error: 'Internal server error: Could not determine specimen site' });
-      return done(new Error('Internal Server Error'));
+      return;
     }
 
     // Check if user has access to this specimen's session's site
     if (!siteAccess!.userSites.includes(sessionSiteId)) {
       reply.code(403).send({ error: 'Forbidden: No access to specimens from this site' });
-      return done(new Error('Forbidden'));
+      return;
     }
-
-    done();
   } catch (error) {
     request.log.error(error);
     reply.code(500).send({ error: 'Internal server error while checking specimen access' });
-    return done(new Error('Internal Server Error'));
+    return;
   }
 }
 
@@ -80,10 +76,9 @@ async function checkSpecimenAccess(
  */
 export async function requireSpecificSpecimenReadAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): Promise<void> {
-  return checkSpecimenAccess(request, reply, done, false);
+  return checkSpecimenAccess(request, reply, false);
 }
 
 /**
@@ -92,10 +87,9 @@ export async function requireSpecificSpecimenReadAccess(
  */
 export async function requireSpecificSpecimenWriteAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): Promise<void> {
-  return checkSpecimenAccess(request, reply, done, true);
+  return checkSpecimenAccess(request, reply, true);
 }
 
 

@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SiteUser } from '../db/models';
-import { HookHandlerDoneFunction } from 'fastify';
 
 // Extend FastifyRequest to include site access info
 declare module 'fastify' {
@@ -111,15 +110,13 @@ export async function siteAccessMiddleware(
  */
 export function requireSiteReadAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): void {
   if (!request.siteAccess?.canRead) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to read site data' });
-    return done(new Error('Forbidden'));
+    return;
   }
   
-  done();
 }
 
 /**
@@ -127,15 +124,13 @@ export function requireSiteReadAccess(
  */
 export function requireSiteWriteAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): void {
   if (!request.siteAccess?.canWrite) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to modify site data' });
-    return done(new Error('Forbidden'));
+    return;
   }
   
-  done();
 }
 
 /**
@@ -144,19 +139,18 @@ export function requireSiteWriteAccess(
  */
 export function requireSpecificSiteReadAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): void {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canRead) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access site data' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
   // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
   if (siteAccess.userSites.length === 0) {
-    return done();
+    return;
   }
 
   // Extract site ID from request parameters
@@ -164,16 +158,15 @@ export function requireSpecificSiteReadAccess(
   
   if (!siteId) {
     reply.code(400).send({ error: 'Bad Request: Site ID not found in request' });
-    return done(new Error('Bad Request'));
+    return;
   }
 
   // Check if user has access to this specific site
   if (!siteAccess.userSites.includes(siteId)) {
     reply.code(403).send({ error: 'Forbidden: No access to this specific site' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
-  done();
 }
 
 /**
@@ -182,19 +175,18 @@ export function requireSpecificSiteReadAccess(
  */
 export function requireSpecificSiteWriteAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): void {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canWrite) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to modify site data' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
   // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
   if (siteAccess.userSites.length === 0) {
-    return done();
+    return;
   }
 
   // Extract site ID from request parameters
@@ -202,16 +194,15 @@ export function requireSpecificSiteWriteAccess(
   
   if (!siteId) {
     reply.code(400).send({ error: 'Bad Request: Site ID not found in request' });
-    return done(new Error('Bad Request'));
+    return;
   }
 
   // Check if user has access to this specific site
   if (!siteAccess.userSites.includes(siteId)) {
     reply.code(403).send({ error: 'Forbidden: No access to this specific site' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
-  done();
 }
 
 /**

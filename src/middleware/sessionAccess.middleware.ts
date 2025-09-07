@@ -1,6 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session } from '../db/models';
-import { HookHandlerDoneFunction } from 'fastify';
 
 /**
  * Middleware to check if user has access to a specific session
@@ -8,19 +7,18 @@ import { HookHandlerDoneFunction } from 'fastify';
  */
 export async function requireSpecificSessionReadAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): Promise<void> {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canRead) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access session data' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
   // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
   if (siteAccess.userSites.length === 0) {
-    return done();
+    return;
   }
 
   // Extract session ID from request parameters
@@ -28,7 +26,7 @@ export async function requireSpecificSessionReadAccess(
   
   if (!sessionId) {
     reply.code(400).send({ error: 'Bad Request: Session ID not found in request' });
-    return done(new Error('Bad Request'));
+    return;
   }
 
   try {
@@ -37,7 +35,7 @@ export async function requireSpecificSessionReadAccess(
 
     if (!session) {
       reply.code(404).send({ error: 'Session not found' });
-      return done(new Error('Not Found'));
+      return;
     }
 
     const sessionData = session.get({ plain: true }) as any;
@@ -46,14 +44,13 @@ export async function requireSpecificSessionReadAccess(
     // Check if user has access to this session's site
     if (!siteAccess.userSites.includes(sessionSiteId)) {
       reply.code(403).send({ error: 'Forbidden: No access to sessions from this site' });
-      return done(new Error('Forbidden'));
+      return;
     }
 
-    done();
   } catch (error) {
     request.log.error(error);
     reply.code(500).send({ error: 'Internal server error while checking session access' });
-    return done(new Error('Internal Server Error'));
+    return;
   }
 }
 
@@ -63,19 +60,18 @@ export async function requireSpecificSessionReadAccess(
  */
 export async function requireSpecificSessionWriteAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): Promise<void> {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canWrite) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to modify session data' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
   // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
   if (siteAccess.userSites.length === 0) {
-    return done();
+    return;
   }
 
   // Extract session ID from request parameters
@@ -83,7 +79,7 @@ export async function requireSpecificSessionWriteAccess(
   
   if (!sessionId) {
     reply.code(400).send({ error: 'Bad Request: Session ID not found in request' });
-    return done(new Error('Bad Request'));
+    return;
   }
 
   try {
@@ -92,7 +88,7 @@ export async function requireSpecificSessionWriteAccess(
 
     if (!session) {
       reply.code(404).send({ error: 'Session not found' });
-      return done(new Error('Not Found'));
+      return;
     }
 
     const sessionData = session.get({ plain: true }) as any;
@@ -101,14 +97,13 @@ export async function requireSpecificSessionWriteAccess(
     // Check if user has access to this session's site
     if (!siteAccess.userSites.includes(sessionSiteId)) {
       reply.code(403).send({ error: 'Forbidden: No access to sessions from this site' });
-      return done(new Error('Forbidden'));
+      return;
     }
 
-    done();
   } catch (error) {
     request.log.error(error);
     reply.code(500).send({ error: 'Internal server error while checking session access' });
-    return done(new Error('Internal Server Error'));
+    return;
   }
 }
 
@@ -160,19 +155,18 @@ export async function findSessionByIdOrFrontendId(sessionId: string | number): P
  */
 export function requireSiteSessionAccess(
   request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
+  reply: FastifyReply
 ): void {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canRead) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access session data' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
   // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
   if (siteAccess.userSites.length === 0) {
-    return done();
+    return;
   }
 
   // Extract site ID from request parameters
@@ -181,20 +175,19 @@ export function requireSiteSessionAccess(
   
   if (!siteId) {
     reply.code(400).send({ error: 'Bad Request: Site ID not found in request' });
-    return done(new Error('Bad Request'));
+    return;
   }
 
   const numericSiteId = parseInt(siteId, 10);
   if (isNaN(numericSiteId)) {
     reply.code(400).send({ error: 'Bad Request: Invalid site ID format' });
-    return done(new Error('Bad Request'));
+    return;
   }
 
   // Check if user has access to this specific site
   if (!siteAccess.userSites.includes(numericSiteId)) {
     reply.code(403).send({ error: 'Forbidden: No access to sessions from this site' });
-    return done(new Error('Forbidden'));
+    return;
   }
 
-  done();
 }
