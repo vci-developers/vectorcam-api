@@ -5,9 +5,10 @@ import {
   removeFromWhitelistHandler, removeFromWhitelistSchema,
   getProfileHandler, getProfileSchema,
   getUsersHandler, getUsersSchema,
-  modifyUserHandler, modifyUserSchema
+  modifyUserHandler, modifyUserSchema,
+  getPermissionsHandler, getPermissionsSchema
 } from '../handlers/user';
-import { requireAdminAuth, requireNonWhitelistedUserAuth } from '../middleware/auth.middleware';
+import { requireAdminAuth, requireNonWhitelistedUserAuth, requireUserAuth } from '../middleware/auth.middleware';
 
 /**
  * User management routes
@@ -18,6 +19,12 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
     preHandler: [requireNonWhitelistedUserAuth],
     schema: getProfileSchema,
   }, getProfileHandler);
+
+  // Get current user permissions (requires user authentication)
+  server.get('/permissions', {
+    preHandler: [requireUserAuth],
+    schema: getPermissionsSchema,
+  }, getPermissionsHandler as any);
 
   // Get all users (requires admin auth token)
   server.get('/', {

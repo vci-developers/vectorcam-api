@@ -12,3 +12,7 @@ export {
 export { 
   modifyUserHandler, modifyUserSchema
 } from './modifyUser';
+
+export { 
+  getPermissionsHandler, getPermissionsSchema
+} from './permissions';

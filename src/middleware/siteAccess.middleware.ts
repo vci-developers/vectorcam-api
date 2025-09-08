@@ -47,53 +47,10 @@ export async function siteAccessMiddleware(
 
   const user = request.user;
 
-  // Super admin users (privilege >= 2) have full access to all sites
-  if (user.privilege >= 2) {
-    request.siteAccess = {
-      canRead: true,
-      canWrite: true,
-      userSites: [] // Empty array means access to all sites
-    };
-    return;
-  }
-
-  // For regular users and admin users (privilege >= 1), get their site associations
+  // Get site access using the shared function
   try {
-    const userSiteAssociations = await SiteUser.findAll({
-      where: { userId: user.id },
-      attributes: ['siteId']
-    });
-
-    const userSites = userSiteAssociations.map(association => 
-      (association as any).siteId
-    );
-
-    // Admin users (privilege >= 1) can read and write to their sites
-    if (user.privilege >= 1) {
-      request.siteAccess = {
-        canRead: true,
-        canWrite: true,
-        userSites
-      };
-      return;
-    }
-
-    // Whitelisted regular users can only read their sites
-    if (user.isWhitelisted) {
-      request.siteAccess = {
-        canRead: true,
-        canWrite: false,
-        userSites
-      };
-      return;
-    }
-
-    // Non-whitelisted users have no access
-    request.siteAccess = {
-      canRead: false,
-      canWrite: false,
-      userSites: []
-    };
+    const siteAccess = await getUserSiteAccess(user.id, user.isWhitelisted, user.privilege);
+    request.siteAccess = siteAccess;
 
   } catch (error) {
     request.log.error(error);
@@ -221,4 +178,61 @@ function getSiteIdFromRequest(request: FastifyRequest): number | null {
   }
   
   return null;
+}
+
+/**
+ * Calculate user site access based on privilege level and site associations
+ * This function is shared between the middleware and permissions endpoint
+ * 
+ * @param userId - User ID
+ * @param email - User email  
+ * @param privilege - User privilege level
+ * @returns Site access result with permissions and user sites
+ */
+export async function getUserSiteAccess(
+  userId: number,
+  isWhitelisted: boolean,
+  privilege: number
+): Promise<{ canRead: boolean; canWrite: boolean; userSites: number[] }> {
+  // Super admin users (privilege >= 2) have full access to all sites
+  if (privilege >= 2) {
+    return {
+      canRead: true,
+      canWrite: true,
+      userSites: [] // Empty array means access to all sites
+    };
+  }
+
+  // For regular users and admin users (privilege >= 1), get their site associations
+  const userSiteAssociations = await SiteUser.findAll({
+    where: { userId },
+    attributes: ['siteId']
+  });
+
+  const userSites = userSiteAssociations.map(association => association.siteId);
+
+  // Admin users (privilege >= 1) can read and write to their sites
+  if (privilege >= 1) {
+    return {
+      canRead: true,
+      canWrite: true,
+      userSites
+    };
+  }
+
+  // Whitelisted regular users can only read their sites
+  if (isWhitelisted) {
+    return {
+      canRead: true,
+      canWrite: false,
+      userSites
+    };
+  }
+
+  // Non-whitelisted users have no access
+  return {
+    canRead: false,
+    canWrite: false,
+    userSites: []
+  };
 }
