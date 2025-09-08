@@ -108,10 +108,10 @@ export async function siteAccessMiddleware(
 /**
  * Middleware to require read access to sites
  */
-export function requireSiteReadAccess(
+export async function requireSiteReadAccess(
   request: FastifyRequest,
   reply: FastifyReply
-): void {
+): Promise<void> {
   if (!request.siteAccess?.canRead) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to read site data' });
     return;
@@ -122,10 +122,10 @@ export function requireSiteReadAccess(
 /**
  * Middleware to require write access to sites
  */
-export function requireSiteWriteAccess(
+export async function requireSiteWriteAccess(
   request: FastifyRequest,
   reply: FastifyReply
-): void {
+): Promise<void> {
   if (!request.siteAccess?.canWrite) {
     reply.code(403).send({ error: 'Forbidden: Insufficient permissions to modify site data' });
     return;
@@ -137,10 +137,10 @@ export function requireSiteWriteAccess(
  * Middleware to check if user has access to a specific site
  * Use this for routes that have a site_id or siteId parameter
  */
-export function requireSpecificSiteReadAccess(
+export async function requireSpecificSiteReadAccess(
   request: FastifyRequest,
   reply: FastifyReply
-): void {
+): Promise<void> {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canRead) {
@@ -173,10 +173,10 @@ export function requireSpecificSiteReadAccess(
  * Middleware to check if user has write access to a specific site
  * Use this for routes that modify site data and have a site_id or siteId parameter
  */
-export function requireSpecificSiteWriteAccess(
+export async function requireSpecificSiteWriteAccess(
   request: FastifyRequest,
   reply: FastifyReply
-): void {
+): Promise<void> {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canWrite) {

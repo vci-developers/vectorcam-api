@@ -153,10 +153,10 @@ export async function findSessionByIdOrFrontendId(sessionId: string | number): P
  * Middleware that allows access to sessions from a specific site
  * Use this for routes like /sessions/sites/:site_id
  */
-export function requireSiteSessionAccess(
+export async function requireSiteSessionAccess(
   request: FastifyRequest,
   reply: FastifyReply
-): void {
+): Promise<void> {
   const siteAccess = request.siteAccess;
   
   if (!siteAccess?.canRead) {
