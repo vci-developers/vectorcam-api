@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { HookHandlerDoneFunction } from 'fastify';
-import { UserWhitelist } from '../db/models';
+import { UserWhitelist, User } from '../db/models';
 
 interface JwtPayload {
   userId: number;
@@ -57,23 +57,33 @@ export async function authMiddleware(
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
 
+    // Initialize user with token data, but we'll refresh privilege from DB
     request.user = {
       id: decoded.userId,
       email: decoded.email,
       isWhitelisted: false,
-      privilege: decoded.privilege,
+      privilege: decoded.privilege, // Will be updated below
     };
     
-      try {
-        const userWhitelist = await UserWhitelist.findOne({ where: { email: decoded.email } });
-        // Set user info on request object
-        request.user.isWhitelisted = !!userWhitelist;
-        request.authType = 'user';
-        return;
-      } catch (dbError) {
-        request.authType = 'user';
-        return;
+    try {
+      // Fetch current user data from database to get fresh privilege level
+      const [user, userWhitelist] = await Promise.all([
+        User.findByPk(decoded.userId, { attributes: ['privilege'] }),
+        UserWhitelist.findOne({ where: { email: decoded.email } })
+      ]);
+      
+      if (user) {
+        request.user.privilege = user.privilege;
       }
+      
+      request.user.isWhitelisted = !!userWhitelist;
+      request.authType = 'user';
+      return;
+    } catch (dbError) {
+      // If DB query fails, use token values as fallback
+      request.authType = 'user';
+      return;
+    }
   } catch (jwtError) {
     // JWT verification failed, continue to mobile token check
   }
