@@ -4,7 +4,6 @@ import { Session } from '../../db/models';
 
 interface UpdateSessionRequest {
   frontendId?: string;
-  houseNumber?: string;
   collectorTitle?: string;
   collectorName?: string;
   collectionDate?: number;
@@ -33,7 +32,6 @@ export const schema = {
     type: 'object',
     properties: {
       frontendId: { type: 'string', maxLength: 64 },
-      houseNumber: { type: 'string' },
       collectorTitle: { type: 'string' },
       collectorName: { type: 'string' },
       collectionDate: { type: 'number' },
@@ -59,7 +57,6 @@ export const schema = {
           properties: {
             sessionId: { type: 'number' },
             frontendId: { type: 'string' },
-            houseNumber: { type: ['string', 'null'] },
             collectorTitle: { type: ['string', 'null'] },
             collectorName: { type: ['string', 'null'] },
             collectionDate: { type: ['number', 'null'] },
@@ -107,7 +104,6 @@ export async function updateSession(
     const { session_id } = request.params;
     const { 
       frontendId,
-      houseNumber,
       collectorTitle,
       collectorName,
       collectionDate,
@@ -157,7 +153,6 @@ export async function updateSession(
     // Update the session
     await session.update({
       frontendId: frontendId !== undefined ? frontendId : session.frontendId,
-      houseNumber: houseNumber !== undefined ? houseNumber : session.houseNumber,
       collectorTitle: collectorTitle !== undefined ? collectorTitle : session.collectorTitle,
       collectorName: collectorName !== undefined ? collectorName : session.collectorName,
       collectionDate: collectionDate !== undefined ? new Date(collectionDate) : session.collectionDate,

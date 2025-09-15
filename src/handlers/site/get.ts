@@ -20,7 +20,9 @@ export const schema = {
         district: { type: ['string', 'null'] },
         subCounty: { type: ['string', 'null'] },
         parish: { type: ['string', 'null'] },
-        sentinelSite: { type: ['string', 'null'] },
+        villageName: { type: ['string', 'null'] },
+        houseNumber: { type: 'string' },
+        isActive: { type: 'boolean' },
         healthCenter: { type: ['string', 'null'] },
         program: {
           type: 'object',

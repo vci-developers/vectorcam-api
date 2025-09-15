@@ -7,7 +7,9 @@ class Site extends Model {
   declare district: string | null;
   declare subCounty: string | null;
   declare parish: string | null;
-  declare sentinelSite: string | null;
+  declare villageName: string | null;
+  declare houseNumber: string;
+  declare isActive: boolean;
   declare healthCenter: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -42,10 +44,22 @@ Site.init(
       type: DataTypes.STRING(255),
       allowNull: true,
     },
-    sentinelSite: {
+    villageName: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      field: 'sentinel_site',
+      field: 'village_name',
+    },
+    houseNumber: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      defaultValue: '',
+      field: 'house_number',
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      field: 'is_active',
     },
     healthCenter: {
       type: DataTypes.STRING(255),

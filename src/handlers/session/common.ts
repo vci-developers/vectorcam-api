@@ -5,7 +5,6 @@ import { Session, Site, Device, Specimen } from '../../db/models';
 export interface SessionResponse {
   sessionId: number;
   frontendId: string;
-  houseNumber: string | null;
   collectorTitle: string | null;
   collectorName: string | null;
   collectionDate: number | null;
@@ -28,7 +27,6 @@ export function formatSessionResponse(session: Session): SessionResponse {
   return {
     sessionId: session.id,
     frontendId: session.frontendId,
-    houseNumber: session.houseNumber,
     collectorTitle: session.collectorTitle,
     collectorName: session.collectorName,
     collectionDate: session.collectionDate ? session.collectionDate.getTime() : null,

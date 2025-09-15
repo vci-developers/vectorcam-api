@@ -83,7 +83,6 @@ export const schema = {
                     properties: {
                       sessionId: { type: 'number' },
                       frontendId: { type: 'string' },
-                      houseNumber: { type: ['string', 'null'] },
                       collectorTitle: { type: ['string', 'null'] },
                       collectorName: { type: ['string', 'null'] },
                       collectionDate: { type: ['number', 'null'] },
@@ -106,7 +105,9 @@ export const schema = {
                           district: { type: ['string', 'null'] },
                           subCounty: { type: ['string', 'null'] },
                           parish: { type: ['string', 'null'] },
-                          sentinelSite: { type: ['string', 'null'] },
+                          villageName: { type: ['string', 'null'] },
+                          houseNumber: { type: 'string' },
+                          isActive: { type: 'boolean' },
                           healthCenter: { type: ['string', 'null'] }
                         }
                       }

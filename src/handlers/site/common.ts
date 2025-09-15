@@ -7,7 +7,9 @@ export interface SiteResponse {
   district: string | null;
   subCounty: string | null;
   parish: string | null;
-  sentinelSite: string | null;
+  villageName: string | null;
+  houseNumber: string;
+  isActive: boolean;
   healthCenter: string | null;
 }
 
@@ -19,7 +21,9 @@ export function formatSiteResponse(site: Site): SiteResponse {
     district: site.district,
     subCounty: site.subCounty,
     parish: site.parish,
-    sentinelSite: site.sentinelSite,
+    villageName: site.villageName,
+    houseNumber: site.houseNumber,
+    isActive: site.isActive,
     healthCenter: site.healthCenter,
   };
 }

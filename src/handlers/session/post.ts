@@ -9,7 +9,6 @@ import { Session } from '../../db/models';
 
 interface SubmitSessionRequest {
   frontendId: string;
-  houseNumber?: string;
   collectorTitle?: string;
   collectorName?: string;
   collectionDate?: number;
@@ -33,7 +32,6 @@ export const schema = {
     required: ['frontendId', 'siteId', 'deviceId', 'type'],
     properties: {
       frontendId: { type: 'string', maxLength: 64 },
-      houseNumber: { type: 'string' },
       collectorTitle: { type: 'string' },
       collectorName: { type: 'string' },
       collectionDate: { type: 'number' },
@@ -59,7 +57,6 @@ export const schema = {
           properties: {
             sessionId: { type: 'number' },
             frontendId: { type: 'string' },
-            houseNumber: { type: ['string', 'null'] },
             collectorTitle: { type: ['string', 'null'] },
             collectorName: { type: ['string', 'null'] },
             collectionDate: { type: ['number', 'null'] },
@@ -106,7 +103,6 @@ export async function submitSession(
   try {
     const { 
       frontendId,
-      houseNumber,
       collectorTitle,
       collectorName,
       collectionDate,
@@ -158,7 +154,6 @@ export async function submitSession(
     // Create the session
     const session = await Session.create({
       frontendId,
-      houseNumber,
       collectorTitle,
       collectorName,
       collectionDate: collectionDate ? new Date(collectionDate) : null,

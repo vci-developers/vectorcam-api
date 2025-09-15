@@ -121,7 +121,7 @@ export async function exportSessionsCSV(
     });
 
     // Generate CSV header with program data
-    let csv = 'SessionID,FrontendID,HouseNumber,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry\n';
+    let csv = 'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry\n';
 
     // Generate CSV rows
     for (const session of sessions) {
@@ -133,7 +133,6 @@ export async function exportSessionsCSV(
       const row = [
         escapeCSVField(session.id),
         escapeCSVField(session.frontendId),
-        escapeCSVField(session.houseNumber),
         escapeCSVField(session.collectorTitle),
         escapeCSVField(session.collectorName),
         escapeCSVField(session.collectionDate?.toISOString()),
@@ -154,7 +153,9 @@ export async function exportSessionsCSV(
         escapeCSVField(site?.district),
         escapeCSVField(site?.subCounty),
         escapeCSVField(site?.parish),
-        escapeCSVField(site?.sentinelSite),
+        escapeCSVField(site?.villageName),
+        escapeCSVField(site?.houseNumber),
+        escapeCSVField(site?.isActive),
         escapeCSVField(site?.healthCenter),
         escapeCSVField(program?.id),
         escapeCSVField(program?.name),

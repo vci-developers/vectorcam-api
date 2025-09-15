@@ -12,11 +12,13 @@ export const schema = {
       district: { type: 'string', description: 'Filter by district (partial match)' },
       subCounty: { type: 'string', description: 'Filter by sub county (partial match)' },
       parish: { type: 'string', description: 'Filter by parish (partial match)' },
-      sentinelSite: { type: 'string', description: 'Filter by sentinel site (partial match)' },
+      villageName: { type: 'string', description: 'Filter by village name (partial match)' },
+      houseNumber: { type: 'string', description: 'Filter by house number (partial match)' },
+      isActive: { type: 'boolean', description: 'Filter by active status' },
       healthCenter: { type: 'string', description: 'Filter by health center (partial match)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' },
-      sortBy: { type: 'string', enum: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter'], default: 'id', description: 'Field to sort by' },
+      sortBy: { type: 'string', enum: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'healthCenter'], default: 'id', description: 'Field to sort by' },
       sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'asc', description: 'Sort order' }
     }
   },
@@ -34,7 +36,9 @@ export const schema = {
               district: { type: 'string', nullable: true },
               subCounty: { type: 'string', nullable: true },
               parish: { type: 'string', nullable: true },
-              sentinelSite: { type: 'string', nullable: true },
+              villageName: { type: 'string', nullable: true },
+              houseNumber: { type: 'string' },
+              isActive: { type: 'boolean' },
               healthCenter: { type: 'string', nullable: true }
             }
           }
@@ -53,11 +57,13 @@ interface QueryParams {
   district?: string;
   subCounty?: string;
   parish?: string;
-  sentinelSite?: string;
+  villageName?: string;
+  houseNumber?: string;
+  isActive?: boolean;
   healthCenter?: string;
   limit?: number;
   offset?: number;
-  sortBy?: 'id' | 'district' | 'subCounty' | 'parish' | 'sentinelSite' | 'healthCenter';
+  sortBy?: 'id' | 'district' | 'subCounty' | 'parish' | 'villageName' | 'houseNumber' | 'healthCenter';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -71,7 +77,9 @@ export async function getSiteList(
       district,
       subCounty,
       parish,
-      sentinelSite,
+      villageName,
+      houseNumber,
+      isActive,
       healthCenter,
       limit = 20,
       offset = 0,
@@ -109,10 +117,18 @@ export async function getSiteList(
         [Op.like]: `%${parish}%`
       };
     }
-    if (sentinelSite) {
-      whereClause.sentinelSite = {
-        [Op.like]: `%${sentinelSite}%`
+    if (villageName) {
+      whereClause.villageName = {
+        [Op.like]: `%${villageName}%`
       };
+    }
+    if (houseNumber) {
+      whereClause.houseNumber = {
+        [Op.like]: `%${houseNumber}%`
+      };
+    }
+    if (isActive !== undefined) {
+      whereClause.isActive = isActive;
     }
     if (healthCenter) {
       whereClause.healthCenter = {

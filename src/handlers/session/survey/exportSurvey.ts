@@ -120,7 +120,7 @@ export async function exportSurveillanceFormsCSV(
     });
 
     // Generate CSV header with comprehensive data
-    let csv = 'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionHouseNumber,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
+    let csv = 'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
 
     // Generate CSV rows
     for (const form of surveillanceForms) {
@@ -143,7 +143,6 @@ export async function exportSurveillanceFormsCSV(
         escapeCSVField(form.updatedAt.toISOString()),
         form.sessionId,
         escapeCSVField(session?.frontendId),
-        escapeCSVField(session?.houseNumber),
         escapeCSVField(session?.collectorTitle),
         escapeCSVField(session?.collectorName),
         escapeCSVField(session?.collectionDate?.toISOString()),
@@ -158,7 +157,9 @@ export async function exportSurveillanceFormsCSV(
         escapeCSVField(site?.district),
         escapeCSVField(site?.subCounty),
         escapeCSVField(site?.parish),
-        escapeCSVField(site?.sentinelSite),
+        escapeCSVField(site?.villageName),
+        escapeCSVField(site?.houseNumber),
+        escapeCSVField(site?.isActive),
         escapeCSVField(site?.healthCenter),
         program?.id,
         escapeCSVField(program?.name),

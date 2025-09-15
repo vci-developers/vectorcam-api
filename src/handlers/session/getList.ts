@@ -12,7 +12,6 @@ export const schema = {
       programId: { type: 'number', description: 'Filter by program ID' },
       deviceId: { type: 'number', description: 'Filter by device ID' },
       frontendId: { type: 'string', description: 'Filter by frontend ID' },
-      houseNumber: { type: 'string', description: 'Filter by house number (partial match)' },
       collectorName: { type: 'string', description: 'Filter by collector name (partial match)' },
       collectionMethod: { type: 'string', description: 'Filter by collection method (partial match)' },
       specimenCondition: { type: 'string', description: 'Filter by specimen condition (partial match)' },
@@ -37,7 +36,6 @@ export const schema = {
             properties: {
               sessionId: { type: 'number' },
               frontendId: { type: 'string' },
-              houseNumber: { type: 'string', nullable: true },
               collectorTitle: { type: 'string', nullable: true },
               collectorName: { type: 'string', nullable: true },
               collectionDate: { type: 'number', nullable: true },
@@ -69,7 +67,6 @@ interface QueryParams {
   programId?: number;
   deviceId?: number;
   frontendId?: string;
-  houseNumber?: string;
   collectorName?: string;
   collectionMethod?: string;
   specimenCondition?: string;
@@ -93,7 +90,6 @@ export async function getSessionList(
       programId,
       deviceId,
       frontendId,
-      houseNumber,
       collectorName,
       collectionMethod,
       specimenCondition,
@@ -139,11 +135,6 @@ export async function getSessionList(
     }
     if (frontendId) {
       whereClause.frontendId = frontendId;
-    }
-    if (houseNumber) {
-      whereClause.houseNumber = {
-        [Op.like]: `%${houseNumber}%`
-      };
     }
     if (collectorName) {
       whereClause.collectorName = {

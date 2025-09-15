@@ -200,7 +200,7 @@ export async function findAnnotationWithRelated(annotationId: number): Promise<A
               {
                 model: Site,
                 as: 'site',
-                attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
+                attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'isActive', 'healthCenter']
               }
             ]
           }
