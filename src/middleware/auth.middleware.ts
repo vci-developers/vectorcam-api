@@ -53,7 +53,15 @@ export async function authMiddleware(
     return;
   }
 
-  // 2. Then check for user JWT token
+  // 2. Finally check for mobile token
+  if (token === config.mobileAuthToken) {
+    request.isMobileApp = true;
+    request.authType = 'mobile';
+    // Mobile token doesn't provide specific user info, just mobile app access
+    return;
+  }
+
+  // 3. Then check for user JWT token
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
 
@@ -85,15 +93,7 @@ export async function authMiddleware(
       return;
     }
   } catch (jwtError) {
-    // JWT verification failed, continue to mobile token check
-  }
-
-  // 3. Finally check for mobile token
-  if (token === config.mobileAuthToken) {
-    request.isMobileApp = true;
-    request.authType = 'mobile';
-    // Mobile token doesn't provide specific user info, just mobile app access
-    return;
+    // JWT verification failed
   }
 
   // 4. If none of the above tokens are valid, mark as unauthenticated

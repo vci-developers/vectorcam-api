@@ -37,11 +37,7 @@ export async function siteAccessMiddleware(
 
   // Must be authenticated as a user for site access
   if (request.authType !== 'user' || !request.user) {
-    request.siteAccess = {
-      canRead: false,
-      canWrite: false,
-      userSites: []
-    };
+    reply.code(401).send({ error: 'Unauthorized: Authentication required' });
     return;
   }
 
@@ -54,11 +50,8 @@ export async function siteAccessMiddleware(
 
   } catch (error) {
     request.log.error(error);
-    request.siteAccess = {
-      canRead: false,
-      canWrite: false,
-      userSites: []
-    };
+    reply.code(500).send({ error: 'Internal server error while checking site access' });
+    return;
   }
 }
 
