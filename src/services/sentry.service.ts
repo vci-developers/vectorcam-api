@@ -21,7 +21,7 @@ export class SentryService {
     }
 
     // Only initialize Sentry in production or if explicitly enabled
-    if (config.server.nodeEnv === 'production' || process.env.SENTRY_ENABLED === 'true') {
+    if (config.server.nodeEnv === 'production' || config.sentry.enabled) {
       const dsn = process.env.SENTRY_DSN;
       
       if (!dsn) {
@@ -40,10 +40,10 @@ export class SentryService {
         ],
         
         // Set traces sample rate for performance monitoring
-        tracesSampleRate: config.server.nodeEnv === 'production' ? 0.1 : 1.0,
+        tracesSampleRate: 1.0,
         
         // Set profiles sample rate for profiling
-        profilesSampleRate: config.server.nodeEnv === 'production' ? 0.1 : 1.0,
+        profilesSampleRate: 1.0,
         
         // Enable debug mode in development
         debug: config.server.nodeEnv === 'development',

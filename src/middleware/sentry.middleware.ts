@@ -53,43 +53,18 @@ export async function sentryErrorHandler(
   // Get the status code from the error, default to 500 for server errors
   const statusCode = (error as any).statusCode || 500;
   
-  // Handle client errors (4xx) - these should not be captured by Sentry
-  if (statusCode >= 400 && statusCode < 500) {
-    // Log client errors at info level only
-    request.log.info({
-      error: error.message,
-      statusCode,
-      url: request.url,
-      method: request.method,
-      code: (error as any).code,
-      validation: (error as any).validation,
-    }, 'Client error');
-    
-    // Prepare response object
-    const response: any = {
-      error: error.message || 'Client error'
-    };
-    
-    // Add validation details if it's a validation error
-    if ((error as any).validation) {
-      response.validation = (error as any).validation;
-    }
-    
-    // Return the error response to the client
-    return reply.status(statusCode).send(response);
-  }
-
-  // For server errors (5xx), capture in Sentry and log as error
-  // Add error context
+  // Add error context for Sentry
   sentryService.setContext('error', {
     message: error.message,
     stack: error.stack,
     statusCode,
     url: request.url,
     method: request.method,
+    code: (error as any).code,
+    validation: (error as any).validation,
   });
 
-  // Capture the error in Sentry
+  // Capture ALL errors in Sentry (both 4xx and 5xx)
   sentryService.captureException(error, {
     request: {
       method: request.method,
@@ -105,7 +80,33 @@ export async function sentryErrorHandler(
     },
   });
 
-  // Log server errors
+  // Handle client errors (4xx) - log at info level and return detailed response
+  if (statusCode >= 400 && statusCode < 500) {
+    // Log client errors at info level
+    request.log.info({
+      error: error.message,
+      statusCode,
+      url: request.url,
+      method: request.method,
+      code: (error as any).code,
+      validation: (error as any).validation,
+    }, 'Client error captured by Sentry');
+    
+    // Prepare response object
+    const response: any = {
+      error: error.message || 'Client error'
+    };
+    
+    // Add validation details if it's a validation error
+    if ((error as any).validation) {
+      response.validation = (error as any).validation;
+    }
+    
+    // Return the error response to the client
+    return reply.status(statusCode).send(response);
+  }
+
+  // Handle server errors (5xx) - log as error and return generic response
   request.log.error(error, 'Server error captured by Sentry');
   
   // Return a generic server error response
