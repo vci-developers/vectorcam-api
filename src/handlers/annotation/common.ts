@@ -139,7 +139,8 @@ export function formatSpecimenImageResponse(image: SpecimenImage, specimenId?: n
       abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.parse(inferenceResult.abdomenStatusLogits) : [],
       speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
       sexInferenceDuration: inferenceResult.sexInferenceDuration,
-      abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
+      abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
+      bboxDetectionDuration: inferenceResult.bboxDetectionDuration
     };
   }
 

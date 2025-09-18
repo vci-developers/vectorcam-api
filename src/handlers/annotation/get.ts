@@ -98,7 +98,8 @@ export const schema = {
                     abdomenStatusLogits: { type: 'array' },
                     speciesInferenceDuration: { type: ['number', 'null'] },
                     sexInferenceDuration: { type: ['number', 'null'] },
-                    abdomenStatusInferenceDuration: { type: ['number', 'null'] }
+                    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
+                    bboxDetectionDuration: { type: ['number', 'null'] }
                   }
                 }
               }
@@ -152,7 +153,7 @@ export const schema = {
 };
 
 export default async function getAnnotation(
-  request: GetAnnotationRequest & { isAdminToken?: boolean },
+  request: GetAnnotationRequest,
   reply: FastifyReply
 ): Promise<void> {
   try {
