@@ -66,6 +66,9 @@ async function setupServer(): Promise<void> {
         consumes: ['application/json'],
         produces: ['application/json'],
         tags: [
+          { name: 'Authentication', description: 'User authentication endpoints (signup, login, refresh)' },
+          { name: 'Users', description: 'User profile and management endpoints' },
+          { name: 'User Management', description: 'User whitelist management endpoints (admin only)' },
           { name: 'Programs', description: 'Program management endpoints' },
           { name: 'Sites', description: 'Site management endpoints' },
           { name: 'Devices', description: 'Device management endpoints' },

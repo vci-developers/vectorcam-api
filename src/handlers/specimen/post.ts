@@ -100,6 +100,17 @@ export async function createSpecimen(
       return reply.code(404).send({ error: 'Session not found' });
     }
 
+    // Validate user can create specimens for this session's site
+    const siteAccess = request.siteAccess;
+    if (!siteAccess?.canWrite) {
+      return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to create specimens' });
+    }
+
+    // If user has limited site access, ensure they can access this session's site
+    if (siteAccess.userSites.length > 0 && !siteAccess.userSites.includes(session.siteId)) {
+      return reply.code(403).send({ error: 'Forbidden: No access to create specimens for sessions from this site' });
+    }
+
     // Check if specimenId is unique
     const existingSpecimen = await findSessionSpecimen(session.id, specimenId);
     if (existingSpecimen) {

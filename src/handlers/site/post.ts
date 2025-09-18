@@ -7,7 +7,9 @@ interface CreateSiteRequest {
   district?: string;
   subCounty?: string;
   parish?: string;
-  sentinelSite?: string;
+  villageName?: string;
+  houseNumber?: string;
+  isActive?: boolean;
   healthCenter?: string;
 }
 
@@ -21,7 +23,9 @@ export const schema = {
       district: { type: 'string' },
       subCounty: { type: 'string' },
       parish: { type: 'string' },
-      sentinelSite: { type: 'string' },
+      villageName: { type: 'string' },
+      houseNumber: { type: 'string' },
+      isActive: { type: 'boolean' },
       healthCenter: { type: 'string' },
     },
   },
@@ -38,7 +42,9 @@ export const schema = {
             district: { type: 'string' },
             subCounty: { type: 'string' },
             parish: { type: 'string' },
-            sentinelSite: { type: 'string' },
+            villageName: { type: 'string' },
+            houseNumber: { type: 'string' },
+            isActive: { type: 'boolean' },
             healthCenter: { type: 'string' },
           },
         },
@@ -52,7 +58,13 @@ export async function createSite(
   reply: FastifyReply
 ) {
   try {
-    const { programId, district, subCounty, parish, sentinelSite, healthCenter } = request.body;
+    const { programId, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
+
+    // Validate user can create sites
+    const siteAccess = request.siteAccess;
+    if (!siteAccess?.canWrite || siteAccess.userSites.length !== 0) {
+      return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to create sites' });
+    }
 
     // Check if program exists
     const program = await findProgramById(programId);
@@ -65,7 +77,9 @@ export async function createSite(
       district,
       subCounty,
       parish,
-      sentinelSite,
+      villageName,
+      houseNumber,
+      isActive,
       healthCenter,
     });
 

@@ -12,7 +12,6 @@ class Session extends Model {
 
   declare id: number;
   declare frontendId: string;
-  declare houseNumber: string | null;
   declare collectorTitle: string | null;
   declare collectorName: string | null;
   declare collectionDate: Date | null;
@@ -42,11 +41,6 @@ Session.init(
       allowNull: false,
       unique: true,
       field: 'frontend_id',
-    },
-    houseNumber: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-      field: 'house_number',
     },
     collectorTitle: {
       type: DataTypes.STRING(255),

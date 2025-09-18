@@ -103,7 +103,6 @@ export const schema = {
           properties: {
             id: { type: 'number' },
             frontendId: { type: 'string' },
-            houseNumber: { type: ['string', 'null'] },
             collectorTitle: { type: ['string', 'null'] },
             collectorName: { type: ['string', 'null'] },
             collectionDate: { type: ['number', 'null'] },
@@ -122,7 +121,9 @@ export const schema = {
                 district: { type: ['string', 'null'] },
                 subCounty: { type: ['string', 'null'] },
                 parish: { type: ['string', 'null'] },
-                sentinelSite: { type: ['string', 'null'] },
+                villageName: { type: ['string', 'null'] },
+                houseNumber: { type: 'string' },
+                isActive: { type: 'boolean' },
                 healthCenter: { type: ['string', 'null'] }
               }
             },
@@ -161,7 +162,7 @@ export async function getSessionSpecimen(
           {
             model: Site,
             as: 'site',
-            attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
+            attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'isActive', 'healthCenter']
           },
           {
             model: Device,
@@ -187,7 +188,6 @@ export async function getSessionSpecimen(
       session: specimenData.session ? {
         id: specimenData.session.id,
         frontendId: specimenData.session.frontendId,
-        houseNumber: specimenData.session.houseNumber,
         collectorTitle: specimenData.session.collectorTitle,
         collectorName: specimenData.session.collectorName,
         collectionDate: specimenData.session.collectionDate ? new Date(specimenData.session.collectionDate).getTime() : null,
@@ -204,7 +204,9 @@ export async function getSessionSpecimen(
           district: specimenData.session.site.district,
           subCounty: specimenData.session.site.subCounty,
           parish: specimenData.session.site.parish,
-          sentinelSite: specimenData.session.site.sentinelSite,
+          villageName: specimenData.session.site.villageName,
+          houseNumber: specimenData.session.site.houseNumber,
+          isActive: specimenData.session.site.isActive,
           healthCenter: specimenData.session.site.healthCenter
         } : null,
         device: specimenData.session.device ? {

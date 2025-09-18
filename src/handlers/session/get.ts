@@ -18,7 +18,6 @@ export const schema = {
       properties: {
         sessionId: { type: 'number' },
         frontendId: { type: 'string' },
-        houseNumber: { type: ['string', 'null'] },
         collectorTitle: { type: ['string', 'null'] },
         collectorName: { type: ['string', 'null'] },
         collectionDate: { type: ['number', 'null'] },
@@ -40,7 +39,9 @@ export const schema = {
             district: { type: 'string', nullable: true },
             subCounty: { type: 'string', nullable: true },
             parish: { type: 'string', nullable: true },
-            sentinelSite: { type: 'string', nullable: true },
+            villageName: { type: 'string', nullable: true },
+            houseNumber: { type: 'string' },
+            isActive: { type: 'boolean' },
             healthCenter: { type: 'string', nullable: true }
           }
         },
@@ -68,7 +69,7 @@ export async function getSessionDetails(
       {
         model: Site,
         as: 'site',
-        attributes: ['id', 'district', 'subCounty', 'parish', 'sentinelSite', 'healthCenter']
+        attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'isActive', 'healthCenter']
       },
       {
         model: Device,
@@ -92,7 +93,9 @@ export async function getSessionDetails(
         district: sessionData.site.district,
         subCounty: sessionData.site.subCounty,
         parish: sessionData.site.parish,
-        sentinelSite: sessionData.site.sentinelSite,
+        villageName: sessionData.site.villageName,
+        houseNumber: sessionData.site.houseNumber,
+        isActive: sessionData.site.isActive,
         healthCenter: sessionData.site.healthCenter
       } : null,
       device: sessionData.device ? {

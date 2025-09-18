@@ -175,30 +175,53 @@ export async function getSpecimenList(
       };
     }
 
-    // Filter by siteId or programId via Session -> Site
-    if (siteId || programId) {
-      include.push({
-        model: Session,
-        as: 'session',
-        required: true,
-        include: siteId || programId ? [{
-          model: Site,
-          as: 'site',
-          required: true,
-          where: {
-            ...(siteId ? { id: siteId } : {}),
-            ...(programId ? { programId } : {})
-          }
-        }] : []
-      });
-    } else {
-      // If not filtering by siteId/programId but want to allow hasImages, still allow includes
-      include.push({
-        model: Session,
-        as: 'session',
-        required: false
-      });
+    // Apply site access restrictions first
+    const siteAccess = request.siteAccess;
+    const sessionInclude: any = {
+      model: Session,
+      as: 'session',
+      required: true,
+      include: []
+    };
+
+    // Build site restrictions based on user access
+    const siteWhere: any = {};
+    if (siteAccess && siteAccess.userSites.length > 0) {
+      // User has limited site access, restrict to their sites
+      siteWhere.id = {
+        [Op.in]: siteAccess.userSites
+      };
     }
+
+    // Add user-provided filters
+    if (siteId) {
+      if (siteAccess && siteAccess.userSites.length > 0) {
+        // User has limited access - only allow if they have access to this site
+        if (siteAccess.userSites.includes(siteId)) {
+          siteWhere.id = siteId;
+        } else {
+          // User doesn't have access to this site - return empty result
+          siteWhere.id = -1; // This will return no results
+        }
+      } else {
+        // User has full access or admin/mobile token
+        siteWhere.id = siteId;
+      }
+    }
+
+    if (programId) {
+      siteWhere.programId = programId;
+    }
+
+    // Add site include with restrictions
+    sessionInclude.include.push({
+      model: Site,
+      as: 'site',
+      required: true,
+      where: siteWhere
+    });
+
+    include.push(sessionInclude);
 
     // Filter by hasImages
     if (hasImages) {

@@ -7,6 +7,11 @@ import Specimen from './Specimen';
 import InferenceResult from './InferenceResult';
 import SpecimenImage from './SpecimenImage';
 import MultipartUpload from './MultipartUpload';
+import User from './User';
+import UserWhitelist from './UserWhitelist';
+import SiteUser from './SiteUser';
+import AnnotationTask from './AnnotationTask';
+import Annotation from './Annotation';
 
 export {
   Program,
@@ -17,5 +22,10 @@ export {
   Specimen,
   InferenceResult,
   SpecimenImage,
-  MultipartUpload
+  MultipartUpload,
+  User,
+  UserWhitelist,
+  SiteUser,
+  AnnotationTask,
+  Annotation
 };

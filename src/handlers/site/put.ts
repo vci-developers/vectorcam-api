@@ -6,7 +6,9 @@ interface UpdateSiteRequest {
   district?: string;
   subCounty?: string;
   parish?: string;
-  sentinelSite?: string;
+  villageName?: string;
+  houseNumber?: string;
+  isActive?: boolean;
   healthCenter?: string;
 }
 
@@ -26,7 +28,9 @@ export const schema = {
       district: { type: 'string' },
       subCounty: { type: 'string' },
       parish: { type: 'string' },
-      sentinelSite: { type: 'string' },
+      villageName: { type: 'string' },
+      houseNumber: { type: 'string' },
+      isActive: { type: 'boolean' },
       healthCenter: { type: 'string' },
     },
   },
@@ -43,7 +47,9 @@ export const schema = {
             district: { type: 'string' },
             subCounty: { type: 'string' },
             parish: { type: 'string' },
-            sentinelSite: { type: 'string' },
+            villageName: { type: 'string' },
+            houseNumber: { type: 'string' },
+            isActive: { type: 'boolean' },
             healthCenter: { type: 'string' },
           },
         },
@@ -61,7 +67,7 @@ export async function updateSite(
 ) {
   try {
     const { site_id } = request.params;
-    const { programId, district, subCounty, parish, sentinelSite, healthCenter } = request.body;
+    const { programId, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
 
     const site = await findSiteById(site_id);
     if (!site) {
@@ -80,7 +86,9 @@ export async function updateSite(
       district: district !== undefined ? district : site.district,
       subCounty: subCounty !== undefined ? subCounty : site.subCounty,
       parish: parish !== undefined ? parish : site.parish,
-      sentinelSite: sentinelSite !== undefined ? sentinelSite : site.sentinelSite,
+      villageName: villageName !== undefined ? villageName : site.villageName,
+      houseNumber: houseNumber !== undefined ? houseNumber : site.houseNumber,
+      isActive: isActive !== undefined ? isActive : site.isActive,
       healthCenter: healthCenter !== undefined ? healthCenter : site.healthCenter,
     });
 

@@ -22,7 +22,6 @@ export const schema = {
             properties: {
               sessionId: { type: 'number' },
               frontendId: { type: 'string' },
-              houseNumber: { type: ['string', 'null'] },
               collectorTitle: { type: ['string', 'null'] },
               collectorName: { type: ['string', 'null'] },
               collectionDate: { type: ['number', 'null'] },

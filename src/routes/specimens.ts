@@ -31,7 +31,16 @@ import { schema as updateImageDataSchema } from '../handlers/specimen/images/dat
 import { schema as getImageListSchema } from '../handlers/specimen/images/data/getList';
 import { schema as getImageDataSchema } from '../handlers/specimen/images/data/get';
 import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
-import { adminAuthMiddleware } from '../middleware/adminAuth.middleware';
+import { requireAdminAuth } from '../middleware/auth.middleware';
+import { 
+  siteAccessMiddleware,
+  requireSiteReadAccess,
+  requireSiteWriteAccess
+} from '../middleware/siteAccess.middleware';
+import {
+  requireSpecificSpecimenReadAccess,
+  requireSpecificSpecimenWriteAccess
+} from '../middleware/specimenAccess.middleware';
 
 const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -39,108 +48,132 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Register multipart support for file uploads
   fastify.register(fastifyMultipart, { limits: { fileSize: CHUNK_SIZE } });
 
-  // Get all specimens with filters
+  // Register site access middleware for all routes
+  fastify.addHook('preHandler', siteAccessMiddleware);
+
+  // Get all specimens with filters (requires read access)
   fastify.get('/', {
+    preHandler: [requireSiteReadAccess],
     schema: getListSchema
-  }, getSpecimenList);
+  }, getSpecimenList as any);
 
-  // Create a new specimen
+  // Create a new specimen (requires write access, session validation in handler)
   fastify.post('/', {
+    preHandler: [requireSiteWriteAccess],
     schema: createSchema
-  }, createSpecimen);
+  }, createSpecimen as any);
 
-  // Get specimen details
+  // Get specimen details (requires access to specific specimen)
   fastify.get('/:specimen_id', {
+    preHandler: [requireSpecificSpecimenReadAccess],
     schema: getSchema
-  }, getSpecimenDetails);
+  }, getSpecimenDetails as any);
 
-  // Update specimen
+  // Update specimen (requires write access to specific specimen)
   fastify.put('/:specimen_id', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: updateSchema
-  }, updateSpecimen);
+  }, updateSpecimen as any);
 
-  // Delete specimen
+  // Delete specimen (requires write access to specific specimen)
   fastify.delete('/:specimen_id', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: deleteSchema
-  }, deleteSpecimen);
+  }, deleteSpecimen as any);
 
   // Export specimens as CSV
   fastify.get<ExportSpecimensCSVRequest>('/export/csv', {
     schema: exportSpecimensCSVSchema,
-    preHandler: [adminAuthMiddleware],
+    preHandler: [requireAdminAuth],
   }, exportSpecimensCSV);
 
-  // Upload specimen image
+  // Upload specimen image (requires write access to specific specimen)
   fastify.post('/:specimen_id/images', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: uploadImageSchema
-  }, images.uploadImage);
+  }, images.uploadImage as any);
 
-  // Get a specific specimen image by ID
+  // Get a specific specimen image by ID (skip access control)
   fastify.get('/:specimen_id/images/:image_id', {
     schema: getImageSchema
   }, images.getImage);
 
-  // Specimen image endpoints
+  // Specimen image endpoints (requires read access to specific specimen)
   fastify.get('/:specimen_id/images', {
+    preHandler: [requireSpecificSpecimenReadAccess],
     schema: getImageListSchema
-  }, images.data.getImageList);
+  }, images.data.getImageList as any);
 
-  // Update specimen image metadata
+  // Update specimen image metadata (requires write access to specific specimen)
   fastify.put('/:specimen_id/images/:image_id', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: putImageSchema
-  }, images.putImage);
+  }, images.putImage as any);
 
-  // Delete specimen image
+  // Delete specimen image (requires write access to specific specimen)
   fastify.delete('/:specimen_id/images/:image_id', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: deleteImageSchema
-  }, images.deleteImage);
+  }, images.deleteImage as any);
 
-  // Initiate multipart upload
+  // Initiate multipart upload (requires write access to specific specimen)
   fastify.post('/:specimen_id/images/uploads', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: initiateUploadSchema
-  }, upload.initiateUpload);
+  }, upload.initiateUpload as any);
 
-  // Append bytes to upload
+  // Append bytes to upload (requires write access to specific specimen)
   fastify.put('/:specimen_id/images/uploads/:upload_id', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: appendUploadSchema
-  }, upload.appendUpload);
+  }, upload.appendUpload as any);
 
-  // Complete multipart upload
+  // Complete multipart upload (requires write access to specific specimen)
   fastify.post('/:specimen_id/images/uploads/:upload_id/complete', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: completeUploadSchema
-  }, upload.completeUpload);
+  }, upload.completeUpload as any);
 
-  // Get uploads by specimen
+  // Get uploads by specimen (requires read access to specific specimen)
   fastify.get('/:specimen_id/images/uploads', {
+    preHandler: [requireSpecificSpecimenReadAccess],
     schema: getUploadListSchema
-  }, upload.getUploadList);
+  }, upload.getUploadList as any);
 
-  // Get upload status
+  // Get upload status (requires read access to specific specimen)
   fastify.get('/:specimen_id/images/uploads/:upload_id', {
+    preHandler: [requireSpecificSpecimenReadAccess],
     schema: getUploadStatusSchema
-  }, upload.getUploadStatus);
+  }, upload.getUploadStatus as any);
 
-  // TUS endpoints for specimen images
+  // TUS endpoints for specimen images (skip access control)
   fastify.addContentTypeParser('application/offset+octet-stream', (request, payload, done) => done(null));
   fastify.all('/:specimen_id/images/tus', images.tusHandler);
   fastify.all('/:specimen_id/images/tus/*', images.tusHandler);
 
-  // Specimen image data endpoints
+  // Specimen image data endpoints (requires read access to specific specimen)
   fastify.get('/:specimen_id/images/data', {
+    preHandler: [requireSpecificSpecimenReadAccess],
     schema: getImageListSchema
-  }, images.data.getImageList);
+  }, images.data.getImageList as any);
 
+  // Create image data (requires write access to specific specimen)
   fastify.post('/:specimen_id/images/data', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: createImageDataSchema
-  }, images.data.createImageData);
+  }, images.data.createImageData as any);
 
+  // Get specific image data (requires read access to specific specimen)
   fastify.get('/:specimen_id/images/data/:image_id', {
+    preHandler: [requireSpecificSpecimenReadAccess],
     schema: getImageDataSchema
-  }, images.data.getImageData);
+  }, images.data.getImageData as any);
 
+  // Update image data (requires write access to specific specimen)
   fastify.put('/:specimen_id/images/data/:image_id', {
+    preHandler: [requireSpecificSpecimenWriteAccess],
     schema: updateImageDataSchema
-  }, images.data.updateImageData);
+  }, images.data.updateImageData as any);
 
   done();
 } 

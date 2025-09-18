@@ -151,7 +151,7 @@ export async function exportSpecimensCSV(
     }
 
     // Generate CSV header
-    let csvHeader = 'SpecimenID,ImageID,ImageUrl,ImageS3Key,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionHouseNumber,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteSentinelSite,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
+    let csvHeader = 'SpecimenID,ImageID,ImageUrl,ImageS3Key,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
     
     // Add inference result columns if requested
     if (includeInferenceResult) {
@@ -192,7 +192,6 @@ export async function exportSpecimensCSV(
           escapeCSVField(img.updatedAt.toISOString()),
           escapeCSVField(specimen.sessionId),
           escapeCSVField(session?.frontendId),
-          escapeCSVField(session?.houseNumber),
           escapeCSVField(session?.collectorTitle),
           escapeCSVField(session?.collectorName),
           escapeCSVField(session?.collectionDate?.toISOString()),
@@ -207,7 +206,9 @@ export async function exportSpecimensCSV(
           escapeCSVField(site?.district),
           escapeCSVField(site?.subCounty),
           escapeCSVField(site?.parish),
-          escapeCSVField(site?.sentinelSite),
+          escapeCSVField(site?.villageName),
+          escapeCSVField(site?.houseNumber),
+          escapeCSVField(site?.isActive),
           escapeCSVField(site?.healthCenter),
           escapeCSVField(program?.id),
           escapeCSVField(program?.name),
