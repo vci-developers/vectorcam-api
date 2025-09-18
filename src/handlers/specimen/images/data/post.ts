@@ -167,9 +167,9 @@ export async function createImageData(
     const responseImage = {
       id: newImage.id,
       url: `/specimens/${specimen.id}/images/${newImage.id}`,
-      species: newImage.species || null,
-      sex: newImage.sex || null,
-      abdomenStatus: newImage.abdomenStatus || null,
+      species: newImage.species ?? null,
+      sex: newImage.sex ?? null,
+      abdomenStatus: newImage.abdomenStatus ?? null,
       capturedAt: newImage.capturedAt ? newImage.capturedAt.getTime() : null,
       submittedAt: newImage.createdAt.getTime(),
       filemd5: newImage.filemd5,
@@ -185,10 +185,10 @@ export async function createImageData(
             speciesLogits: parseProbabilityString(createdInferenceResult.speciesLogits),
             sexLogits: parseProbabilityString(createdInferenceResult.sexLogits),
             abdomenStatusLogits: parseProbabilityString(createdInferenceResult.abdomenStatusLogits),
-            speciesInferenceDuration: createdInferenceResult.speciesInferenceDuration || null,
-            sexInferenceDuration: createdInferenceResult.sexInferenceDuration || null,
-            abdomenStatusInferenceDuration: createdInferenceResult.abdomenStatusInferenceDuration || null,
-            bboxDetectionDuration: createdInferenceResult.bboxDetectionDuration || null
+            speciesInferenceDuration: createdInferenceResult.speciesInferenceDuration ?? null,
+            sexInferenceDuration: createdInferenceResult.sexInferenceDuration ?? null,
+            abdomenStatusInferenceDuration: createdInferenceResult.abdomenStatusInferenceDuration ?? null,
+            bboxDetectionDuration: createdInferenceResult.bboxDetectionDuration ?? null
           }
         : null
     };

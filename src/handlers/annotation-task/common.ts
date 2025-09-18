@@ -18,8 +18,8 @@ export function formatAnnotationTaskResponse(task: AnnotationTask, includeUser: 
   const response: AnnotationTaskResponse = {
     id: task.id,
     userId: task.userId,
-    title: task.title || null,
-    description: task.description || null,
+    title: task.title ?? null,
+    description: task.description ?? null,
     status: task.status,
     createdAt: task.createdAt.getTime(),
     updatedAt: task.updatedAt.getTime(),

@@ -93,7 +93,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
       };
     }));
     imagesToReturn = imagesResponses;
-    thumbnailImageObj = imagesResponses.find(img => img.id === specimen.thumbnailImageId) || null;
+    thumbnailImageObj = imagesResponses.find(img => img.id === specimen.thumbnailImageId) ?? null;
   } else {
     // Only fetch the thumbnail image (if exists)
     const thumbnailImage = specimen.thumbnailImageId ? await SpecimenImage.findByPk(specimen.thumbnailImageId) : null;
