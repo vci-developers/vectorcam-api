@@ -50,7 +50,8 @@ export const schema = {
                   abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
                   speciesInferenceDuration: { type: ['number', 'null'] },
                   sexInferenceDuration: { type: ['number', 'null'] },
-                  abdomenStatusInferenceDuration: { type: ['number', 'null'] }
+                  abdomenStatusInferenceDuration: { type: ['number', 'null'] },
+                  bboxDetectionDuration: { type: ['number', 'null'] }
                 }
               }
             }
@@ -87,7 +88,8 @@ export const schema = {
                         abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
                         speciesInferenceDuration: { type: ['number', 'null'] },
                         sexInferenceDuration: { type: ['number', 'null'] },
-                        abdomenStatusInferenceDuration: { type: ['number', 'null'] }
+                        abdomenStatusInferenceDuration: { type: ['number', 'null'] },
+                        bboxDetectionDuration: { type: ['number', 'null'] }
                       }
                     }
                   ]

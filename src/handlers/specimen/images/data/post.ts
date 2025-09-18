@@ -21,6 +21,7 @@ interface CreateImageDataRequestBody {
     speciesInferenceDuration?: number;
     sexInferenceDuration?: number;
     abdomenStatusInferenceDuration?: number;
+    bboxDetectionDuration?: number;
   };
 }
 
@@ -56,7 +57,8 @@ export const schema = {
           abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
           speciesInferenceDuration: { type: 'number' },
           sexInferenceDuration: { type: 'number' },
-          abdomenStatusInferenceDuration: { type: 'number' }
+          abdomenStatusInferenceDuration: { type: 'number' },
+          bboxDetectionDuration: { type: 'number' }
         },
         required: ['bboxTopLeftX', 'bboxTopLeftY', 'bboxWidth', 'bboxHeight']
       }
@@ -97,7 +99,8 @@ export const schema = {
                     abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
                     speciesInferenceDuration: { type: ['number', 'null'] },
                     sexInferenceDuration: { type: ['number', 'null'] },
-                    abdomenStatusInferenceDuration: { type: ['number', 'null'] }
+                    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
+                    bboxDetectionDuration: { type: ['number', 'null'] }
                   }
                 }
               ]
@@ -155,7 +158,8 @@ export async function createImageData(
         abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.stringify(inferenceResult.abdomenStatusLogits) : null,
         speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
         sexInferenceDuration: inferenceResult.sexInferenceDuration,
-        abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration
+        abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
+        bboxDetectionDuration: inferenceResult.bboxDetectionDuration
       });
     }
 
@@ -183,7 +187,8 @@ export async function createImageData(
             abdomenStatusLogits: parseProbabilityString(createdInferenceResult.abdomenStatusLogits),
             speciesInferenceDuration: createdInferenceResult.speciesInferenceDuration || null,
             sexInferenceDuration: createdInferenceResult.sexInferenceDuration || null,
-            abdomenStatusInferenceDuration: createdInferenceResult.abdomenStatusInferenceDuration || null
+            abdomenStatusInferenceDuration: createdInferenceResult.abdomenStatusInferenceDuration || null,
+            bboxDetectionDuration: createdInferenceResult.bboxDetectionDuration || null
           }
         : null
     };

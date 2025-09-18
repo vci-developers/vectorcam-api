@@ -18,6 +18,7 @@ class InferenceResult extends Model {
   declare speciesInferenceDuration: number;
   declare sexInferenceDuration: number;
   declare abdomenStatusInferenceDuration: number;
+  declare bboxDetectionDuration: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -97,6 +98,11 @@ InferenceResult.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: 'abdomen_status_inference_duration',
+    },
+    bboxDetectionDuration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'bbox_detection_duration',
     },
     createdAt: {
       type: DataTypes.DATE,
