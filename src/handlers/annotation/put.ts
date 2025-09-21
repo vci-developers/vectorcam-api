@@ -94,7 +94,12 @@ export default async function updateAnnotation(
       });
     } else {
       // Admin token can access any annotation
-      annotation = await Annotation.findByPk(annotationId);
+      annotation = await Annotation.findByPk(annotationId, {
+        include: [{
+          model: AnnotationTask,
+          as: 'annotationTask',
+        }]
+      });
     }
 
     if (!annotation) {
@@ -103,6 +108,52 @@ export default async function updateAnnotation(
 
     // Update the annotation
     await annotation.update(updates);
+
+    // Always update the annotation task's updatedAt timestamp
+    const annotationTaskId = annotation.annotationTaskId;
+    try {
+      await AnnotationTask.update(
+        { updatedAt: new Date() },
+        { where: { id: annotationTaskId } }
+      );
+    } catch (taskUpdateError: any) {
+      // Log the error but don't fail the annotation update
+      request.log.warn(`Failed to update annotation task ${annotationTaskId} timestamp: ${taskUpdateError.message}`);
+    }
+
+    // Check if status is being changed to ANNOTATED or FLAGGED
+    if (updates.status && (updates.status === 'ANNOTATED' || updates.status === 'FLAGGED')) {
+      try {
+        // Check if all annotations under this task are now completed (ANNOTATED or FLAGGED)
+        const totalAnnotations = await Annotation.count({
+          where: { annotationTaskId }
+        });
+        
+        const completedAnnotations = await Annotation.count({
+          where: { 
+            annotationTaskId,
+            status: ['ANNOTATED', 'FLAGGED']
+          }
+        });
+        
+        // If all annotations are completed, update the task status
+        if (totalAnnotations === completedAnnotations) {
+          // Get the annotation task (either from include or fetch it)
+          let annotationTask = (annotation as any).annotationTask;
+          if (!annotationTask) {
+            annotationTask = await AnnotationTask.findByPk(annotationTaskId);
+          }
+          
+          if (annotationTask && annotationTask.status !== 'COMPLETED') {
+            await annotationTask.update({ status: 'COMPLETED' });
+            request.log.info(`Annotation task ${annotationTaskId} marked as COMPLETED`);
+          }
+        }
+      } catch (taskStatusError: any) {
+        // Log the error but don't fail the annotation update
+        request.log.warn(`Failed to update annotation task ${annotationTaskId} status: ${taskStatusError.message}`);
+      }
+    }
 
     return reply.send({
       message: 'Annotation updated successfully',
