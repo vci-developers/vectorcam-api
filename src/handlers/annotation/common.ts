@@ -88,6 +88,10 @@ export function formatAnnotationResponse(
         thumbnailImage: null,
       };
 
+      if (specimen.thumbnailImageId) {
+        response.specimen.thumbnailUrl = `/specimens/${specimen.id}/images/${specimen.thumbnailImageId}`;
+      }
+
       // Add thumbnail image if available
       if (specimen.thumbnailImage) {
         response.specimen.thumbnailImage = formatSpecimenImageResponse(specimen.thumbnailImage, specimen.id);

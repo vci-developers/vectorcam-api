@@ -76,8 +76,6 @@ export const schema = {
                   sessionId: { type: 'number' },
                   thumbnailUrl: { type: ['string', 'null'] },
                   thumbnailImageId: { type: ['number', 'null'] },
-                  images: { type: 'array' },
-                  thumbnailImage: { type: ['object', 'null'] },
                   session: {
                     type: 'object',
                     properties: {
