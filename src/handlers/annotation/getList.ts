@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op, WhereOptions } from 'sequelize';
-import { Annotation, AnnotationTask, User, Specimen, Session, Site } from '../../db/models';
+import { Annotation, AnnotationTask, User, Specimen, Session, Site, SpecimenImage } from '../../db/models';
 import { formatAnnotationResponse } from './common';
 
 interface GetAnnotationListQuery {
@@ -76,6 +76,16 @@ export const schema = {
                   sessionId: { type: 'number' },
                   thumbnailUrl: { type: ['string', 'null'] },
                   thumbnailImageId: { type: ['number', 'null'] },
+                  thumbnailImage: {
+                    type: ['object', 'null'],
+                    properties: {
+                      id: { type: 'number' },
+                      url: { type: 'string' },
+                      species: { type: ['string', 'null'] },
+                      sex: { type: ['string', 'null'] },
+                      abdomenStatus: { type: ['string', 'null'] },
+                    },
+                  },
                   session: {
                     type: 'object',
                     properties: {
@@ -126,7 +136,7 @@ export const schema = {
 };
 
 export default async function getAnnotationList(
-  request: GetAnnotationListRequest & { isAdminToken?: boolean },
+  request: GetAnnotationListRequest,
   reply: FastifyReply
 ): Promise<void> {
   try {
@@ -193,6 +203,10 @@ export default async function getAnnotationList(
           model: Specimen,
           as: 'specimen',
           include: [
+            {
+              model: SpecimenImage,
+              as: 'thumbnailImage',
+            },
             {
               model: Session,
               as: 'session',

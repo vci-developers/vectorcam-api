@@ -74,7 +74,7 @@ export const schema = {
 };
 
 export default async function updateAnnotation(
-  request: UpdateAnnotationRequest & { isAdminToken?: boolean },
+  request: UpdateAnnotationRequest,
   reply: FastifyReply
 ): Promise<void> {
   try {
