@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../../db/models';
 import { config } from '../../config/environment';
+import { validatePassword, validateEmail } from '../../utils/validation';
 
 interface SignupBody {
   email: string;
@@ -18,7 +19,12 @@ export const signupSchema: any = {
     required: ['email', 'password'],
     properties: {
       email: { type: 'string', format: 'email' },
-      password: { type: 'string', minLength: 8 },
+      password: { 
+        type: 'string', 
+        minLength: 8,
+        maxLength: 128,
+        description: 'Password must be 8-128 characters long'
+      },
     },
   },
   response: {
@@ -48,6 +54,11 @@ export const signupSchema: any = {
       type: 'object',
       properties: {
         error: { type: 'string' },
+        details: { 
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Detailed validation error messages'
+        },
       },
     },
     409: {
@@ -73,8 +84,18 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
       return reply.code(400).send({ error: 'Email and password are required' });
     }
 
-    if (password.length < 8) {
-      return reply.code(400).send({ error: 'Password must be at least 8 characters long' });
+    // Validate email format
+    if (!validateEmail(email)) {
+      return reply.code(400).send({ error: 'Invalid email format' });
+    }
+
+    // Validate password format
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return reply.code(400).send({ 
+        error: 'Password validation failed', 
+        details: passwordValidation.errors 
+      });
     }
 
     // Check if user already exists

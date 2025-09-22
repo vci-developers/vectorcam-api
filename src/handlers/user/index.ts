@@ -16,3 +16,7 @@ export {
 export { 
   getPermissionsHandler, getPermissionsSchema
 } from './permissions';
+
+export { 
+  resetPasswordHandler, resetPasswordSchema
+} from './resetPassword';

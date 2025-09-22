@@ -6,7 +6,8 @@ import {
   getProfileHandler, getProfileSchema,
   getUsersHandler, getUsersSchema,
   modifyUserHandler, modifyUserSchema,
-  getPermissionsHandler, getPermissionsSchema
+  getPermissionsHandler, getPermissionsSchema,
+  resetPasswordHandler, resetPasswordSchema
 } from '../handlers/user';
 import { requireAdminAuth, requireNonWhitelistedUserAuth, requireUserAuth } from '../middleware/auth.middleware';
 
@@ -55,4 +56,10 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
     preHandler: [requireAdminAuth],
     schema: modifyUserSchema,
   }, modifyUserHandler as any);
+
+  // Reset user password (requires admin auth token)
+  server.put('/:id/reset-password', {
+    preHandler: [requireAdminAuth],
+    schema: resetPasswordSchema,
+  }, resetPasswordHandler as any);
 }
