@@ -6,7 +6,8 @@ import { formatAnnotationTaskResponse } from './common';
 interface GetAnnotationTaskListQuery {
   page?: number;
   limit?: number;
-  createdAt?: string; // ISO date string for filtering
+  createdAfter?: string; // ISO date string for filtering after this date
+  createdBefore?: string; // ISO date string for filtering before this date
   title?: string;
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 }
@@ -24,7 +25,8 @@ export const schema = {
     properties: {
       page: { type: 'integer', minimum: 1, default: 1 },
       limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-      createdAt: { type: 'string', format: 'date' },
+      createdAfter: { type: 'string', format: 'date-time' },
+      createdBefore: { type: 'string', format: 'date-time' },
       title: { type: 'string' },
       status: { type: 'string', enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED'] }
     }
@@ -69,7 +71,7 @@ export default async function getAnnotationTaskList(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { page = 1, limit = 20, createdAt, title, status } = request.query;
+    const { page = 1, limit = 20, createdAfter, createdBefore, title, status } = request.query;
     const offset = (page - 1) * limit;
 
     // Build where conditions
@@ -84,15 +86,18 @@ export default async function getAnnotationTaskList(
     // If isAdminToken is true, no user filtering (show all tasks)
 
     // Add filters
-    if (createdAt) {
-      const filterDate = new Date(createdAt);
-      const nextDay = new Date(filterDate);
-      nextDay.setDate(nextDay.getDate() + 1);
+    if (createdAfter || createdBefore) {
+      const dateFilter: any = {};
       
-      whereConditions.createdAt = {
-        [Op.gte]: filterDate,
-        [Op.lt]: nextDay
-      };
+      if (createdAfter) {
+        dateFilter[Op.gte] = new Date(createdAfter);
+      }
+      
+      if (createdBefore) {
+        dateFilter[Op.lte] = new Date(createdBefore);
+      }
+      
+      whereConditions.createdAt = dateFilter;
     }
 
     if (title) {
