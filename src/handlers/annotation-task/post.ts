@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Transaction, Op } from 'sequelize';
 import sequelize from '../../db';
-import { AnnotationTask, Annotation, User, Specimen, Session, SpecimenImage } from '../../db/models';
+import { AnnotationTask, Annotation, User, Specimen, Session } from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
 
 interface CreateAnnotationTasksBody {
@@ -11,13 +11,10 @@ interface CreateAnnotationTasksBody {
   year: number;
 }
 
-interface SpecimenImageWithAssociations extends SpecimenImage {
-  specimen: {
+interface SpecimenWithAssociations extends Specimen {
+  session: {
     id: number;
-    session: {
-      id: number;
-      collectionDate: Date | null;
-    };
+    collectionDate: Date | null;
   };
 }
 
@@ -28,7 +25,7 @@ interface CreateAnnotationTasksRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Create annotation tasks for specimens from a specific month/year',
-  description: 'Creates annotation tasks by randomly sampling up to 200 images from specimens collected in the specified month/year, with 15-20% overlap between superadmins (requires admin token)',
+  description: 'Creates annotation tasks by randomly sampling up to 200 specimens collected in the specified month/year, with 15-20% overlap between superadmins (requires admin token)',
   body: {
     type: 'object',
     properties: {
@@ -45,9 +42,9 @@ export const schema = {
       properties: {
         message: { type: 'string' },
         tasksCreated: { type: 'number' },
-        imagesAvailable: { type: 'number' },
-        totalImagesAssigned: { type: 'number' },
-        maxImagesPerAdmin: { type: 'number' },
+        specimensAvailable: { type: 'number' },
+        totalSpecimensAssigned: { type: 'number' },
+        maxSpecimensPerAdmin: { type: 'number' },
         overlapCount: { type: 'number' },
         tasks: {
           type: 'array',
@@ -142,61 +139,54 @@ export default async function createAnnotationTasks(
     const endDate = new Date(Date.UTC(year, month, 0)); // Last day of the month
     endDate.setUTCHours(23, 59, 59, 999); // Set to end of day in UTC
 
-    // Find all specimen images from specimens whose sessions were collected in the specified month/year
+    // Find all specimens whose sessions were collected in the specified month/year
     // and that are not already assigned to any annotation task
     const assignedSpecimenIds = await Annotation.findAll({
       attributes: ['specimenId'],
       transaction
     }).then(annotations => annotations.map(a => a.specimenId));
 
-    const availableImages = await SpecimenImage.findAll({
+    const availableSpecimens = await Specimen.findAll({
+      where: {
+        id: {
+          [Op.notIn]: assignedSpecimenIds.length > 0 ? assignedSpecimenIds : [0]
+        }
+      },
       include: [
         {
-          model: Specimen,
-          as: 'specimen',
+          model: Session,
+          as: 'session',
           required: true,
           where: {
-            id: {
-              [Op.notIn]: assignedSpecimenIds.length > 0 ? assignedSpecimenIds : [0]
+            collectionDate: {
+              [Op.gte]: startDate,
+              [Op.lte]: endDate
             }
-          },
-          include: [
-            {
-              model: Session,
-              as: 'session',
-              required: true,
-              where: {
-                collectionDate: {
-                  [Op.gte]: startDate,
-                  [Op.lte]: endDate
-                }
-              }
-            }
-          ]
+          }
         }
       ],
       order: [['id', 'ASC']],
       transaction
-    }) as SpecimenImageWithAssociations[];
+    }) as SpecimenWithAssociations[];
 
-    if (availableImages.length === 0) {
+    if (availableSpecimens.length === 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: `No unassigned specimen images found for ${month}/${year}` });
+      return reply.code(400).send({ error: `No unassigned specimens found for ${month}/${year}` });
     }
 
-    // Shuffle images to randomize assignment
-    const shuffledImages = shuffleArray(availableImages);
+    // Shuffle specimens to randomize assignment
+    const shuffledSpecimens = shuffleArray(availableSpecimens);
     
-    // Calculate maximum images per superadmin (200) and overlap (15-20%)
-    const maxImagesPerAdmin = Math.min(200, Math.floor(shuffledImages.length / superAdminUsers.length));
+    // Calculate maximum specimens per superadmin (200) and overlap (15-20%)
+    const maxSpecimensPerAdmin = Math.min(200, Math.floor(shuffledSpecimens.length / superAdminUsers.length));
     const overlapPercentage = 0.2; // 20% (middle of 15-20% range)
-    const overlapCount = Math.floor(maxImagesPerAdmin * overlapPercentage);
+    const overlapCount = Math.floor(maxSpecimensPerAdmin * overlapPercentage);
     
-    request.log.info(`Total images: ${shuffledImages.length}, Max per admin: ${maxImagesPerAdmin}, Overlap: ${overlapCount}`);
+    request.log.info(`Total specimens: ${shuffledSpecimens.length}, Max per admin: ${maxSpecimensPerAdmin}, Overlap: ${overlapCount}`);
     
-    if (maxImagesPerAdmin < 1) {
+    if (maxSpecimensPerAdmin < 1) {
       await transaction.rollback();
-      return reply.code(400).send({ error: 'Not enough images available for assignment' });
+      return reply.code(400).send({ error: 'Not enough specimens available for assignment' });
     }
     
     // Create tasks for each superadmin user
@@ -215,43 +205,43 @@ export default async function createAnnotationTasks(
       userTasks[user.id] = task;
     }
 
-    // Assign images to superadmin users with overlap
+    // Assign specimens to superadmin users with overlap
     const annotations: any[] = [];
-    const userImageAssignments: { [userId: number]: SpecimenImageWithAssociations[] } = {};
+    const userSpecimenAssignments: { [userId: number]: SpecimenWithAssociations[] } = {};
     
-    // First, assign unique images to each user
-    let imageIndex = 0;
+    // First, assign unique specimens to each user
+    let specimenIndex = 0;
     for (let userIndex = 0; userIndex < superAdminUsers.length; userIndex++) {
       const user = superAdminUsers[userIndex];
-      const userImages: SpecimenImageWithAssociations[] = [];
+      const userSpecimens: SpecimenWithAssociations[] = [];
       
-      // Assign unique images (excluding overlap)
-      const uniqueImagesCount = maxImagesPerAdmin - overlapCount;
-      for (let i = 0; i < uniqueImagesCount && imageIndex < shuffledImages.length; i++) {
-        userImages.push(shuffledImages[imageIndex]);
-        imageIndex++;
+      // Assign unique specimens (excluding overlap)
+      const uniqueSpecimensCount = maxSpecimensPerAdmin - overlapCount;
+      for (let i = 0; i < uniqueSpecimensCount && specimenIndex < shuffledSpecimens.length; i++) {
+        userSpecimens.push(shuffledSpecimens[specimenIndex]);
+        specimenIndex++;
       }
       
-      userImageAssignments[user.id] = userImages;
+      userSpecimenAssignments[user.id] = userSpecimens;
     }
     
-    // Second, add overlap images
-    if (overlapCount > 0 && shuffledImages.length > maxImagesPerAdmin) {
-      // Select overlap images from the remaining pool or reshuffle some images
-      const overlapPool = imageIndex < shuffledImages.length 
-        ? shuffledImages.slice(imageIndex, imageIndex + overlapCount * superAdminUsers.length)
-        : shuffleArray(shuffledImages.slice(0, overlapCount * superAdminUsers.length));
+    // Second, add overlap specimens
+    if (overlapCount > 0 && shuffledSpecimens.length > maxSpecimensPerAdmin) {
+      // Select overlap specimens from the remaining pool or reshuffle some specimens
+      const overlapPool = specimenIndex < shuffledSpecimens.length 
+        ? shuffledSpecimens.slice(specimenIndex, specimenIndex + overlapCount * superAdminUsers.length)
+        : shuffleArray(shuffledSpecimens.slice(0, overlapCount * superAdminUsers.length));
       
       let overlapIndex = 0;
       for (let userIndex = 0; userIndex < superAdminUsers.length; userIndex++) {
         const user = superAdminUsers[userIndex];
         
-        // Add overlap images to this user
+        // Add overlap specimens to this user
         for (let i = 0; i < overlapCount && overlapIndex < overlapPool.length; i++) {
-          userImageAssignments[user.id].push(overlapPool[overlapIndex]);
+          userSpecimenAssignments[user.id].push(overlapPool[overlapIndex]);
           overlapIndex++;
           
-          // Reset index to create overlap (same images for multiple users)
+          // Reset index to create overlap (same specimens for multiple users)
           if (overlapIndex >= overlapPool.length) {
             overlapIndex = 0;
           }
@@ -259,23 +249,23 @@ export default async function createAnnotationTasks(
       }
     }
     
-    // Create annotations for all assigned images
+    // Create annotations for all assigned specimens
     for (let userIndex = 0; userIndex < superAdminUsers.length; userIndex++) {
       const user = superAdminUsers[userIndex];
       const task = userTasks[user.id];
-      const assignedImages = userImageAssignments[user.id];
+      const assignedSpecimens = userSpecimenAssignments[user.id];
       
       if (!task) {
         request.log.warn(`No task found for user ${user.id}`);
         continue;
       }
       
-      for (const image of assignedImages) {
-        if (image && image.id && image.specimen) {
+      for (const specimen of assignedSpecimens) {
+        if (specimen && specimen.id) {
           annotations.push({
             annotationTaskId: task.id,
             annotatorId: user.id,
-            specimenId: image.specimen.id,
+            specimenId: specimen.id,
             status: 'PENDING'
           });
         }
@@ -306,16 +296,16 @@ export default async function createAnnotationTasks(
     // Format response
     const formattedTasks = tasksWithUsers.map(task => formatAnnotationTaskResponse(task, true));
 
-    // Calculate total images assigned
-    const totalImagesAssigned = Object.values(userImageAssignments)
-      .reduce((total, images) => total + images.length, 0);
+    // Calculate total specimens assigned
+    const totalSpecimensAssigned = Object.values(userSpecimenAssignments)
+      .reduce((total, specimens) => total + specimens.length, 0);
     
     return reply.send({
       message: 'Annotation tasks created successfully',
       tasksCreated: createdTasks.length,
-      imagesAvailable: shuffledImages.length,
-      totalImagesAssigned: totalImagesAssigned,
-      maxImagesPerAdmin: maxImagesPerAdmin,
+      specimensAvailable: shuffledSpecimens.length,
+      totalSpecimensAssigned: totalSpecimensAssigned,
+      maxSpecimensPerAdmin: maxSpecimensPerAdmin,
       overlapCount: overlapCount,
       tasks: formattedTasks
     });

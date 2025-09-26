@@ -15,6 +15,7 @@
     "db:init": "ts-node scripts/init-db.ts",
     "db:init:force": "ts-node scripts/init-db.ts --force",
     "db:init:alter": "ts-node scripts/init-db.ts --alter",
+    "db:seed:specimens": "ts-node scripts/seed-specimens.ts",
     "ci": "npm ci"
   },
   "dependencies": {
