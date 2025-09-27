@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { 
   createSpecimen,
   getSpecimenList,
+  getSpecimenCount,
   getSpecimenDetails,
   updateSpecimen,
   deleteSpecimen,
@@ -22,6 +23,7 @@ import { schema as appendUploadSchema } from '../handlers/specimen/upload/append
 import { schema as completeUploadSchema } from '../handlers/specimen/upload/complete'
 import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get'
 import { schema as getListSchema } from '../handlers/specimen/getList'
+import { schema as getCountSchema } from '../handlers/specimen/getCount'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
 import { schema as putImageSchema } from '../handlers/specimen/images/putImage';
@@ -56,6 +58,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSiteReadAccess],
     schema: getListSchema
   }, getSpecimenList as any);
+
+  // Get specimen counts grouped by thumbnail image metadata (requires read access)
+  fastify.get('/count', {
+    preHandler: [requireSiteReadAccess],
+    schema: getCountSchema
+  }, getSpecimenCount as any);
 
   // Create a new specimen (requires write access, session validation in handler)
   fastify.post('/', {
