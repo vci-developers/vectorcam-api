@@ -11,6 +11,7 @@ export const schema = {
       sessionId: { type: 'number', description: 'Filter by session ID' },
       siteId: { type: 'number', description: 'Filter by site ID' },
       programId: { type: 'number', description: 'Filter by program ID' },
+      district: { type: 'string', description: 'Filter by district name' },
       specimenId: { type: 'string', description: 'Filter by specimen ID (partial match)' },
       hasImages: { type: 'boolean', description: 'Filter specimens that have images' },
       includeAllImages: { type: 'boolean', description: 'Include all images for each specimen (default: false, only thumbnail)' },
@@ -132,6 +133,7 @@ interface QueryParams {
   sessionId?: number;
   siteId?: number;
   programId?: number;
+  district?: string;
   specimenId?: string;
   hasImages?: boolean;
   includeAllImages?: boolean;
@@ -152,6 +154,7 @@ export async function getSpecimenList(
       sessionId,
       siteId,
       programId,
+      district,
       specimenId,
       hasImages,
       includeAllImages,
@@ -186,18 +189,45 @@ export async function getSpecimenList(
 
     // Build site restrictions based on user access
     const siteWhere: any = {};
+    let accessibleSiteIds: number[] = [];
+    
     if (siteAccess && siteAccess.userSites.length > 0) {
-      // User has limited site access, restrict to their sites
-      siteWhere.id = {
-        [Op.in]: siteAccess.userSites
-      };
+      // User has limited site access
+      accessibleSiteIds = siteAccess.userSites;
+    }
+    
+    // If district filter is provided, find sites in that district
+    if (district) {
+      const districtSiteWhere: any = { district };
+      
+      // If user has limited access, intersect with their accessible sites
+      if (accessibleSiteIds.length > 0) {
+        districtSiteWhere.id = { [Op.in]: accessibleSiteIds };
+      }
+      
+      const districtSites = await Site.findAll({
+        where: districtSiteWhere,
+        attributes: ['id']
+      });
+      
+      const districtSiteIds = districtSites.map(site => site.id);
+      
+      if (districtSiteIds.length === 0) {
+        // No sites in this district that user has access to
+        siteWhere.id = -1; // Return no results
+      } else {
+        siteWhere.id = { [Op.in]: districtSiteIds };
+      }
+    } else if (accessibleSiteIds.length > 0) {
+      // No district filter, but user has limited access
+      siteWhere.id = { [Op.in]: accessibleSiteIds };
     }
 
     // Add user-provided filters
     if (siteId) {
-      if (siteAccess && siteAccess.userSites.length > 0) {
+      if (accessibleSiteIds.length > 0) {
         // User has limited access - only allow if they have access to this site
-        if (siteAccess.userSites.includes(siteId)) {
+        if (accessibleSiteIds.includes(siteId)) {
           siteWhere.id = siteId;
         } else {
           // User doesn't have access to this site - return empty result

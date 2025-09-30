@@ -14,6 +14,7 @@ import {
   updateSurvey
 } from '../handlers/session';
 import { getSessionList } from '../handlers/session/getList';
+import { getSessionReviewTask } from '../handlers/session/getReviewTask';
 import * as sessionSpecimenHandlers from '../handlers/session/specimens';
 
 // Import schemas from handler files
@@ -22,6 +23,7 @@ import { schema as getSchema } from '../handlers/session/get';
 import { schema as updateSchema } from '../handlers/session/put';
 import { schema as deleteSchema } from '../handlers/session/delete';
 import { schema as getListSchema } from '../handlers/session/getList';
+import { schema as getReviewTaskSchema } from '../handlers/session/getReviewTask';
 import { schema as getByUserSchema } from '../handlers/session/getByUser';
 import { schema as getBySiteSchema } from '../handlers/session/getBySite';
 import { schema as getSpecimensSchema } from '../handlers/session/specimens/getList';
@@ -56,6 +58,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSiteReadAccess],
     schema: getListSchema
   }, getSessionList as any);
+
+  // Get session review grouped by district and month (requires read access)
+  fastify.get('/review/task', {
+    preHandler: [requireSiteReadAccess],
+    schema: getReviewTaskSchema
+    }, getSessionReviewTask as any);
 
   // Submit a new session (requires write access)
   fastify.post('/', {

@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Session } from '../../db/models';
+import { Session, Site } from '../../db/models';
 import { formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
 
@@ -10,6 +10,7 @@ export const schema = {
     properties: {
       siteId: { type: 'number', description: 'Filter by site ID' },
       programId: { type: 'number', description: 'Filter by program ID' },
+      district: { type: 'string', description: 'Filter by district name' },
       deviceId: { type: 'number', description: 'Filter by device ID' },
       frontendId: { type: 'string', description: 'Filter by frontend ID' },
       collectorName: { type: 'string', description: 'Filter by collector name (partial match)' },
@@ -65,6 +66,7 @@ export const schema = {
 interface QueryParams {
   siteId?: number;
   programId?: number;
+  district?: string;
   deviceId?: number;
   frontendId?: string;
   collectorName?: string;
@@ -88,6 +90,7 @@ export async function getSessionList(
     const {
       siteId,
       programId,
+      district,
       deviceId,
       frontendId,
       collectorName,
@@ -108,18 +111,45 @@ export async function getSessionList(
     
     // Apply site access restrictions first
     const siteAccess = request.siteAccess;
+    let accessibleSiteIds: number[] = [];
+    
     if (siteAccess && siteAccess.userSites.length > 0) {
-      // User has limited site access, restrict to their sites
-      whereClause.siteId = {
-        [Op.in]: siteAccess.userSites
-      };
+      // User has limited site access
+      accessibleSiteIds = siteAccess.userSites;
+    }
+    
+    // If district filter is provided, find sites in that district
+    if (district) {
+      const districtSiteWhere: any = { district };
+      
+      // If user has limited access, intersect with their accessible sites
+      if (accessibleSiteIds.length > 0) {
+        districtSiteWhere.id = { [Op.in]: accessibleSiteIds };
+      }
+      
+      const districtSites = await Site.findAll({
+        where: districtSiteWhere,
+        attributes: ['id']
+      });
+      
+      const districtSiteIds = districtSites.map(site => site.id);
+      
+      if (districtSiteIds.length === 0) {
+        // No sites in this district that user has access to
+        whereClause.siteId = -1; // Return no results
+      } else {
+        whereClause.siteId = { [Op.in]: districtSiteIds };
+      }
+    } else if (accessibleSiteIds.length > 0) {
+      // No district filter, but user has limited access
+      whereClause.siteId = { [Op.in]: accessibleSiteIds };
     }
     
     // If user provides a specific siteId filter, apply it (but only if they have access)
     if (siteId) {
-      if (siteAccess && siteAccess.userSites.length > 0) {
+      if (accessibleSiteIds.length > 0) {
         // User has limited access - only allow if they have access to this site
-        if (siteAccess.userSites.includes(siteId)) {
+        if (accessibleSiteIds.includes(siteId)) {
           whereClause.siteId = siteId;
         } else {
           // User doesn't have access to this site - return empty result
