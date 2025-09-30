@@ -18,6 +18,7 @@ interface ReviewGroup {
 }
 
 export const schema = {
+  tags: ['Sessions'],
   querystring: {
     type: 'object',
     properties: {
