@@ -6,6 +6,7 @@ import sequelize from '../../db/index';
 interface QueryParams {
   from?: string;
   to?: string;
+  district?: string;
 }
 
 export const schema = {
@@ -22,6 +23,10 @@ export const schema = {
         type: 'string', 
         format: 'date', 
         description: 'Filter specimens from sessions with collection date to this date (YYYY-MM-DD)' 
+      },
+      district: {
+        type: 'string',
+        description: 'Filter specimens by district name'
       },
     }
   },
@@ -91,7 +96,7 @@ export async function getSpecimenCount(
   reply: FastifyReply
 ) {
   try {
-    const { from, to } = request.query;
+    const { from, to, district } = request.query;
 
     // Validate date range
     if (from && to && new Date(from) > new Date(to)) {
@@ -119,13 +124,37 @@ export async function getSpecimenCount(
       return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access specimen data' });
     }
 
-    // Build site restrictions based on user access
+    // Build site restrictions based on user access and district filter
     const siteWhere: any = {};
     if (siteAccess.userSites.length > 0) {
       // User has limited site access, restrict to their sites
       siteWhere.id = {
         [Op.in]: siteAccess.userSites
       };
+    }
+    
+    // Add district filter if provided
+    if (district) {
+      siteWhere.district = district;
+    }
+    
+    // Get site IDs that match the filters
+    let filteredSiteIds: number[] = [];
+    if (district || siteAccess.userSites.length > 0) {
+      const sites = await Site.findAll({
+        where: siteWhere,
+        attributes: ['id']
+      });
+      filteredSiteIds = sites.map(site => site.id);
+      
+      // If no sites match the filters, return empty result
+      if (filteredSiteIds.length === 0) {
+        return reply.send({
+          message: 'Specimen counts retrieved successfully',
+          columns: [],
+          data: []
+        });
+      }
     }
 
     // Use raw SQL query for better performance with grouping
@@ -147,7 +176,7 @@ export async function getSpecimenCount(
       INNER JOIN sites s ON sess.site_id = s.id
       LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
       WHERE 1=1
-        ${siteAccess.userSites.length > 0 ? `AND s.id IN (${siteAccess.userSites.join(',')})` : ''}
+        ${filteredSiteIds.length > 0 ? `AND s.id IN (${filteredSiteIds.join(',')})` : ''}
         ${from ? `AND sess.collection_date >= :fromDate` : ''}
         ${to ? `AND sess.collection_date < :toDate` : ''}
       GROUP BY 
