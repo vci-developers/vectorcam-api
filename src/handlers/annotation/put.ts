@@ -109,13 +109,14 @@ export default async function updateAnnotation(
     // Update the annotation
     await annotation.update(updates);
 
-    // Always update the annotation task's updatedAt timestamp
+    // Always update the annotation task's updatedAt timestamp by setting a field to itself
     const annotationTaskId = annotation.annotationTaskId;
     try {
-      await AnnotationTask.update(
-        { updatedAt: new Date() },
-        { where: { id: annotationTaskId } }
-      );
+      const annotationTask = await AnnotationTask.findByPk(annotationTaskId);
+      
+      if (annotationTask) {
+        await annotationTask.update({ updatedAt: new Date() });
+      }
     } catch (taskUpdateError: any) {
       // Log the error but don't fail the annotation update
       request.log.warn(`Failed to update annotation task ${annotationTaskId} timestamp: ${taskUpdateError.message}`);
