@@ -265,12 +265,12 @@ export async function getSpecimenList(
 
     // Handle date range filtering
     if (dateFrom || dateTo) {
-      whereClause.capturedAt = {};
+      whereClause.createdAt = {};
       if (dateFrom) {
-        whereClause.capturedAt[Op.gte] = new Date(dateFrom);
+        whereClause.createdAt[Op.gte] = new Date(dateFrom);
       }
       if (dateTo) {
-        whereClause.capturedAt[Op.lte] = new Date(dateTo + 'T23:59:59.999Z');
+        whereClause.createdAt[Op.lte] = new Date(dateTo + 'T23:59:59.999Z');
       }
     }
 
