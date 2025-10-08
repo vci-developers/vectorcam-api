@@ -15,8 +15,8 @@ export const schema = {
       specimenId: { type: 'string', description: 'Filter by specimen ID (partial match)' },
       hasImages: { type: 'boolean', description: 'Filter specimens that have images' },
       includeAllImages: { type: 'boolean', description: 'Include all images for each specimen (default: false, only thumbnail)' },
-      startDate: { type: 'string', format: 'date', description: 'Filter specimens captured from this date (YYYY-MM-DD)' },
-      endDate: { type: 'string', format: 'date', description: 'Filter specimens captured to this date (YYYY-MM-DD)' },
+      startDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date from this date (YYYY-MM-DD)' },
+      endDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' },
       sortBy: { type: 'string', enum: ['id', 'specimenId', 'capturedAt', 'createdAt'], default: 'id', description: 'Field to sort by' },
@@ -184,6 +184,7 @@ export async function getSpecimenList(
       model: Session,
       as: 'session',
       required: true,
+      where: {},
       include: []
     };
 
@@ -243,6 +244,17 @@ export async function getSpecimenList(
       siteWhere.programId = programId;
     }
 
+    // Handle date range filtering on session collection date
+    if (startDate || endDate) {
+      sessionInclude.where.collectionDate = {};
+      if (startDate) {
+        sessionInclude.where.collectionDate[Op.gte] = new Date(startDate);
+      }
+      if (endDate) {
+        sessionInclude.where.collectionDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
+      }
+    }
+
     // Add site include with restrictions
     sessionInclude.include.push({
       model: Site,
@@ -261,17 +273,6 @@ export async function getSpecimenList(
         required: true,
         attributes: [],
       });
-    }
-
-    // Handle date range filtering
-    if (startDate || endDate) {
-      whereClause.createdAt = {};
-      if (startDate) {
-        whereClause.createdAt[Op.gte] = new Date(startDate);
-      }
-      if (endDate) {
-        whereClause.createdAt[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
-      }
     }
 
     // Build order clause
