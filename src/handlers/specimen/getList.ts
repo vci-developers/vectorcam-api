@@ -15,8 +15,8 @@ export const schema = {
       specimenId: { type: 'string', description: 'Filter by specimen ID (partial match)' },
       hasImages: { type: 'boolean', description: 'Filter specimens that have images' },
       includeAllImages: { type: 'boolean', description: 'Include all images for each specimen (default: false, only thumbnail)' },
-      dateFrom: { type: 'string', format: 'date', description: 'Filter specimens captured from this date (YYYY-MM-DD)' },
-      dateTo: { type: 'string', format: 'date', description: 'Filter specimens captured to this date (YYYY-MM-DD)' },
+      startDate: { type: 'string', format: 'date', description: 'Filter specimens captured from this date (YYYY-MM-DD)' },
+      endDate: { type: 'string', format: 'date', description: 'Filter specimens captured to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' },
       sortBy: { type: 'string', enum: ['id', 'specimenId', 'capturedAt', 'createdAt'], default: 'id', description: 'Field to sort by' },
@@ -137,8 +137,8 @@ interface QueryParams {
   specimenId?: string;
   hasImages?: boolean;
   includeAllImages?: boolean;
-  dateFrom?: string;
-  dateTo?: string;
+  startDate?: string;
+  endDate?: string;
   limit?: number;
   offset?: number;
   sortBy?: 'id' | 'specimenId' | 'capturedAt' | 'createdAt';
@@ -158,8 +158,8 @@ export async function getSpecimenList(
       specimenId,
       hasImages,
       includeAllImages,
-      dateFrom,
-      dateTo,
+      startDate,
+      endDate,
       limit = 20,
       offset = 0,
       sortBy = 'id',
@@ -264,23 +264,24 @@ export async function getSpecimenList(
     }
 
     // Handle date range filtering
-    if (dateFrom || dateTo) {
+    if (startDate || endDate) {
       whereClause.createdAt = {};
-      if (dateFrom) {
-        whereClause.createdAt[Op.gte] = new Date(dateFrom);
+      if (startDate) {
+        whereClause.createdAt[Op.gte] = new Date(startDate);
       }
-      if (dateTo) {
-        whereClause.createdAt[Op.lte] = new Date(dateTo + 'T23:59:59.999Z');
+      if (endDate) {
+        whereClause.createdAt[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
       }
     }
 
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
-    // Get total count
     const total = await Specimen.count({
       where: whereClause,
-      include
+      include,
+      distinct: true,
+      col: 'id'
     });
 
     // Get specimens with pagination

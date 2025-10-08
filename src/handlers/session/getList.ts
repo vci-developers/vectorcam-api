@@ -18,8 +18,8 @@ export const schema = {
       specimenCondition: { type: 'string', description: 'Filter by specimen condition (partial match)' },
       status: { type: 'string', enum: ['pending', 'completed', 'submitted'], description: 'Filter by session status' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
-      dateFrom: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
-      dateTo: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
+      startDate: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
+      endDate: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' },
       sortBy: { type: 'string', enum: ['id', 'frontendId', 'createdAt', 'completedAt', 'submittedAt', 'collectionDate'], default: 'id', description: 'Field to sort by' },
@@ -74,8 +74,8 @@ interface QueryParams {
   specimenCondition?: string;
   status?: 'pending' | 'completed' | 'submitted';
   type?: 'SURVEILLANCE' | 'DATA_COLLECTION';
-  dateFrom?: string;
-  dateTo?: string;
+  startDate?: string;
+  endDate?: string;
   limit?: number;
   offset?: number;
   sortBy?: 'id' | 'frontendId' | 'createdAt' | 'completedAt' | 'submittedAt' | 'collectionDate';
@@ -98,8 +98,8 @@ export async function getSessionList(
       specimenCondition,
       status,
       type,
-      dateFrom,
-      dateTo,
+      startDate,
+      endDate,
       limit = 20,
       offset = 0,
       sortBy = 'id',
@@ -201,22 +201,23 @@ export async function getSessionList(
     }
 
     // Handle date range filtering
-    if (dateFrom || dateTo) {
-      whereClause.createdAt = {};
-      if (dateFrom) {
-        whereClause.createdAt[Op.gte] = new Date(dateFrom);
+    if (startDate || endDate) {
+      whereClause.collectionDate = {};
+      if (startDate) {
+        whereClause.collectionDate[Op.gte] = new Date(startDate);
       }
-      if (dateTo) {
-        whereClause.createdAt[Op.lte] = new Date(dateTo + 'T23:59:59.999Z');
+      if (endDate) {
+        whereClause.collectionDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
       }
     }
 
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
-    // Get total count
     const total = await Session.count({
-      where: whereClause
+      where: whereClause,
+      distinct: true,
+      col: 'id'
     });
 
     // Get sessions with pagination

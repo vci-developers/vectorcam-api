@@ -103,8 +103,11 @@ export async function getUploadList(
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
-    // Get total count
-    const total = await MultipartUpload.count({ where: whereClause });
+    const total = await MultipartUpload.count({ 
+      where: whereClause,
+      distinct: true,
+      col: 'id'
+    });
 
     // Get uploads with pagination
     const uploads = await MultipartUpload.findAll({

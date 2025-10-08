@@ -4,8 +4,8 @@ import { Op, QueryTypes } from 'sequelize';
 import sequelize from '../../db/index';
 
 interface QueryParams {
-  from?: string;
-  to?: string;
+  startDate?: string;
+  endDate?: string;
   district?: string;
 }
 
@@ -14,12 +14,12 @@ export const schema = {
   querystring: {
     type: 'object',
     properties: {
-      from: { 
+      startDate: { 
         type: 'string', 
         format: 'date', 
         description: 'Filter specimens from sessions with collection date from this date (YYYY-MM-DD)' 
       },
-      to: { 
+      endDate: { 
         type: 'string', 
         format: 'date', 
         description: 'Filter specimens from sessions with collection date to this date (YYYY-MM-DD)' 
@@ -96,25 +96,25 @@ export async function getSpecimenCount(
   reply: FastifyReply
 ) {
   try {
-    const { from, to, district } = request.query;
+    const { startDate, endDate, district } = request.query;
 
     // Validate date range
-    if (from && to && new Date(from) > new Date(to)) {
-      return reply.code(400).send({ error: 'From date must be before or equal to to date' });
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return reply.code(400).send({ error: 'Start date must be before or equal to end date' });
     }
 
     // Build session date filter
     const sessionWhere: any = {};
-    if (from || to) {
+    if (startDate || endDate) {
       sessionWhere.collectionDate = {};
-      if (from) {
-        sessionWhere.collectionDate[Op.gte] = new Date(from);
+      if (startDate) {
+        sessionWhere.collectionDate[Op.gte] = new Date(startDate);
       }
-      if (to) {
-        // Add one day to include the entire "to" date
-        const toDate = new Date(to);
-        toDate.setDate(toDate.getDate() + 1);
-        sessionWhere.collectionDate[Op.lt] = toDate;
+      if (endDate) {
+        // Add one day to include the entire "endDate" date
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        sessionWhere.collectionDate[Op.lt] = endDateObj;
       }
     }
 
@@ -177,8 +177,8 @@ export async function getSpecimenCount(
       LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
       WHERE 1=1
         ${filteredSiteIds.length > 0 ? `AND s.id IN (${filteredSiteIds.join(',')})` : ''}
-        ${from ? `AND sess.collection_date >= :fromDate` : ''}
-        ${to ? `AND sess.collection_date < :toDate` : ''}
+        ${startDate ? `AND sess.collection_date >= :startDate` : ''}
+        ${endDate ? `AND sess.collection_date < :endDate` : ''}
       GROUP BY 
         s.id, 
         s.district, 
@@ -194,13 +194,13 @@ export async function getSpecimenCount(
     `;
 
     const replacements: any = {};
-    if (from) {
-      replacements.fromDate = new Date(from);
+    if (startDate) {
+      replacements.startDate = new Date(startDate);
     }
-    if (to) {
-      const toDate = new Date(to);
-      toDate.setDate(toDate.getDate() + 1);
-      replacements.toDate = toDate;
+    if (endDate) {
+      const endDateObj = new Date(endDate);
+      endDateObj.setDate(endDateObj.getDate() + 1);
+      replacements.endDate = endDateObj;
     }
 
     const results = await sequelize.query(query, {

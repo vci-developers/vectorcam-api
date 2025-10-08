@@ -139,8 +139,11 @@ export async function getSiteList(
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
-    // Get total count
-    const total = await Site.count({ where: whereClause });
+    const total = await Site.count({ 
+      where: whereClause,
+      distinct: true,
+      col: 'id'
+    });
 
     // Get sites with pagination
     const sites = await Site.findAll({

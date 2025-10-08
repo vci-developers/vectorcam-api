@@ -79,8 +79,11 @@ export async function getDeviceList(
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
-    // Get total count
-    const total = await Device.count({ where: whereClause });
+    const total = await Device.count({ 
+      where: whereClause,
+      distinct: true,
+      col: 'id'
+    });
 
     // Get devices with pagination
     const devices = await Device.findAll({

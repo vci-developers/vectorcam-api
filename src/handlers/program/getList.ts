@@ -79,8 +79,11 @@ export async function getProgramList(
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
 
-    // Get total count
-    const total = await Program.count({ where: whereClause });
+    const total = await Program.count({ 
+      where: whereClause,
+      distinct: true,
+      col: 'id'
+    });
 
     // Get programs with pagination
     const programs = await Program.findAll({

@@ -6,8 +6,8 @@ import { formatAnnotationTaskResponse } from './common';
 interface GetAnnotationTaskListQuery {
   page?: number;
   limit?: number;
-  createdAfter?: string; // ISO date string for filtering after this date
-  createdBefore?: string; // ISO date string for filtering before this date
+  startDate?: string; // ISO date string for filtering after this date
+  endDate?: string; // ISO date string for filtering before this date
   title?: string;
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 }
@@ -25,8 +25,8 @@ export const schema = {
     properties: {
       page: { type: 'integer', minimum: 1, default: 1 },
       limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-      createdAfter: { type: 'string', format: 'date-time' },
-      createdBefore: { type: 'string', format: 'date-time' },
+      startDate: { type: 'string', format: 'date-time' },
+      endDate: { type: 'string', format: 'date-time' },
       title: { type: 'string' },
       status: { type: 'string', enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED'] }
     }
@@ -71,7 +71,7 @@ export default async function getAnnotationTaskList(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { page = 1, limit = 20, createdAfter, createdBefore, title, status } = request.query;
+    const { page = 1, limit = 20, startDate, endDate, title, status } = request.query;
     const offset = (page - 1) * limit;
 
     // Build where conditions
@@ -86,15 +86,15 @@ export default async function getAnnotationTaskList(
     // If isAdminToken is true, no user filtering (show all tasks)
 
     // Add filters
-    if (createdAfter || createdBefore) {
+    if (startDate || endDate) {
       const dateFilter: any = {};
       
-      if (createdAfter) {
-        dateFilter[Op.gte] = new Date(createdAfter);
+      if (startDate) {
+        dateFilter[Op.gte] = new Date(startDate);
       }
       
-      if (createdBefore) {
-        dateFilter[Op.lte] = new Date(createdBefore);
+      if (endDate) {
+        dateFilter[Op.lte] = new Date(endDate);
       }
       
       whereConditions.createdAt = dateFilter;
@@ -110,9 +110,10 @@ export default async function getAnnotationTaskList(
       whereConditions.status = status;
     }
 
-    // Get total count for pagination
     const total = await AnnotationTask.count({
-      where: whereConditions
+      where: whereConditions,
+      distinct: true,
+      col: 'id'
     });
 
     // Fetch annotation tasks with user details

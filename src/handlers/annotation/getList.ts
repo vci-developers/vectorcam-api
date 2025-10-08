@@ -182,9 +182,10 @@ export default async function getAnnotationList(
       whereConditions.status = status;
     }
 
-    // Get total count for pagination
     const total = await Annotation.count({
-      where: whereConditions
+      where: whereConditions,
+      distinct: true,
+      col: 'id'
     });
 
     // Fetch annotations with related data

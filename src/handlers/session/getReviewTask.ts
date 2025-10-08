@@ -3,8 +3,8 @@ import { Session, Site } from '../../db/models';
 import { Op } from 'sequelize';
 
 interface QueryParams {
-  from?: string;
-  to?: string;
+  startDate?: string;
+  endDate?: string;
   district?: string;
   limit?: number;
   offset?: number;
@@ -22,8 +22,8 @@ export const schema = {
   querystring: {
     type: 'object',
     properties: {
-      from: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
-      to: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
+      startDate: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
+      endDate: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
       district: { type: 'string', description: 'Filter by district name' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' }
@@ -76,8 +76,8 @@ export async function getSessionReviewTask(
 ): Promise<void> {
   try {
     const {
-      from,
-      to,
+      startDate,
+      endDate,
       district,
       limit = 20,
       offset = 0
@@ -102,13 +102,13 @@ export async function getSessionReviewTask(
     // Build session where clause for date filtering
     const sessionWhereClause: any = {};
     
-    if (from || to) {
+    if (startDate || endDate) {
       sessionWhereClause.collectionDate = {};
-      if (from) {
-        sessionWhereClause.collectionDate[Op.gte] = new Date(from);
+      if (startDate) {
+        sessionWhereClause.collectionDate[Op.gte] = new Date(startDate);
       }
-      if (to) {
-        sessionWhereClause.collectionDate[Op.lte] = new Date(to + 'T23:59:59.999Z');
+      if (endDate) {
+        sessionWhereClause.collectionDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
       }
     }
 
