@@ -37,10 +37,25 @@ export const getPermissionsSchema: any = {
                 viewSiteMetadata: { type: 'boolean' },
                 writeSiteMetadata: { type: 'boolean' },
                 pushSiteMetadata: { type: 'boolean' },
-                canAccessSiteIds: {
+                canAccessSites: {
                   type: 'array',
-                  items: { type: 'number' },
-                  description: 'Array of site IDs user has access to. Empty array means access to all sites.'
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      programId: { type: 'number' },
+                      district: { type: ['string', 'null'] },
+                      subCounty: { type: ['string', 'null'] },
+                      parish: { type: ['string', 'null'] },
+                      villageName: { type: ['string', 'null'] },
+                      houseNumber: { type: 'string' },
+                      isActive: { type: 'boolean' },
+                      healthCenter: { type: ['string', 'null'] },
+                      createdAt: { type: 'string' },
+                      updatedAt: { type: 'string' },
+                    },
+                  },
+                  description: 'Array of site objects user has access to. Empty array means access to all sites.'
                 },
               },
             },
@@ -137,7 +152,7 @@ export async function getPermissionsHandler(
       viewSiteMetadata: false,
       writeSiteMetadata: false,
       pushSiteMetadata: false,
-      canAccessSiteIds: siteAccess.userSites,
+      canAccessSites: [] as any[],
     };
 
     // Determine annotation permissions
@@ -152,8 +167,7 @@ export async function getPermissionsHandler(
       sitePermissions.pushSiteMetadata = true;
       annotationPermissions.viewAndWriteAnnotationTasks = true;
 
-      const sites = await Site.findAll();
-      sitePermissions.canAccessSiteIds = sites.map(site => site.id);
+      sitePermissions.canAccessSites = await Site.findAll();
     } else if (user.privilege >= 1) {
       // Admin: Full permissions except DHIS2 push, limited to their sites
       sitePermissions.viewSiteMetadata = hasAccessToQueriedSite;
@@ -166,6 +180,15 @@ export async function getPermissionsHandler(
       sitePermissions.writeSiteMetadata = false;
       sitePermissions.pushSiteMetadata = false;
       annotationPermissions.viewAndWriteAnnotationTasks = false;
+    }
+
+    // Fetch site objects for non-super admin users
+    if (user.privilege < 2 && siteAccess.userSites.length > 0) {
+      sitePermissions.canAccessSites = await Site.findAll({
+        where: {
+          id: siteAccess.userSites,
+        },
+      });
     }
 
     const permissions = {
