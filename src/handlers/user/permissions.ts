@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { getUserSiteAccess } from '../../middleware/siteAccess.middleware';
 import { Site } from '../../db/models';
+import { formatSiteResponse } from '../site/common';
 
 interface PermissionsQuery {
   siteId?: string;
@@ -42,17 +43,15 @@ export const getPermissionsSchema: any = {
                   items: {
                     type: 'object',
                     properties: {
-                      id: { type: 'number' },
+                      siteId: { type: 'number' },
                       programId: { type: 'number' },
-                      district: { type: ['string', 'null'] },
-                      subCounty: { type: ['string', 'null'] },
-                      parish: { type: ['string', 'null'] },
-                      villageName: { type: ['string', 'null'] },
+                      district: { type: 'string', nullable: true },
+                      subCounty: { type: 'string', nullable: true },
+                      parish: { type: 'string', nullable: true },
+                      villageName: { type: 'string', nullable: true },
                       houseNumber: { type: 'string' },
                       isActive: { type: 'boolean' },
-                      healthCenter: { type: ['string', 'null'] },
-                      createdAt: { type: 'string' },
-                      updatedAt: { type: 'string' },
+                      healthCenter: { type: 'string', nullable: true }
                     },
                   },
                   description: 'Array of site objects user has access to. Empty array means access to all sites.'
@@ -190,6 +189,8 @@ export async function getPermissionsHandler(
         },
       });
     }
+
+    sitePermissions.canAccessSites = sitePermissions.canAccessSites.map(site => formatSiteResponse(site));
 
     const permissions = {
       sites: sitePermissions,

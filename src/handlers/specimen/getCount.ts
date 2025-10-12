@@ -138,13 +138,24 @@ export async function getSpecimenCount(
       siteWhere.district = district;
     }
     
-    // Get site IDs that match the filters
+    // Get all sites that match the filters (to include all accessible sites in results)
     let filteredSiteIds: number[] = [];
+    let allAccessibleSites: any[] = [];
+    
     if (district || siteAccess.userSites.length > 0) {
       const sites = await Site.findAll({
         where: siteWhere,
-        attributes: ['id']
+        attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'healthCenter']
       });
+      allAccessibleSites = sites.map(site => ({
+        id: site.id,
+        district: site.district,
+        subCounty: site.subCounty,
+        parish: site.parish,
+        villageName: site.villageName,
+        houseNumber: site.houseNumber,
+        healthCenter: site.healthCenter
+      }));
       filteredSiteIds = sites.map(site => site.id);
       
       // If no sites match the filters, return empty result
@@ -155,6 +166,20 @@ export async function getSpecimenCount(
           data: []
         });
       }
+    } else {
+      // User has access to all sites, get all sites
+      const sites = await Site.findAll({
+        attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'healthCenter']
+      });
+      allAccessibleSites = sites.map(site => ({
+        id: site.id,
+        district: site.district,
+        subCounty: site.subCounty,
+        parish: site.parish,
+        villageName: site.villageName,
+        houseNumber: site.houseNumber,
+        healthCenter: site.healthCenter
+      }));
     }
 
     // Use raw SQL query for better performance with grouping
@@ -175,7 +200,7 @@ export async function getSpecimenCount(
       INNER JOIN sessions sess ON sp.session_id = sess.id
       INNER JOIN sites s ON sess.site_id = s.id
       LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
-      WHERE 1=1
+      WHERE sess.type = 'surveillance'
         ${filteredSiteIds.length > 0 ? `AND s.id IN (${filteredSiteIds.join(',')})` : ''}
         ${startDate ? `AND sess.collection_date >= :startDate` : ''}
         ${endDate ? `AND sess.collection_date < :endDate` : ''}
@@ -210,18 +235,16 @@ export async function getSpecimenCount(
 
     // Helper function to create column name from combination
     const createColumnName = (species: string | null, sex: string | null, abdomenStatus: string | null): string => {
-      const parts = [
-        species || 'Unknown',
-        sex || 'Unknown', 
-        abdomenStatus || 'Unknown'
-      ];
+      const parts = [species, sex, abdomenStatus].filter(part => 
+        part !== null && part !== '' && part.toLowerCase() !== 'unknown'
+      );
       return parts.join(' ');
     };
 
     // Collect all unique combinations for columns
     const uniqueColumns = new Set<string>();
 
-    // Group results by site
+    // Initialize groupedBySite with all accessible sites
     const groupedBySite = new Map<number, {
       siteId: number;
       siteInfo: {
@@ -242,6 +265,24 @@ export async function getSpecimenCount(
       totalSpecimens: number;
     }>();
 
+    // Pre-populate with all accessible sites
+    for (const site of allAccessibleSites) {
+      groupedBySite.set(site.id, {
+        siteId: site.id,
+        siteInfo: {
+          district: site.district,
+          subCounty: site.subCounty,
+          parish: site.parish,
+          villageName: site.villageName,
+          houseNumber: site.houseNumber,
+          healthCenter: site.healthCenter
+        },
+        counts: [],
+        totalSpecimens: 0
+      });
+    }
+
+    // Populate with specimen counts from query results
     for (const row of results) {
       const siteId = Number(row.siteId);
       const columnName = createColumnName(row.species, row.sex, row.abdomenStatus);
@@ -249,34 +290,20 @@ export async function getSpecimenCount(
       // Add to unique columns set
       uniqueColumns.add(columnName);
       
-      if (!groupedBySite.has(siteId)) {
-        groupedBySite.set(siteId, {
-          siteId,
-          siteInfo: {
-            district: row.district,
-            subCounty: row.subCounty,
-            parish: row.parish,
-            villageName: row.villageName,
-            houseNumber: row.houseNumber,
-            healthCenter: row.healthCenter
-          },
-          counts: [],
-          totalSpecimens: 0
+      const siteData = groupedBySite.get(siteId);
+      if (siteData) {
+        const count = Number(row.count);
+        
+        siteData.counts.push({
+          species: row.species,
+          sex: row.sex,
+          abdomenStatus: row.abdomenStatus,
+          count,
+          columnName
         });
+        
+        siteData.totalSpecimens += count;
       }
-
-      const siteData = groupedBySite.get(siteId)!;
-      const count = Number(row.count);
-      
-      siteData.counts.push({
-        species: row.species,
-        sex: row.sex,
-        abdomenStatus: row.abdomenStatus,
-        count,
-        columnName
-      });
-      
-      siteData.totalSpecimens += count;
     }
 
     // Convert map to array and sort columns
