@@ -171,7 +171,7 @@ export async function getPermissionsHandler(
       // Admin: Full permissions except DHIS2 push, limited to their sites
       sitePermissions.viewSiteMetadata = hasAccessToQueriedSite;
       sitePermissions.writeSiteMetadata = hasAccessToQueriedSite;
-      sitePermissions.pushSiteMetadata = false;
+      sitePermissions.pushSiteMetadata = hasAccessToQueriedSite;
       annotationPermissions.viewAndWriteAnnotationTasks = false;
     } else if (siteAccess.canRead) {
       // Whitelisted user: Read-only site access, no annotation tasks

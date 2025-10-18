@@ -15,6 +15,9 @@ export const schema = {
       specimenId: { type: 'string', description: 'Filter by specimen ID (partial match)' },
       hasImages: { type: 'boolean', description: 'Filter specimens that have images' },
       includeAllImages: { type: 'boolean', description: 'Include all images for each specimen (default: false, only thumbnail)' },
+      species: { type: 'string', description: 'Filter by species from thumbnail image' },
+      sex: { type: 'string', description: 'Filter by sex from thumbnail image' },
+      abdomenStatus: { type: 'string', description: 'Filter by abdomen status from thumbnail image' },
       startDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -137,6 +140,9 @@ interface QueryParams {
   specimenId?: string;
   hasImages?: boolean;
   includeAllImages?: boolean;
+  species?: string;
+  sex?: string;
+  abdomenStatus?: string;
   startDate?: string;
   endDate?: string;
   limit?: number;
@@ -158,6 +164,9 @@ export async function getSpecimenList(
       specimenId,
       hasImages,
       includeAllImages,
+      species,
+      sex,
+      abdomenStatus,
       startDate,
       endDate,
       limit = 20,
@@ -271,6 +280,28 @@ export async function getSpecimenList(
         model: SpecimenImage,
         as: 'images',
         required: true,
+        attributes: [],
+      });
+    }
+
+    // Filter by species, sex, or abdomenStatus from thumbnail image
+    if (species || sex || abdomenStatus) {
+      const thumbnailWhere: any = {};
+      if (species) {
+        thumbnailWhere.species = species;
+      }
+      if (sex) {
+        thumbnailWhere.sex = sex;
+      }
+      if (abdomenStatus) {
+        thumbnailWhere.abdomenStatus = abdomenStatus;
+      }
+      
+      include.push({
+        model: SpecimenImage,
+        as: 'thumbnailImage',
+        required: true,
+        where: thumbnailWhere,
         attributes: [],
       });
     }
