@@ -11,7 +11,8 @@ import {
   exportSessionsCSV,
   exportSurveillanceFormsCSV,
   createSurvey,
-  updateSurvey
+  updateSurvey,
+  getMetrics
 } from '../handlers/session';
 import { getSessionList } from '../handlers/session/getList';
 import { getSessionReviewTask } from '../handlers/session/getReviewTask';
@@ -27,6 +28,7 @@ import { schema as getReviewTaskSchema } from '../handlers/session/getReviewTask
 import { schema as getByUserSchema } from '../handlers/session/getByUser';
 import { schema as getBySiteSchema } from '../handlers/session/getBySite';
 import { schema as getSpecimensSchema } from '../handlers/session/specimens/getList';
+import { schema as getMetricsSchema } from '../handlers/session/getMetrics';
 import { ExportSessionsCSVRequest, schema as exportSessionsCSVSchema } from '../handlers/session/export';
 import { ExportSurveillanceFormsCSVRequest, schema as exportSurveillanceFormsCSVSchema } from '../handlers/session/survey/exportSurvey';
 import { schema as getSurveySchema } from '../handlers/session/survey/getSurvey';
@@ -64,6 +66,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSiteReadAccess],
     schema: getReviewTaskSchema
     }, getSessionReviewTask as any);
+
+  // Get metrics for a specific district/month/year (requires read access)
+  fastify.get('/metrics', {
+    preHandler: [requireSiteReadAccess],
+    schema: getMetricsSchema
+  }, getMetrics as any);
 
   // Submit a new session (requires write access)
   fastify.post('/', {

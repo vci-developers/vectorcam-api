@@ -7,6 +7,7 @@ export { getSessionsByUser } from './getByUser';
 export { getSessionsBySite } from './getBySite';
 export { getSessionSpecimens } from './specimens/getList'; 
 export { exportSessionsCSV } from './export';
+export { getMetrics } from './getMetrics';
 export { 
   getSessionSurvey,
   createSurvey,
