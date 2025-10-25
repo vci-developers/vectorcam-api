@@ -12,6 +12,9 @@ class Annotation extends Model {
   declare morphSpecies?: string;
   declare morphSex?: string;
   declare morphAbdomenStatus?: string;
+  declare visualSpecies?: string;
+  declare visualSex?: string;
+  declare visualAbdomenStatus?: string;
   declare notes?: string;
   declare status: string;
   declare createdAt: Date;
@@ -66,6 +69,21 @@ Annotation.init(
       type: DataTypes.STRING(100),
       allowNull: true,
       field: 'morph_abdomen_status',
+    },
+    visualSpecies: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'visual_species',
+    },
+    visualSex: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      field: 'visual_sex',
+    },
+    visualAbdomenStatus: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      field: 'visual_abdomen_status',
     },
     notes: {
       type: DataTypes.TEXT,

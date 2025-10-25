@@ -6,6 +6,7 @@ import { Specimen, SpecimenImage } from '../../db/models';
 interface UpdateSpecimenRequest {
   specimenId?: string;
   thumbnailImageId?: number;
+  shouldProcessFurther?: boolean;
 }
 
 export const schema = {
@@ -21,7 +22,8 @@ export const schema = {
     type: 'object',
     properties: {
       specimenId: { type: 'string' },
-      thumbnailImageId: { type: 'number' }
+      thumbnailImageId: { type: 'number' },
+      shouldProcessFurther: { type: 'boolean' }
     }
   },
   response: {
@@ -37,6 +39,7 @@ export const schema = {
             sessionId: { type: 'number' },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
+            shouldProcessFurther: { type: 'boolean' },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -91,7 +94,7 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, thumbnailImageId } = request.body;
+    const { specimenId, thumbnailImageId, shouldProcessFurther } = request.body;
     
     const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
@@ -127,7 +130,8 @@ export async function updateSpecimen(
     // Update the specimen with the new data
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
-      thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId
+      thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
+      shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther
     });
 
     // Get the updated specimen

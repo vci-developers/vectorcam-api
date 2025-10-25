@@ -34,6 +34,7 @@ export interface SpecimenResponse {
   sessionId: number;
   thumbnailUrl: string | null;
   thumbnailImageId: number | null;
+  shouldProcessFurther: boolean;
   images: Array<ImageResponse>;
   thumbnailImage: ImageResponse | null;
 }
@@ -137,6 +138,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     sessionId: specimen.sessionId,
     thumbnailUrl: specimen.thumbnailImageId && thumbnailImageObj ? thumbnailImageObj.url : null,
     thumbnailImageId: specimen.thumbnailImageId,
+    shouldProcessFurther: specimen.shouldProcessFurther,
     images: imagesToReturn,
     thumbnailImage: thumbnailImageObj,
   };

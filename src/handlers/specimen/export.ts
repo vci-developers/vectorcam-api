@@ -151,7 +151,7 @@ export async function exportSpecimensCSV(
     }
 
     // Generate CSV header
-    let csvHeader = 'SpecimenID,ImageID,ImageUrl,ImageS3Key,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
+    let csvHeader = 'SpecimenID,ShouldProcessFurther,ImageID,ImageUrl,ImageS3Key,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
     
     // Add inference result columns if requested
     if (includeInferenceResult) {
@@ -181,6 +181,7 @@ export async function exportSpecimensCSV(
           : '';
         const row = [
           escapeCSVField(specimen.specimenId),
+          escapeCSVField(specimen.shouldProcessFurther),
           escapeCSVField(img.id),
           escapeCSVField(imageUrl),
           escapeCSVField(img.imageKey),

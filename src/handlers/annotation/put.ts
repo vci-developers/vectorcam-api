@@ -10,6 +10,9 @@ interface UpdateAnnotationBody {
   morphSpecies?: string;
   morphSex?: string;
   morphAbdomenStatus?: string;
+  visualSpecies?: string;
+  visualSex?: string;
+  visualAbdomenStatus?: string;
   notes?: string;
   status?: 'PENDING' | 'ANNOTATED' | 'FLAGGED';
 }
@@ -36,6 +39,9 @@ export const schema = {
       morphSpecies: { type: 'string', maxLength: 255 },
       morphSex: { type: 'string', maxLength: 50 },
       morphAbdomenStatus: { type: 'string', maxLength: 100 },
+      visualSpecies: { type: 'string', maxLength: 255 },
+      visualSex: { type: 'string', maxLength: 50 },
+      visualAbdomenStatus: { type: 'string', maxLength: 100 },
       notes: { type: 'string' },
       status: { type: 'string', enum: ['PENDING', 'ANNOTATED', 'FLAGGED'] }
     },
@@ -56,6 +62,9 @@ export const schema = {
             morphSpecies: { type: ['string', 'null'] },
             morphSex: { type: ['string', 'null'] },
             morphAbdomenStatus: { type: ['string', 'null'] },
+            visualSpecies: { type: ['string', 'null'] },
+            visualSex: { type: ['string', 'null'] },
+            visualAbdomenStatus: { type: ['string', 'null'] },
             notes: { type: ['string', 'null'] },
             status: { type: 'string' },
             createdAt: { type: 'number' },

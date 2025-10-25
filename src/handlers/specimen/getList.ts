@@ -13,6 +13,7 @@ export const schema = {
       programId: { type: 'number', description: 'Filter by program ID' },
       district: { type: 'string', description: 'Filter by district name' },
       specimenId: { type: 'string', description: 'Filter by specimen ID (partial match)' },
+      shouldProcessFurther: { type: 'boolean', description: 'Filter by shouldProcessFurther flag' },
       hasImages: { type: 'boolean', description: 'Filter specimens that have images' },
       includeAllImages: { type: 'boolean', description: 'Include all images for each specimen (default: false, only thumbnail)' },
       species: { type: 'string', description: 'Filter by species from thumbnail image' },
@@ -40,6 +41,7 @@ export const schema = {
               sessionId: { type: 'number' },
               thumbnailUrl: { type: 'string', nullable: true },
               thumbnailImageId: { type: 'number', nullable: true },
+              shouldProcessFurther: { type: 'boolean' },
               images: {
                 type: 'array',
                 items: {
@@ -138,6 +140,7 @@ interface QueryParams {
   programId?: number;
   district?: string;
   specimenId?: string;
+  shouldProcessFurther?: boolean;
   hasImages?: boolean;
   includeAllImages?: boolean;
   species?: string;
@@ -162,6 +165,7 @@ export async function getSpecimenList(
       programId,
       district,
       specimenId,
+      shouldProcessFurther,
       hasImages,
       includeAllImages,
       species,
@@ -185,6 +189,9 @@ export async function getSpecimenList(
       whereClause.specimenId = {
         [Op.like]: `%${specimenId}%`
       };
+    }
+    if (shouldProcessFurther !== undefined) {
+      whereClause.shouldProcessFurther = shouldProcessFurther;
     }
 
     // Apply site access restrictions first

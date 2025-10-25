@@ -9,6 +9,7 @@ class Specimen extends Model {
   declare specimenId: string;
   declare sessionId: number;
   declare thumbnailImageId: number | null;
+  declare shouldProcessFurther: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -42,6 +43,12 @@ Specimen.init(
         model: 'specimen_images',
         key: 'id',
       },
+    },
+    shouldProcessFurther: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'should_process_further',
     },
   },
   {

@@ -10,6 +10,7 @@ import { findSessionSpecimen } from '../session/common';
 interface CreateSpecimenRequest {
   specimenId: string;
   sessionId: number;
+  shouldProcessFurther?: boolean;
 }
 
 export const schema = {
@@ -20,7 +21,8 @@ export const schema = {
     required: ['sessionId', 'specimenId'],
     properties: {
       specimenId: { type: 'string' },
-      sessionId: { type: 'number' }
+      sessionId: { type: 'number' },
+      shouldProcessFurther: { type: 'boolean' }
     }
   },
   response: {
@@ -36,6 +38,7 @@ export const schema = {
             sessionId: { type: 'number' },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
+            shouldProcessFurther: { type: 'boolean' },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -92,6 +95,7 @@ export async function createSpecimen(
     const {
       specimenId,
       sessionId,
+      shouldProcessFurther,
     } = request.body;
 
     // Check if session exists
@@ -121,6 +125,7 @@ export async function createSpecimen(
     const specimen = await Specimen.create({
       specimenId,
       sessionId,
+      shouldProcessFurther: shouldProcessFurther ?? false,
     });
 
     const formattedResponse = await formatSpecimenResponse(specimen, false);
