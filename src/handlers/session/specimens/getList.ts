@@ -25,6 +25,7 @@ export const schema = {
               specimenId: { type: 'string' },
               thumbnailUrl: { type: ['string', 'null'] },
               thumbnailImageId: { type: ['number', 'null'] },
+              shouldProcessFurther: { type: 'boolean' },
               thumbnailImage: {
                 anyOf: [
                   { type: 'null' },
@@ -101,6 +102,7 @@ export async function getSessionSpecimens(
         specimenId: formatted.specimenId,
         thumbnailUrl: formatted.thumbnailUrl,
         thumbnailImageId: formatted.thumbnailImageId,
+        shouldProcessFurther: formatted.shouldProcessFurther,
         thumbnailImage: formatted.thumbnailImage
       };
     }));

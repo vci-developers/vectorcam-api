@@ -17,7 +17,8 @@ export const schema = {
     type: 'object',
     required: ['specimenId'],
     properties: {
-      specimenId: { type: 'string' }
+      specimenId: { type: 'string' },
+      shouldProcessFurther: { type: 'boolean' }
     }
   },
   response: {
@@ -33,6 +34,7 @@ export const schema = {
             sessionId: { type: 'number' },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
+            shouldProcessFurther: { type: 'boolean' },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -82,11 +84,11 @@ export const schema = {
 };
 
 export async function createSessionSpecimen(
-  request: FastifyRequest<{ Params: { session_id: string }; Body: { specimenId: string } }>,
+  request: FastifyRequest<{ Params: { session_id: string }; Body: { specimenId: string; shouldProcessFurther?: boolean } }>,
   reply: FastifyReply
 ) {
   const { session_id } = request.params;
-  const { specimenId } = request.body;
+  const { specimenId, shouldProcessFurther } = request.body;
   try {
     // Check if session exists
     const session = await findSession(session_id);
@@ -98,7 +100,11 @@ export async function createSessionSpecimen(
     if (existing) {
       return reply.code(409).send({ error: 'A specimen with this id already exists for this session' });
     }
-    const specimen = await Specimen.create({ sessionId: Number(session_id), specimenId });
+    const specimen = await Specimen.create({ 
+      sessionId: Number(session_id), 
+      specimenId,
+      shouldProcessFurther: shouldProcessFurther ?? false
+    });
     const formatted = await formatSpecimenResponse(specimen, false);
     return reply.code(201).send({ message: 'Specimen created successfully', specimen: formatted });
   } catch (error) {

@@ -19,7 +19,8 @@ export const schema = {
     type: 'object',
     properties: {
       specimenId: { type: 'string' },
-      thumbnailImageId: { type: 'number' }
+      thumbnailImageId: { type: 'number' },
+      shouldProcessFurther: { type: 'boolean' }
     }
   },
   response: {
@@ -35,6 +36,7 @@ export const schema = {
             sessionId: { type: 'number' },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
+            shouldProcessFurther: { type: 'boolean' },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -84,11 +86,11 @@ export const schema = {
 };
 
 export async function updateSessionSpecimen(
-  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; thumbnailImageId?: number } }>,
+  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; thumbnailImageId?: number; shouldProcessFurther?: boolean } }>,
   reply: FastifyReply
 ) {
   const { session_id, specimen_id } = request.params;
-  const { specimenId, thumbnailImageId } = request.body;
+  const { specimenId, thumbnailImageId, shouldProcessFurther } = request.body;
   try {
     // Fetch session first
     const session = await findSession(session_id);
@@ -122,7 +124,8 @@ export async function updateSessionSpecimen(
     }
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
-      thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId
+      thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
+      shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther
     });
     const updated = await specimen.reload();
     const formatted = await formatSpecimenResponse(updated, false);

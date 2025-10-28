@@ -23,6 +23,7 @@ export const schema = {
         sessionId: { type: 'number' },
         thumbnailUrl: { type: ['string', 'null'] },
         thumbnailImageId: { type: ['number', 'null'] },
+        shouldProcessFurther: { type: 'boolean' },
         images: {
           type: 'array',
           items: {
