@@ -12,6 +12,8 @@ import UserWhitelist from './UserWhitelist';
 import SiteUser from './SiteUser';
 import AnnotationTask from './AnnotationTask';
 import Annotation from './Annotation';
+import Dhis2Cache from './Dhis2Cache';
+import Dhis2SyncEvent from './Dhis2SyncEvent';
 
 export {
   Program,
@@ -27,5 +29,7 @@ export {
   UserWhitelist,
   SiteUser,
   AnnotationTask,
-  Annotation
+  Annotation,
+  Dhis2Cache,
+  Dhis2SyncEvent,
 };

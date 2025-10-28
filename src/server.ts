@@ -74,7 +74,8 @@ async function setupServer(): Promise<void> {
           { name: 'Devices', description: 'Device management endpoints' },
           { name: 'Sessions', description: 'Session management and surveillance form endpoints' },
           { name: 'Specimens', description: 'Specimen management endpoints' },
-          { name: 'Specimen Images', description: 'Specimen image management and multipart upload endpoints' }
+          { name: 'Specimen Images', description: 'Specimen image management and multipart upload endpoints' },
+          { name: 'DHIS2', description: 'DHIS2 integration and data synchronization endpoints (admin only)' }
         ]
       }
     });

@@ -49,6 +49,13 @@ const developmentConfig = {
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '28d',
   },
+  dhis2: {
+    baseUrl: process.env.DHIS2_BASE_URL || 'https://dhis2.example.com',
+    username: process.env.DHIS2_USERNAME || '',
+    password: process.env.DHIS2_PASSWORD || '',
+    programId: process.env.DHIS2_PROGRAM_ID || '',
+    programStageId: process.env.DHIS2_PROGRAM_STAGE_ID || '',
+  },
 };
 
 // Configuration for test environment
@@ -86,6 +93,13 @@ const testConfig = {
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '28d',
   },
+  dhis2: {
+    baseUrl: process.env.DHIS2_BASE_URL || 'https://dhis2.example.com',
+    username: process.env.DHIS2_USERNAME || '',
+    password: process.env.DHIS2_PASSWORD || '',
+    programId: process.env.DHIS2_PROGRAM_ID || '',
+    programStageId: process.env.DHIS2_PROGRAM_STAGE_ID || '',
+  },
 };
 
 // Configuration for production environment
@@ -122,6 +136,13 @@ const productionConfig = {
     refreshSecret: process.env.JWT_REFRESH_SECRET!,
     expiresIn: process.env.JWT_EXPIRES_IN || '1d',
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '28d',
+  },
+  dhis2: {
+    baseUrl: process.env.DHIS2_BASE_URL!,
+    username: process.env.DHIS2_USERNAME!,
+    password: process.env.DHIS2_PASSWORD!,
+    programId: process.env.DHIS2_PROGRAM_ID!,
+    programStageId: process.env.DHIS2_PROGRAM_STAGE_ID!,
   },
 };
 
