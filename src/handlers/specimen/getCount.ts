@@ -7,6 +7,7 @@ interface QueryParams {
   startDate?: string;
   endDate?: string;
   district?: string;
+  sessionId?: string;
 }
 
 export const schema = {
@@ -28,9 +29,13 @@ export const schema = {
         type: 'string',
         description: 'Filter specimens by district name'
       },
+      sessionId: {
+        type: 'string',
+        description: 'Filter specimens by session ID'
+      },
     }
   },
-      response: {
+  response: {
     200: {
       type: 'object',
       properties: {
@@ -96,7 +101,7 @@ export async function getSpecimenCount(
   reply: FastifyReply
 ) {
   try {
-    const { startDate, endDate, district } = request.query;
+    const { startDate, endDate, district, sessionId } = request.query;
 
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -202,6 +207,7 @@ export async function getSpecimenCount(
       LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
       WHERE sess.type = 'surveillance'
         ${filteredSiteIds.length > 0 ? `AND s.id IN (${filteredSiteIds.join(',')})` : ''}
+        ${sessionId ? `AND sess.id = :sessionId` : ''}
         ${startDate ? `AND sess.collection_date >= :startDate` : ''}
         ${endDate ? `AND sess.collection_date < :endDate` : ''}
       GROUP BY 
@@ -219,6 +225,9 @@ export async function getSpecimenCount(
     `;
 
     const replacements: any = {};
+    if (sessionId) {
+      replacements.sessionId = sessionId;
+    }
     if (startDate) {
       replacements.startDate = new Date(startDate);
     }
