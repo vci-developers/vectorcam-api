@@ -53,20 +53,33 @@ export interface HouseholdData {
 class DHIS2AggregationService {
   /**
    * Get all household data for a specific month
+   * @param year - The year to query
+   * @param month - The month to query (1-12)
+   * @param allowedSiteIds - Optional array of site IDs to filter by. If null, no filter is applied.
    */
-  async getHouseholdDataByMonth(year: number, month: number): Promise<HouseholdData[]> {
+  async getHouseholdDataByMonth(year: number, month: number, allowedSiteIds: number[] | null = null): Promise<HouseholdData[]> {
     // Calculate date range for the month
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59, 999);
 
+    // Build where clause with optional site filter
+    const whereClause: any = {
+      collectionDate: {
+        [Op.gte]: startDate,
+        [Op.lte]: endDate,
+      },
+    };
+
+    // Add site filter if allowedSiteIds is provided
+    if (allowedSiteIds !== null) {
+      whereClause.siteId = {
+        [Op.in]: allowedSiteIds,
+      };
+    }
+
     // Find all sessions in this month
     const sessions = await Session.findAll({
-      where: {
-        collectionDate: {
-          [Op.gte]: startDate,
-          [Op.lte]: endDate,
-        },
-      },
+      where: whereClause,
       include: [
         {
           model: Site,

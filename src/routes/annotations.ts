@@ -11,16 +11,16 @@ import { schema as getAnnotationListSchema } from '../handlers/annotation/getLis
 import { schema as getAnnotationSchema } from '../handlers/annotation/get';
 import { schema as updateAnnotationSchema } from '../handlers/annotation/put';
 import { schema as exportAnnotationsSchema } from '../handlers/annotation/export';
-import { requireAdminAuth, requireSuperAdmin } from '../middleware/auth.middleware';
+import { requireAdminAuth, requireAdmin } from '../middleware/auth.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   
   // Annotation Task endpoints (under /task)
   
   // Get annotation tasks list
-  // Admin token: all tasks, Superadmin user: only their own tasks
+  // Admin token: all tasks, admin user: only their own tasks
   fastify.get('/task', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdmin],
     schema: getAnnotationTaskListSchema
   }, getAnnotationTaskList as any);
 
@@ -30,9 +30,9 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: createAnnotationTasksSchema
   }, createAnnotationTasks as any);
 
-  // Update annotation task (admin token and superadmin user)
+  // Update annotation task (admin token and admin user)
   fastify.put('/task/:taskId', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdmin],
     schema: updateAnnotationTaskSchema
   }, updateAnnotationTask as any);
 
@@ -44,27 +44,27 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Annotation endpoints (root level)
   
-  // Get annotations list (admin token and superadmin user)
+  // Get annotations list (admin token and admin user)
   fastify.get('/', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdmin],
     schema: getAnnotationListSchema
   }, getAnnotationList as any);
 
-  // Export annotations to CSV (admin token and superadmin user)
+  // Export annotations to CSV (admin token)
   fastify.get('/export', {
     preHandler: [requireAdminAuth],
     schema: exportAnnotationsSchema
   }, exportAnnotationsCSV as any);
 
-  // Get single annotation with related data (admin token and superadmin user)
+  // Get single annotation with related data (admin token)
   fastify.get('/:annotationId', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdmin],
     schema: getAnnotationSchema
   }, getAnnotation as any);
 
-  // Update annotation (admin token and superadmin user)
+  // Update annotation (admin token)
   fastify.put('/:annotationId', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdmin],
     schema: updateAnnotationSchema
   }, updateAnnotation as any);
 

@@ -3,7 +3,7 @@ import { dhis2Service } from '../../services/dhis2.service';
 import { dhis2AggregationService } from '../../services/dhis2-aggregation.service';
 import { dhis2MappingService } from '../../services/dhis2-mapping.service';
 import { config } from '../../config/environment';
-import { Dhis2SyncEvent } from '../../db/models';
+import { Dhis2SyncEvent, Site } from '../../db/models';
 
 export const schema = {
   tags: ['DHIS2'],
@@ -23,6 +23,10 @@ export const schema = {
         description: 'Month (1-12)',
         minimum: 1,
         maximum: 12,
+      },
+      district: {
+        type: 'string',
+        description: 'District name to filter sites for sync (required for admin users)',
       },
       dryRun: {
         type: 'boolean',
@@ -96,6 +100,7 @@ export const schema = {
 interface QueryParams {
     year: number;
     month: number;
+    district?: string;
     dryRun?: boolean;
 }
 
@@ -147,7 +152,7 @@ export async function syncToDHIS2(
   reply: FastifyReply
 ) {
     try {
-        const { year, month, dryRun = false } = request.query;
+        const { year, month, district, dryRun = false } = request.query;
 
         request.log.info(`Starting DHIS2 sync for ${year}-${month}${dryRun ? ' (dry run)' : ''}`);
 
@@ -158,6 +163,59 @@ export async function syncToDHIS2(
 
         if (year < 2020 || year > 2100) {
             return reply.code(400).send({ error: 'Invalid year. Must be between 2020 and 2100.' });
+        }
+
+        // Get site access from middleware
+        const siteAccess = request.siteAccess;
+        if (!siteAccess) {
+            return reply.code(500).send({ error: 'Site access information not available' });
+        }
+
+        // Determine allowed site IDs based on user role and district filter
+        let allowedSiteIds: number[] | null = null;
+
+        // Super admins (empty userSites array) can sync all sites or filter by district
+        const isSuperAdmin = siteAccess.userSites.length === 0;
+        
+        if (isSuperAdmin) {
+            // Super admin can optionally filter by district, or sync all sites
+            if (district) {
+                const sitesInDistrict = await Site.findAll({
+                    where: { district },
+                    attributes: ['id'],
+                });
+                allowedSiteIds = sitesInDistrict.map(site => site.id);
+                request.log.info(`Super admin syncing ${allowedSiteIds.length} sites in district "${district}"`);
+            } else {
+                // null means no filter - sync all sites
+                request.log.info('Super admin syncing all sites (no district filter)');
+            }
+        } else {
+            // Admin users must provide district name
+            if (!district) {
+                return reply.code(400).send({ 
+                    error: 'District name is required for admin users. Super admins can sync without district filter.' 
+                });
+            }
+
+            // Get sites in the district that the admin has write access to
+            const sitesInDistrict = await Site.findAll({
+                where: { district },
+                attributes: ['id'],
+            });
+
+            const districtSiteIds = sitesInDistrict.map(site => site.id);
+
+            // Intersect with user's accessible sites
+            allowedSiteIds = siteAccess.userSites.filter(siteId => districtSiteIds.includes(siteId));
+
+            if (allowedSiteIds.length === 0) {
+                return reply.code(403).send({ 
+                    error: `No write access to sites in district "${district}". Please contact a super admin.` 
+                });
+            }
+
+            request.log.info(`Admin user syncing ${allowedSiteIds.length} sites in district "${district}"`);
         }
 
         // Fetch data element map from DHIS2
@@ -175,10 +233,11 @@ export async function syncToDHIS2(
         });
         }
 
-        // Get all household data for the specified month
+        // Get all household data for the specified month, filtered by allowed sites
         const householdDataList = await dhis2AggregationService.getHouseholdDataByMonth(
             year,
-            month
+            month,
+            allowedSiteIds
         );
 
         request.log.info(`Found ${householdDataList.length} households with data for ${year}-${month}`);
