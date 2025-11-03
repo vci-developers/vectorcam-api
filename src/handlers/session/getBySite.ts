@@ -35,7 +35,8 @@ export const schema = {
               deviceId: { type: 'number' },
               latitude: { type: ['number', 'null'] },
               longitude: { type: ['number', 'null'] },
-              type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] }
+              type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
+              collectorLastTrainedOn: { type: ['number', 'null'] }
             }
           }
         }

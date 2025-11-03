@@ -22,6 +22,7 @@ interface SubmitSessionRequest {
   latitude?: number;
   longitude?: number;
   type: string;
+  collectorLastTrainedOn?: number;
 }
 
 export const schema = {
@@ -44,7 +45,8 @@ export const schema = {
       deviceId: { type: 'number' },
       latitude: { type: 'number' },
       longitude: { type: 'number' },
-      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] }
+      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
+      collectorLastTrainedOn: { type: 'number' }
     }
   },
   response: {
@@ -70,7 +72,8 @@ export const schema = {
             deviceId: { type: 'number' },
             latitude: { type: ['number', 'null'] },
             longitude: { type: ['number', 'null'] },
-            type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] }
+            type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
+            collectorLastTrainedOn: { type: ['number', 'null'] }
           }
         }
       }
@@ -115,7 +118,8 @@ export async function submitSession(
       deviceId,
       latitude,
       longitude,
-      type
+      type,
+      collectorLastTrainedOn
     } = request.body;
 
     // Check if site exists
@@ -166,7 +170,8 @@ export async function submitSession(
       deviceId,
       latitude,
       longitude,
-      type
+      type,
+      collectorLastTrainedOn: collectorLastTrainedOn ? new Date(collectorLastTrainedOn) : null
     });
 
     return reply.code(201).send({

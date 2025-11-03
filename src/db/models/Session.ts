@@ -27,6 +27,7 @@ class Session extends Model {
   declare latitude: number | null;
   declare longitude: number | null;
   declare type: string;
+  declare collectorLastTrainedOn: Date | null;
 }
 
 Session.init(
@@ -119,6 +120,11 @@ Session.init(
       type: DataTypes.STRING(255),
       allowNull: false,
       defaultValue: '',
+    },
+    collectorLastTrainedOn: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'collector_last_trained_on',
     },
   },
   {

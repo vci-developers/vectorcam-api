@@ -170,10 +170,24 @@ export default async function getAnnotationList(
         });
       }
       
-      whereConditions.annotationTaskId = { [Op.in]: userTaskIds };
-    }
-
-    if (taskId) {
+      // If taskId is provided, verify it belongs to the user
+      if (taskId) {
+        if (!userTaskIds.includes(taskId)) {
+          // User doesn't have access to this task, return empty result
+          return reply.send({
+            annotations: [],
+            total: 0,
+            limit,
+            offset,
+            hasMore: false
+          });
+        }
+        whereConditions.annotationTaskId = taskId;
+      } else {
+        whereConditions.annotationTaskId = { [Op.in]: userTaskIds };
+      }
+    } else if (taskId) {
+      // Admin token with taskId filter
       whereConditions.annotationTaskId = taskId;
     }
 
@@ -226,7 +240,7 @@ export default async function getAnnotationList(
       ],
       limit,
       offset,
-      order: [['createdAt', 'DESC']]
+      order: [['id', 'DESC']]
     });
 
     // Format response

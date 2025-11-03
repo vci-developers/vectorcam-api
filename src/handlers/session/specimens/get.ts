@@ -115,6 +115,10 @@ export const schema = {
             notes: { type: ['string', 'null'] },
             siteId: { type: 'number' },
             deviceId: { type: 'number' },
+            latitude: { type: ['number', 'null'] },
+            longitude: { type: ['number', 'null'] },
+            type: { type: 'string' },
+            collectorLastTrainedOn: { type: ['number', 'null'] },
             site: {
               type: 'object',
               properties: {
@@ -200,6 +204,10 @@ export async function getSessionSpecimen(
         notes: specimenData.session.notes,
         siteId: specimenData.session.siteId,
         deviceId: specimenData.session.deviceId,
+        latitude: specimenData.session.latitude,
+        longitude: specimenData.session.longitude,
+        type: specimenData.session.type,
+        collectorLastTrainedOn: specimenData.session.collectorLastTrainedOn ? new Date(specimenData.session.collectorLastTrainedOn).getTime() : null,
         site: specimenData.session.site ? {
           id: specimenData.session.site.id,
           district: specimenData.session.site.district,

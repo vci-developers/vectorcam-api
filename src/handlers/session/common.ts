@@ -20,6 +20,7 @@ export interface SessionResponse {
   latitude: number | null;
   longitude: number | null;
   type: string;
+  collectorLastTrainedOn: number | null;
 }
 
 // Helper to format session data consistently across endpoints
@@ -41,6 +42,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     latitude: session.latitude,
     longitude: session.longitude,
     type: session.type,
+    collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
   };
 }
 
