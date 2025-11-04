@@ -4,10 +4,12 @@
  * This script seeds the database with realistic test data for the last 3 months.
  * 
  * Features:
- * - Downloads 10 real mosquito images from the internet and uploads them to S3
+ * - Dynamically reads all mosquito images from /static/assets and uploads them to S3
+ * - Supports JPEG, PNG, GIF, and WebP image formats
  * - Uses the uploaded images repeatedly for all specimens
  * - Fetches real data from DHIS2 (districts, villages, health centers, house numbers) using native HTTPS
- * - Creates 3 districts with 3 villages each and 1-4 houses per village
+ * - Uses 5 hardcoded health centers from different districts (Mayuge, Arua, etc.)
+ * - Creates 4 sites per health center (20 sites total)
  * - Generates sessions for the most recent 3 months
  * - All sessions are SURVEILLANCE type with surveillance forms
  * - Creates one surveillance form per session with random realistic data (IRS, LLIN info, household data)
@@ -23,23 +25,22 @@
  * - Preserves users but removes their site associations
  * 
  * Requirements:
- * - Network access to download images
+ * - Local mosquito images in /static/assets directory
  * - AWS S3 credentials configured for uploading images
+ * - DHIS2 credentials for fetching organization units and TEIs
  * 
  * Run with: npm run db:seed:specimens or npx ts-node scripts/seed-specimens.ts
  */
 
 import { Sequelize } from 'sequelize';
 import * as crypto from 'crypto';
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import * as path from 'path';
 import * as https from 'https';
-import * as http from 'http';
 
 // Import database and models
 import sequelize from '../src/db/index';
 import { Program, Site, Device, Session, Specimen, SpecimenImage, InferenceResult, SurveillanceForm } from '../src/db/models';
-import { dhis2Service, TrackedEntityInstance } from '../src/services/dhis2.service';
 import { config } from '../src/config/environment';
 import { uploadFile } from '../src/services/s3.service';
 
@@ -52,8 +53,7 @@ const COLLECTOR_TITLES = [
 
 const COLLECTION_METHODS = [
   'Pyrethrum Spray Catch (PSC)',
-  'CDC Light Trap (LTC)',
-  'Human Landing Catch (HLC)'
+  'CDC Light Trap (LTC)'
 ];
 
 const SPECIMEN_CONDITIONS = [
@@ -80,20 +80,6 @@ const ABDOMEN_STATUS_OPTIONS = ['Unfed', 'Full fed', 'Gravid'];
 // Surveillance form data options - fixed values
 const LLIN_TYPE = 'Pyrethroid + PBO';
 const LLIN_BRAND = 'OLYSET';
-
-// Mosquito image URLs (public domain/free use images)
-const MOSQUITO_IMAGE_URLS = [
-  'https://media.istockphoto.com/id/1317059852/photo/aedes-mosquitoe-is-sucking-blood-on-human-skin.jpg?s=612x612&w=0&k=20&c=FJoItD-SqroiLNBfnKfGD7kjOssT5P9JsYBt7vJSkTM=',  // Mosquito close-up
-  'https://media.istockphoto.com/id/157316301/photo/black-and-white-spotted-mosquito-on-the-surface-of-liquid.jpg?s=612x612&w=0&k=20&c=fJabkWe9ATk9pOdIembWrsp2qgAKzFBY7c_NtdGIRsY=',  // Mosquito on surface
-  'https://media.istockphoto.com/id/157292773/photo/close-up-of-mosquito-on-human-skin.jpg?s=612x612&w=0&k=20&c=4fETZp5eJxVq1ngiRDIXwI_Sl0RrBrQfRjWEX2Pm1sQ=',  // Mosquito macro
-  'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Aedes_aegypti.jpg/1200px-Aedes_aegypti.jpg',  // Mosquito detailed
-  'https://collections.museumsvictoria.com.au/content/media/13/347863-small.jpg',  // Mosquito specimen
-  'https://static.vecteezy.com/system/resources/previews/069/910/316/non_2x/close-up-extreme-macro-view-of-a-mosquito-with-blood-filled-abdomen-resting-on-fabric-free-photo.jpg',  // Mosquito macro view
-  'https://entomologytoday.org/wp-content/uploads/2019/04/Aedes-aegypti-mosquito-closeup.jpg',  // Mosquito close
-  'https://thumbs.dreamstime.com/b/mosquito-side-view-resting-leaf-46532956.jpg',  // Mosquito side view
-  'https://research.uga.edu/news/wp-content/uploads/sites/19/2022/03/Aedes-aegypti-female-1568x905.jpg',  // Mosquito detailed macro
-  'https://ccp.jhu.edu/wp-content/uploads/2021/03/13998232165_bbd57bf8fb_c.jpg'   // Mosquito alternate
-];
 
 interface SiteConfig {
   district: string;
@@ -196,75 +182,50 @@ function httpsRequest(url: string, authHeader: string): Promise<any> {
   });
 }
 
-// Helper function to download image from URL
-function downloadImage(url: string): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const protocol = urlObj.protocol === 'https:' ? https : http;
-    
-    const options = {
-      hostname: urlObj.hostname,
-      port: urlObj.port,
-      path: urlObj.pathname + urlObj.search,
-      method: 'GET',
-      headers: {
-        'User-Agent': 'VectorCam-Seeder/1.0',
-      },
-    };
-
-    protocol.get(options, (res) => {
-      // Handle redirects
-      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
-        if (res.headers.location) {
-          downloadImage(res.headers.location).then(resolve).catch(reject);
-          return;
-        }
-      }
-
-      if (res.statusCode !== 200) {
-        reject(new Error(`Failed to download image: HTTP ${res.statusCode}`));
-        return;
-      }
-
-      const chunks: Buffer[] = [];
-      
-      res.on('data', (chunk) => {
-        chunks.push(Buffer.from(chunk));
-      });
-
-      res.on('end', () => {
-        resolve(Buffer.concat(chunks));
-      });
-
-      res.on('error', (error) => {
-        reject(error);
-      });
-    }).on('error', (error) => {
-      reject(error);
-    });
-  });
-}
-
-// Helper function to download and upload mosquito images to S3
-async function downloadAndUploadMosquitoImages(): Promise<UploadedImage[]> {
-  console.log('Downloading and uploading mosquito images to S3...');
+// Helper function to read local mosquito images and upload to S3
+async function uploadLocalMosquitoImages(): Promise<UploadedImage[]> {
+  console.log('Reading local mosquito images from /static/assets and uploading to S3...');
   const uploadedImages: UploadedImage[] = [];
+  const assetsDir = path.join(__dirname, '..', 'static', 'assets');
 
-  for (let i = 0; i < MOSQUITO_IMAGE_URLS.length; i++) {
+  // Dynamically read all image files from the assets directory
+  const imageFiles = readdirSync(assetsDir).filter(file => {
+    const ext = path.extname(file).toLowerCase();
+    return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+  });
+
+  if (imageFiles.length === 0) {
+    throw new Error(`No image files found in ${assetsDir}`);
+  }
+
+  console.log(`Found ${imageFiles.length} image file(s) in /static/assets`);
+
+  for (let i = 0; i < imageFiles.length; i++) {
     try {
-      console.log(`  Downloading image ${i + 1}/${MOSQUITO_IMAGE_URLS.length}...`);
-      const imageBuffer = await downloadImage(MOSQUITO_IMAGE_URLS[i]);
+      const filename = imageFiles[i];
+      const filePath = path.join(assetsDir, filename);
+      
+      console.log(`  Reading image ${i + 1}/${imageFiles.length}: ${filename}...`);
+      
+      // Read the image file
+      const imageBuffer = readFileSync(filePath);
       
       // Generate MD5 hash
       const md5 = crypto.createHash('md5').update(imageBuffer).digest('hex');
       
       // Generate S3 key
       const timestamp = Date.now();
-      const imageKey = `specimens/seed_mosquito_${i + 1}_${timestamp}.jpg`;
+      const ext = path.extname(filename);
+      const imageKey = `specimens/seed_mosquito_${i + 1}_${timestamp}${ext}`;
+      
+      // Determine content type
+      const contentType = ext === '.png' ? 'image/png' : 
+                         ext === '.gif' ? 'image/gif' :
+                         ext === '.webp' ? 'image/webp' : 'image/jpeg';
       
       // Upload to S3
       console.log(`  Uploading image ${i + 1} to S3...`);
-      await uploadFile(imageKey, imageBuffer, 'image/jpeg');
+      await uploadFile(imageKey, imageBuffer, contentType);
       
       uploadedImages.push({
         imageKey,
@@ -274,16 +235,16 @@ async function downloadAndUploadMosquitoImages(): Promise<UploadedImage[]> {
       
       console.log(`  ✅ Image ${i + 1} uploaded successfully`);
     } catch (error) {
-      console.error(`  ⚠️  Failed to download/upload image ${i + 1}:`, error);
+      console.error(`  ⚠️  Failed to read/upload image ${i + 1}:`, error);
       // Continue with other images even if one fails
     }
   }
 
   if (uploadedImages.length === 0) {
-    throw new Error('Failed to download and upload any mosquito images');
+    throw new Error('Failed to read and upload any mosquito images');
   }
 
-  console.log(`✅ Successfully uploaded ${uploadedImages.length} mosquito images to S3`);
+  console.log(`✅ Successfully uploaded ${uploadedImages.length} local mosquito images to S3`);
   return uploadedImages;
 }
 
@@ -579,7 +540,7 @@ async function seedSpecimens() {
     console.log('Database connection established.');
 
     // Download and upload mosquito images to S3 first
-    const uploadedImages = await downloadAndUploadMosquitoImages();
+    const uploadedImages = await uploadLocalMosquitoImages();
     console.log(`Using ${uploadedImages.length} real mosquito images for seeding`);
 
     // Fetch DHIS2 site data (with fallback)

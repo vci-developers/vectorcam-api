@@ -146,7 +146,7 @@ export async function getMetrics(
         sess.site_id,
         sf.num_people_slept_in_house,
         COUNT(DISTINCT CASE 
-          WHEN si.abdomen_status IN ('Fed', 'Blood-fed', 'fed', 'blood-fed') 
+          WHEN si.abdomen_status IN ('Full fed') 
           THEN sp.id 
         END) as fedCount
       FROM sessions sess

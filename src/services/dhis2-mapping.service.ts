@@ -9,11 +9,14 @@ import { EventDataValue } from './dhis2.service';
 export const DHIS2_DATA_ELEMENT_NAMES = {
   // Session data
   COLLECTION_DATE: 'MAL 001-ER09. Date of Collection',
-  COLLECTOR_TITLE: 'MAL 001-ER12. Title of officer',
-  COLLECTOR_NAME: 'MAL 001-ER10. Name of officer',
-  COLLECTION_METHOD: 'MAL 001-ER29. Mosquito collection method (PSC/LTC*)',
+  COLLECTOR_TITLE: 'MAL 001-ER12.Title of officer',
+  COLLECTOR_NAME: 'MAL 001-ER10.Name of officer',
+  COLLECTION_METHOD: 'MAL 001-ER29 - Mosquito collection method (PSC/LTC*)',
 
-  // Surveillance form data
+  // Surveillance form data - Site level
+  SITE_SPRAYED_IN_PAST_12_MONTHS: 'MAL 001-ER06. Has site sprayed in the past 12 months?',
+  
+  // Surveillance form data - House level
   NUM_PEOPLE_SLEPT: 'MAL 001-ER13. No. of people who slept in the house',
   HOUSE_SPRAYED: 'MAL 001-ER14. Has the house beeen sprayed before?',
   MONTHS_SINCE_IRS: 'MAL 001-ER15. How many months ago?',
@@ -23,10 +26,10 @@ export const DHIS2_DATA_ELEMENT_NAMES = {
   // LLIN types
   LLIN_TYPE_ANY: 'MAL 001-ER17. Type of LLIN',
   LLIN_TYPE_PYRETHROID: 'MAL 001-ER17a. A - Pyrethroid-only',
-  LLIN_TYPE_PBO: 'MAL 001-ER17b. B - Pyrethroid + PBO',
-  LLIN_TYPE_CHLORFENAPYR: 'MAL 001-ER17c. C - Pyrethroid + chlorfenapyr',
-  LLIN_TYPE_PYRIPROXYFEN: 'MAL 001-ER17d. D - Pyrethroid + pyriproxyfen',
-  LLIN_TYPE_OTHER: 'MAL 001-ER17e. E – Other',
+  LLIN_TYPE_PBO: 'MAL 001-ER17b.B - Pyrethroid + PBO',
+  LLIN_TYPE_CHLORFENAPYR: 'MAL 001-ER17c.C - Pyrethroid + chlorfenapyr',
+  LLIN_TYPE_PYRIPROXYFEN: 'MAL 001-ER17d.D - Pyrethroid + pyriproxyfen',
+  LLIN_TYPE_OTHER: 'MAL 001-ER17e.E – Other',
 
   // LLIN brands
   LLIN_BRAND_ANY: 'MAL 001-ER28. Brand of LLIN',
@@ -46,6 +49,10 @@ export const DHIS2_DATA_ELEMENT_NAMES = {
   LLIN_BRAND_YAHE: 'MAL 001-ER28n.14 - Yahe LN',
   LLIN_BRAND_SAFENET: 'MAL 001-ER28o.15 - SafeNet',
   LLIN_BRAND_YORKOOL: 'MAL 001-ER28p.16 - Yorkool LN',
+  LLIN_BRAND_PANDA_NET: 'MAL 001-ER28q.17 - Panda Net 2.0',
+  LLIN_BRAND_TSARA_BOOST: 'MAL 001-ER28r.18 - Tsara Boost',
+  LLIN_BRAND_TSARA_SOFT: 'MAL 001-ER28s.19 - Tsara Soft',
+  LLIN_BRAND_TSARA_PLUS: 'MAL 001-ER28t.20 - Tsara Plus',
   LLIN_BRAND_OTHER: 'MAL 001-ER28u.21 - Other',
 
   // An. gambiae s.l.
@@ -54,6 +61,8 @@ export const DHIS2_DATA_ELEMENT_NAMES = {
   AN_GAMBIAE_UNFED: 'MAL 001-ER18b. An. gambiae s.l. - Unfed',
   AN_GAMBIAE_GRAVID: 'MAL 001-ER18c. An. gambiae s.l. - Gravid',
   AN_GAMBIAE_HALF_GRAVID: 'MAL 001-ER18d. An. gambiae s.l. - Half gravid',
+  AN_GAMBIAE_NULLIPAROUS: 'MAL 001-ER18e. An. gambiae s.l. - Nulliparous(NP)',
+  AN_GAMBIAE_PAROUS: 'MAL 001-ER18f. An. gambiae s.l. - Parous(P)',
 
   // An. funestus s.l.
   AN_FUNESTUS_ANY: 'MAL 001-ER19. An. funestus s.l.',
@@ -61,6 +70,17 @@ export const DHIS2_DATA_ELEMENT_NAMES = {
   AN_FUNESTUS_UNFED: 'MAL 001-ER19b. An. funestus s.l. - Unfed',
   AN_FUNESTUS_GRAVID: 'MAL 001-ER19c. An. funestus s.l. - Gravid',
   AN_FUNESTUS_HALF_GRAVID: 'MAL 001-ER19d. An. funestus s.l. - Half gravid',
+  AN_FUNESTUS_NULLIPAROUS: 'MAL 001-ER19e. An. funestus s.l. - Nulliparous(NP)',
+  AN_FUNESTUS_PAROUS: 'MAL 001-ER19f. An. funestus s.l. - Parous(P)',
+
+  // An. coustani s.l.
+  AN_COUSTANI_ANY: 'MAL 001-ER20. An. coustani s.l.',
+  AN_COUSTANI_FED: 'MAL 001-ER20a. An. coustani s.l. - Fed',
+  AN_COUSTANI_UNFED: 'MAL 001-ER20b. An. coustani s.l. - Unfed',
+  AN_COUSTANI_GRAVID: 'MAL 001-ER20c. An. coustani s.l. - Gravid',
+  AN_COUSTANI_HALF_GRAVID: 'MAL 001-ER20d. An. coustani s.l. - Half gravid',
+  AN_COUSTANI_NULLIPAROUS: 'MAL 001-ER20e. An. coustani s.l. - Nulliparous(NP)',
+  AN_COUSTANI_PAROUS: 'MAL 001-ER20f. An. coustani s.l. - Parous(P)',
 
   // Other Anopheles
   AN_OTHER_ANY: 'MAL 001-ER21. Other Anopheles',
@@ -68,6 +88,8 @@ export const DHIS2_DATA_ELEMENT_NAMES = {
   AN_OTHER_UNFED: 'MAL 001-ER21b. Other Anopheles - Unfed',
   AN_OTHER_GRAVID: 'MAL 001-ER21c. Other Anopheles - Gravid',
   AN_OTHER_HALF_GRAVID: 'MAL 001-ER21d. Other Anopheles - Half gravid',
+  AN_OTHER_NULLIPAROUS: 'MAL 001-ER21e. Other Anopheles - Nulliparous(NP)',
+  AN_OTHER_PAROUS: 'MAL 001-ER21f. Other Anopheles - Parous(P)',
 
   // Male Anopheles
   MALE_ANOPHELES: 'MAL 001-ER25. Male Anopheles',
@@ -102,6 +124,13 @@ class DHIS2MappingService {
 
     // Map session data
     this.mapSessionData(session, dataValues, dataElementMap);
+
+    // Always add site sprayed field (required by DHIS2), defaults to false
+    let siteSprayedInPast12Months = false;
+    if (surveillanceForm && surveillanceForm.wasIrsConducted !== null && surveillanceForm.monthsSinceIrs !== null) {
+      siteSprayedInPast12Months = surveillanceForm.wasIrsConducted && surveillanceForm.monthsSinceIrs <= 12;
+    }
+    this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.SITE_SPRAYED_IN_PAST_12_MONTHS, siteSprayedInPast12Months, dataElementMap);
 
     // Map surveillance form data
     if (surveillanceForm) {
@@ -157,10 +186,39 @@ class DHIS2MappingService {
       this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.COLLECTOR_NAME, session.collectorName, dataElementMap);
     }
 
-    // Collection method
+    // Collection method - map to option code
     if (session.collectionMethod) {
-      this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.COLLECTION_METHOD, session.collectionMethod, dataElementMap);
+      const collectionMethodCode = this.mapCollectionMethodToCode(session.collectionMethod);
+      if (collectionMethodCode) {
+        this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.COLLECTION_METHOD, collectionMethodCode, dataElementMap);
+      }
     }
+  }
+
+  /**
+   * Map collection method display text to DHIS2 option code
+   */
+  private mapCollectionMethodToCode(collectionMethod: string): string | null {
+    const method = collectionMethod.toLowerCase().trim();
+    
+    // Extract code from parentheses if present (e.g., "Human Landing Catch (HLC)" -> "HLC")
+    const codeMatch = method.match(/\(([^)]+)\)/);
+    if (codeMatch) {
+      return codeMatch[1].toUpperCase();
+    }
+    
+    // Direct mapping for common values
+    const methodMap: { [key: string]: string } = {
+      'hlc': 'HLC',
+      'human landing catch': 'HLC',
+      'psc': 'PSC',
+      'pyrethrum spray catch': 'PSC',
+      'ltc': 'LTC',
+      'light trap catch': 'LTC',
+      'cdc light trap': 'LTC',
+    };
+    
+    return methodMap[method] || null;
   }
 
   /**
@@ -171,6 +229,8 @@ class DHIS2MappingService {
     dataValues: EventDataValue[],
     dataElementMap: Map<string, string>
   ): void {
+    // Note: Site sprayed field is handled in mapToDataValues() to ensure it's always present
+    
     // Number of people who slept in the house
     if (surveillanceForm.numPeopleSleptInHouse !== null) {
       this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.NUM_PEOPLE_SLEPT, surveillanceForm.numPeopleSleptInHouse, dataElementMap);
@@ -270,6 +330,10 @@ class DHIS2MappingService {
         'yahe': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_YAHE,
         'safenet': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_SAFENET,
         'yorkool': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_YORKOOL,
+        'panda net': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_PANDA_NET,
+        'tsara boost': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_TSARA_BOOST,
+        'tsara soft': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_TSARA_SOFT,
+        'tsara plus': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_TSARA_PLUS,
         'other': DHIS2_DATA_ELEMENT_NAMES.LLIN_BRAND_OTHER,
       };
 
