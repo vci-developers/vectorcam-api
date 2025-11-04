@@ -1,108 +1,141 @@
+/**
+ * Seeding Script for VectorCam API
+ * 
+ * This script seeds the database with realistic test data for the last 3 months.
+ * 
+ * Features:
+ * - Downloads 10 real mosquito images from the internet and uploads them to S3
+ * - Uses the uploaded images repeatedly for all specimens
+ * - Fetches real data from DHIS2 (districts, villages, health centers, house numbers) using native HTTPS
+ * - Creates 3 districts with 3 villages each and 1-4 houses per village
+ * - Generates sessions for the most recent 3 months
+ * - All sessions are SURVEILLANCE type with surveillance forms
+ * - Creates one surveillance form per session with random realistic data (IRS, LLIN info, household data)
+ * - Creates 3 sites with multiple sessions (2-5 sessions) to test duplicate submission handling
+ * - Of those 3 sites: 1 has matching values (no conflicts), 2 have conflicting values
+ * - Each session has 5-15 specimens (with a couple having 0 specimens)
+ * - Specimen IDs follow format: ABC123 (3 letters + 3 numbers)
+ * - Valid species/sex/abdomen combinations:
+ *   - Non mosquito: no sex or abdomen status
+ *   - Male: no abdomen status
+ *   - Female: has abdomen status
+ * - Deletes ALL existing program data before seeding (programs, sites, sessions, specimens, etc.)
+ * - Preserves users but removes their site associations
+ * 
+ * Requirements:
+ * - Network access to download images
+ * - AWS S3 credentials configured for uploading images
+ * 
+ * Run with: npm run db:seed:specimens or npx ts-node scripts/seed-specimens.ts
+ */
+
 import { Sequelize } from 'sequelize';
 import * as crypto from 'crypto';
 import { readFileSync } from 'fs';
 import * as path from 'path';
+import * as https from 'https';
+import * as http from 'http';
 
 // Import database and models
 import sequelize from '../src/db/index';
-import { Program, Site, Device, Session, Specimen, SpecimenImage, InferenceResult } from '../src/db/models';
+import { Program, Site, Device, Session, Specimen, SpecimenImage, InferenceResult, SurveillanceForm } from '../src/db/models';
+import { dhis2Service, TrackedEntityInstance } from '../src/services/dhis2.service';
+import { config } from '../src/config/environment';
+import { uploadFile } from '../src/services/s3.service';
 
-// Constants for seeding
-const SITES_PER_PROGRAM = 10;
-const SESSIONS_PER_SITE = 10;
-const SPECIMENS_PER_SESSION = 20;
-
-// Sample data arrays
-const DISTRICTS = [
-  'Kampala', 'Wakiso', 'Mukono', 'Jinja', 'Mbale', 
-  'Gulu', 'Lira', 'Mbarara', 'Kasese', 'Fort Portal'
-];
-
-const SUB_COUNTIES = [
-  'Central', 'Eastern', 'Western', 'Northern', 'Southern',
-  'Kawempe', 'Nakawa', 'Makindye', 'Rubaga', 'Kitante'
-];
-
-const PARISHES = [
-  'Makerere', 'Mulago', 'Wandegeya', 'Kikoni', 'Kawempe',
-  'Ntinda', 'Kamwokya', 'Bukoto', 'Kololo', 'Nakasero'
-];
-
-const VILLAGE_NAMES = [
-  'Kyebando', 'Bwaise', 'Kazo', 'Kisaasi', 'Kiwatule',
-  'Najjera', 'Kira', 'Namugongo', 'Kyanja', 'Kiira'
-];
-
-const HEALTH_CENTERS = [
-  'Mulago Health Center', 'Kawempe Health Center', 'Kiruddu Health Center',
-  'Naguru Health Center', 'Nsambya Health Center', 'Mengo Health Center',
-  'Rubaga Health Center', 'Kitante Health Center', 'Nakasero Health Center',
-  'Kololo Health Center'
-];
-
-const COLLECTOR_NAMES = [
-  'Dr. Sarah Nakato', 'Dr. John Mugisha', 'Dr. Mary Nambi', 'Dr. Peter Okello',
-  'Dr. Grace Atim', 'Dr. David Ssemakula', 'Dr. Ruth Nalwoga', 'Dr. Moses Kiprotich',
-  'Dr. Jane Akello', 'Dr. Samuel Byaruhanga'
+// Sample data arrays for fallback
+const COLLECTOR_TITLES = [
+  'Village Health Team (VHT)',
+  'Vector Control Officer (VCO)',
+  'Field Operations Team (FOT)'
 ];
 
 const COLLECTION_METHODS = [
-  'Manual Collection', 'Trap Collection', 'Net Collection', 'Aspiration Method',
-  'Light Trap', 'CDC Trap', 'Gravid Trap', 'BG-Sentinel Trap'
+  'Pyrethrum Spray Catch (PSC)',
+  'CDC Light Trap (LTC)',
+  'Human Landing Catch (HLC)'
 ];
 
 const SPECIMEN_CONDITIONS = [
-  'Excellent', 'Good', 'Fair', 'Poor', 'Damaged'
+  'Fresh',
+  'Dessicated'
 ];
 
 // Valid session types based on database constraint
 const SESSION_TYPES = ['SURVEILLANCE', 'DATA_COLLECTION'];
 
 const SPECIES_OPTIONS = [
-  'Anopheles gambiae', 'Anopheles arabiensis', 'Anopheles funestus',
-  'Aedes aegypti', 'Aedes albopictus', 'Culex quinquefasciatus',
-  'Culex pipiens', 'Mansonia uniformis'
+  'Anopheles gambiae',
+  'Anopheles funestus',
+  'Anopheles other',
+  'Culex',
+  'Aedes',
+  'Mansonia',
+  'Non mosquito'
 ];
 
-const SEX_OPTIONS = ['Male', 'Female', 'Unknown'];
-const ABDOMEN_STATUS_OPTIONS = ['Unfed', 'Blood-fed', 'Semi-gravid', 'Gravid', 'Unknown'];
+const SEX_OPTIONS = ['Male', 'Female'];
+const ABDOMEN_STATUS_OPTIONS = ['Unfed', 'Full fed', 'Gravid'];
 
-// Helper function to generate random date within the past year distributed by month
-function generateRandomDateInPastYear(monthIndex: number): Date {
-  const now = new Date();
-  const startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
-  const targetMonth = (startDate.getMonth() + monthIndex) % 12;
-  const targetYear = startDate.getFullYear() + Math.floor((startDate.getMonth() + monthIndex) / 12);
-  
-  const monthStart = new Date(targetYear, targetMonth, 1);
-  const monthEnd = new Date(targetYear, targetMonth + 1, 0);
+// Surveillance form data options - fixed values
+const LLIN_TYPE = 'Pyrethroid + PBO';
+const LLIN_BRAND = 'OLYSET';
+
+// Mosquito image URLs (public domain/free use images)
+const MOSQUITO_IMAGE_URLS = [
+  'https://media.istockphoto.com/id/1317059852/photo/aedes-mosquitoe-is-sucking-blood-on-human-skin.jpg?s=612x612&w=0&k=20&c=FJoItD-SqroiLNBfnKfGD7kjOssT5P9JsYBt7vJSkTM=',  // Mosquito close-up
+  'https://media.istockphoto.com/id/157316301/photo/black-and-white-spotted-mosquito-on-the-surface-of-liquid.jpg?s=612x612&w=0&k=20&c=fJabkWe9ATk9pOdIembWrsp2qgAKzFBY7c_NtdGIRsY=',  // Mosquito on surface
+  'https://media.istockphoto.com/id/157292773/photo/close-up-of-mosquito-on-human-skin.jpg?s=612x612&w=0&k=20&c=4fETZp5eJxVq1ngiRDIXwI_Sl0RrBrQfRjWEX2Pm1sQ=',  // Mosquito macro
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/Aedes_aegypti.jpg/1200px-Aedes_aegypti.jpg',  // Mosquito detailed
+  'https://collections.museumsvictoria.com.au/content/media/13/347863-small.jpg',  // Mosquito specimen
+  'https://static.vecteezy.com/system/resources/previews/069/910/316/non_2x/close-up-extreme-macro-view-of-a-mosquito-with-blood-filled-abdomen-resting-on-fabric-free-photo.jpg',  // Mosquito macro view
+  'https://entomologytoday.org/wp-content/uploads/2019/04/Aedes-aegypti-mosquito-closeup.jpg',  // Mosquito close
+  'https://thumbs.dreamstime.com/b/mosquito-side-view-resting-leaf-46532956.jpg',  // Mosquito side view
+  'https://research.uga.edu/news/wp-content/uploads/sites/19/2022/03/Aedes-aegypti-female-1568x905.jpg',  // Mosquito detailed macro
+  'https://ccp.jhu.edu/wp-content/uploads/2021/03/13998232165_bbd57bf8fb_c.jpg'   // Mosquito alternate
+];
+
+interface SiteConfig {
+  district: string;
+  villageName: string;
+  houseNumber: string;
+  healthCenter: string;
+  subCounty?: string;
+  parish?: string;
+  orgUnit?: string;
+  sessionsCount: number; // Number of sessions for this site
+  hasConflict: boolean; // Whether sessions should have conflicting values
+}
+
+interface UploadedImage {
+  imageKey: string;
+  md5: string;
+  buffer: Buffer;
+}
+
+// Helper function to generate random date within a specific month
+function generateRandomDateInMonth(year: number, month: number): Date {
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
   
   const randomTime = monthStart.getTime() + Math.random() * (monthEnd.getTime() - monthStart.getTime());
   return new Date(randomTime);
 }
 
-// Helper function to generate session dates distributed across past year
-function generateSessionDatesDistributed(totalSessions: number): Date[] {
-  const dates: Date[] = [];
-  const sessionsPerMonth = Math.ceil(totalSessions / 12);
+// Helper function to get the last 3 months (year, month pairs)
+function getLastThreeMonths(): Array<{year: number, month: number}> {
+  const months: Array<{year: number, month: number}> = [];
+  const now = new Date();
   
-  for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
-    const sessionsThisMonth = Math.min(sessionsPerMonth, totalSessions - dates.length);
-    
-    for (let i = 0; i < sessionsThisMonth; i++) {
-      dates.push(generateRandomDateInPastYear(monthIndex));
-    }
-    
-    if (dates.length >= totalSessions) break;
+  for (let i = 0; i < 3; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      year: date.getFullYear(),
+      month: date.getMonth()
+    });
   }
   
-  // Shuffle the dates to randomize which sessions get which dates
-  for (let i = dates.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [dates[i], dates[j]] = [dates[j], dates[i]];
-  }
-  
-  return dates.slice(0, totalSessions);
+  return months;
 }
 
 // Helper function to generate random number within range
@@ -120,66 +153,200 @@ function getRandomItem<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)];
 }
 
-// Generate a unique fake image as base64 (small PNG with different colors/patterns)
-function generateUniqueImageData(specimenId: string, imageIndex: number): { data: string; md5: string; imageKey: string } {
-  // Create a deterministic but unique hash for this specific specimen and image
-  const hash = crypto.createHash('md5').update(`${specimenId}_${imageIndex}`).digest('hex');
+// Helper function to make HTTPS requests (replacement for fetch)
+function httpsRequest(url: string, authHeader: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || 443,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(data));
+          } catch (error) {
+            reject(new Error(`Failed to parse JSON response: ${error}`));
+          }
+        } else {
+          reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    req.end();
+  });
+}
+
+// Helper function to download image from URL
+function downloadImage(url: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const protocol = urlObj.protocol === 'https:' ? https : http;
+    
+    const options = {
+      hostname: urlObj.hostname,
+      port: urlObj.port,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'VectorCam-Seeder/1.0',
+      },
+    };
+
+    protocol.get(options, (res) => {
+      // Handle redirects
+      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+        if (res.headers.location) {
+          downloadImage(res.headers.location).then(resolve).catch(reject);
+          return;
+        }
+      }
+
+      if (res.statusCode !== 200) {
+        reject(new Error(`Failed to download image: HTTP ${res.statusCode}`));
+        return;
+      }
+
+      const chunks: Buffer[] = [];
+      
+      res.on('data', (chunk) => {
+        chunks.push(Buffer.from(chunk));
+      });
+
+      res.on('end', () => {
+        resolve(Buffer.concat(chunks));
+      });
+
+      res.on('error', (error) => {
+        reject(error);
+      });
+    }).on('error', (error) => {
+      reject(error);
+    });
+  });
+}
+
+// Helper function to download and upload mosquito images to S3
+async function downloadAndUploadMosquitoImages(): Promise<UploadedImage[]> {
+  console.log('Downloading and uploading mosquito images to S3...');
+  const uploadedImages: UploadedImage[] = [];
+
+  for (let i = 0; i < MOSQUITO_IMAGE_URLS.length; i++) {
+    try {
+      console.log(`  Downloading image ${i + 1}/${MOSQUITO_IMAGE_URLS.length}...`);
+      const imageBuffer = await downloadImage(MOSQUITO_IMAGE_URLS[i]);
+      
+      // Generate MD5 hash
+      const md5 = crypto.createHash('md5').update(imageBuffer).digest('hex');
+      
+      // Generate S3 key
+      const timestamp = Date.now();
+      const imageKey = `specimens/seed_mosquito_${i + 1}_${timestamp}.jpg`;
+      
+      // Upload to S3
+      console.log(`  Uploading image ${i + 1} to S3...`);
+      await uploadFile(imageKey, imageBuffer, 'image/jpeg');
+      
+      uploadedImages.push({
+        imageKey,
+        md5,
+        buffer: imageBuffer
+      });
+      
+      console.log(`  ✅ Image ${i + 1} uploaded successfully`);
+    } catch (error) {
+      console.error(`  ⚠️  Failed to download/upload image ${i + 1}:`, error);
+      // Continue with other images even if one fails
+    }
+  }
+
+  if (uploadedImages.length === 0) {
+    throw new Error('Failed to download and upload any mosquito images');
+  }
+
+  console.log(`✅ Successfully uploaded ${uploadedImages.length} mosquito images to S3`);
+  return uploadedImages;
+}
+
+// Helper function to generate specimen ID (3 letters + 3 numbers)
+function generateSpecimenId(index: number): string {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const letter1 = letters[Math.floor(Math.random() * letters.length)];
+  const letter2 = letters[Math.floor(Math.random() * letters.length)];
+  const letter3 = letters[Math.floor(Math.random() * letters.length)];
+  const numbers = String(index % 1000).padStart(3, '0');
+  return `${letter1}${letter2}${letter3}${numbers}`;
+}
+
+// Helper function to get valid sex/abdomen combinations for species
+function getValidSpecimenAttributes(species: string): { sex: string | null, abdomenStatus: string | null } {
+  // Non mosquito: no sex or abdomen status
+  if (species === 'Non mosquito') {
+    return { sex: null, abdomenStatus: null };
+  }
   
-  // Create a unique image identifier for the S3 key
-  const imageId = `${specimenId.replace(/[^a-zA-Z0-9]/g, '_')}_${imageIndex}`;
-  const hashPrefix = hash.substring(0, 8);
+  // Male: no abdomen status
+  if (Math.random() < 0.5) {
+    return { sex: 'Male', abdomenStatus: null };
+  }
   
-  // Different base64 PNG patterns representing different "specimen images"
-  // These are all small, valid 4x4 pixel PNG images with different patterns
-  const imagePatterns = [
-    // Red-ish pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWP8//8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Green-ish pattern 
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWP4/x8FA3YwirkTAAAAAElFTkSuQmCC',
-    // Blue-ish pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY+O8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Purple-ish pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWPY9+8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Orange-ish pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWPY/+8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Yellow-ish pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY/O8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Cyan-ish pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWPY8e8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Magenta-ish pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWPY9e8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Dark pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWPY/O8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Light pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWPY8+8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Mixed pattern 1
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY+u8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Mixed pattern 2
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY9u8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Gradient pattern 1
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY/e8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Gradient pattern 2
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY9e8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Spotted pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY8u8/AzYwirkTAAAAAElFTkSuQmCC',
-    // Striped pattern
-    'iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAABklEQVQIHWNY8O8/AzYwirkTAAAAAElFTkSuQmCC'
-  ];
+  // Female: has abdomen status
+  return {
+    sex: 'Female',
+    abdomenStatus: getRandomItem(ABDOMEN_STATUS_OPTIONS)
+  };
+}
+
+// Helper function to generate random surveillance form data
+function generateSurveillanceFormData() {
+  const numPeopleSleptInHouse = randomIntBetween(1, 10);
+  const wasIrsConducted = Math.random() < 0.4; // 40% chance IRS was conducted
+  const numLlinsAvailable = randomIntBetween(0, 6);
   
-  // Select pattern based on hash to ensure each specimen gets a unique but deterministic image
-  const patternIndex = parseInt(hash.substring(12, 14), 16) % imagePatterns.length;
-  const pngData = imagePatterns[patternIndex];
+  // Validation rules:
+  // 1. If wasIrsConducted is true, monthsSinceIrs MUST be present and be a number
+  // 2. If numLlinsAvailable > 0, llinBrand, llinType, and numPeopleSleptUnderLlin are REQUIRED
   
-  // Create unique MD5 by combining the selected pattern with specimen-specific data
-  // This ensures each specimen has a truly unique image hash
-  const uniqueData = `${pngData}_${specimenId}_${imageIndex}_${hash}`;
-  const md5 = crypto.createHash('md5').update(uniqueData).digest('hex');
-  
-  // Generate realistic S3 key structure
-  const timestamp = Date.now() + parseInt(hash.substring(0, 4), 16); // Add hash-based offset for uniqueness
-  const imageKey = `specimens/${imageId}/thumbnail_${timestamp}_${hashPrefix}.png`;
-  
-  return { data: pngData, md5, imageKey };
+  return {
+    numPeopleSleptInHouse,
+    wasIrsConducted,
+    // If IRS was conducted, monthsSinceIrs is REQUIRED (1-24 months)
+    monthsSinceIrs: wasIrsConducted ? randomIntBetween(1, 24) : null,
+    numLlinsAvailable,
+    // If nets are available, type and brand are REQUIRED (always use fixed values)
+    llinType: numLlinsAvailable > 0 ? LLIN_TYPE : null,
+    llinBrand: numLlinsAvailable > 0 ? LLIN_BRAND : null,
+    // If nets are available, numPeopleSleptUnderLlin is REQUIRED (at least 1, up to number of people)
+    numPeopleSleptUnderLlin: numLlinsAvailable > 0 ? randomIntBetween(1, numPeopleSleptInHouse) : null
+  };
+}
+
+// Helper function to get image data from uploaded images array
+function getImageDataFromUploaded(uploadedImages: UploadedImage[], index: number): { imageKey: string; md5: string } {
+  const imageIndex = index % uploadedImages.length;
+  return {
+    imageKey: uploadedImages[imageIndex].imageKey,
+    md5: uploadedImages[imageIndex].md5
+  };
 }
 
 // Generate inference result logits (fake JSON data)
@@ -188,50 +355,218 @@ function generateLogits(): string {
   return JSON.stringify(logits);
 }
 
+// Function to fetch DHIS2 organization units and TEIs to get real site data
+async function fetchDHIS2SiteData(): Promise<SiteConfig[]> {
+  console.log('Fetching DHIS2 data for site configurations...');
+  
+  const siteConfigs: SiteConfig[] = [];
+  const authHeader = `Basic ${Buffer.from(`${config.dhis2.username}:${config.dhis2.password}`).toString('base64')}`;
+  
+  // Use specific 5 health centers for seeding
+  const targetOrgUnits = [
+    { name: 'Bukatube Health Centre III', id: 'Rx8u7WLhn7R' },
+    { name: 'Malongo Health Centre III', id: 'ao6V9sOp2DA' },
+    { name: 'Ofua (Ofua) Health Centre III', id: 'BSrrPPLiBZo' },
+    { name: 'Dzaipi Health Centre III', id: 'Krxa01FAxdW' },
+    { name: 'Koboko Mission Health Centre III', id: 'aXGjPN0urzK' }
+  ];
+  
+  try {
+    console.log(`Using ${targetOrgUnits.length} target health centers for seeding`);
+    console.log(`Target: 4 sites per health center = 20 total sites\n`);
+
+    // For each health center, fetch its details and TEIs
+    for (const targetOrgUnit of targetOrgUnits) {
+      try {
+        console.log(`Fetching data for ${targetOrgUnit.name}...`);
+        
+        // Fetch the organization unit details with parent hierarchy
+        const orgUnitData = await httpsRequest(
+          `${config.dhis2.baseUrl}/api/organisationUnits/${targetOrgUnit.id}.json?fields=id,name,displayName,parent[id,name,displayName,parent[id,name,displayName,parent[id,name,displayName]]]`,
+          authHeader
+        ) as any;
+        
+        const orgUnit = orgUnitData;
+        
+        // Extract hierarchy information
+        const healthCenter = orgUnit.displayName || orgUnit.name;
+        const parish = orgUnit.parent?.displayName || orgUnit.parent?.name || 'Unknown Parish';
+        const subCounty = orgUnit.parent?.parent?.displayName || orgUnit.parent?.parent?.name || 'Unknown Sub County';
+        const rawDistrict = orgUnit.parent?.parent?.parent?.displayName || orgUnit.parent?.parent?.parent?.name || 'Unknown District';
+        // Trim "District" suffix (case insensitive)
+        const district = rawDistrict.replace(/\s+District$/i, '').trim();
+        const village = orgUnit.parent?.displayName || orgUnit.parent?.name || orgUnit.displayName || orgUnit.name;
+        
+        console.log(`  Health Center: ${healthCenter}`);
+        console.log(`  District: ${district}, Sub County: ${subCounty}, Parish: ${parish}`);
+        
+        // Fetch TEIs for this org unit
+        const teiData = await httpsRequest(
+          `${config.dhis2.baseUrl}/api/trackedEntityInstances.json?ou=${targetOrgUnit.id}&program=${config.dhis2.programId}&fields=trackedEntityInstance,attributes[attribute,value,displayName,code]&paging=false`,
+          authHeader
+        ) as any;
+        
+        const teis = teiData.trackedEntityInstances || [];
+        console.log(`  Found ${teis.length} TEIs`);
+        
+        // Create exactly 4 sites per health center
+        const housesToCreate = 4;
+        
+        for (let i = 0; i < housesToCreate; i++) {
+          const tei = teis[i]; // Will be undefined if not enough TEIs
+          let houseNumber = `H${randomIntBetween(100, 999)}`;
+          
+          // Try to get house number from TEI attributes if TEI exists
+          if (tei && tei.attributes) {
+            const houseNumberAttr = tei.attributes.find((attr: any) => 
+              (attr.code && attr.code === 'MAL 001-ER05') ||
+              (attr.displayName && attr.displayName.includes('MAL 001-ER05. House Number'))
+            );
+            if (houseNumberAttr && houseNumberAttr.value) {
+              houseNumber = houseNumberAttr.value;
+            }
+          }
+          
+          // Determine session count and conflict status
+          // First 3 sites get multiple sessions (2-5), others get 1 session
+          const sessionsCount = siteConfigs.length < 3 ? randomIntBetween(2, 5) : 1;
+          const hasConflict = siteConfigs.length === 1 || siteConfigs.length === 2;
+          
+          siteConfigs.push({
+            district: district,
+            villageName: village,
+            houseNumber: houseNumber,
+            healthCenter: healthCenter,
+            subCounty: subCounty,
+            parish: parish,
+            orgUnit: targetOrgUnit.id,
+            sessionsCount: sessionsCount,
+            hasConflict: hasConflict
+          });
+        }
+        
+        console.log(`  ✅ Created 4 sites from ${healthCenter} (${siteConfigs.length}/20 total)\n`);
+        
+      } catch (error) {
+        console.log(`⚠️  Error fetching data for ${targetOrgUnit.name}:`, error);
+      }
+    }
+
+    console.log(`✅ Generated ${siteConfigs.length} site configurations from DHIS2 data`);
+    return siteConfigs;
+    
+  } catch (error) {
+    console.log('⚠️  Error fetching DHIS2 data, using fallback data:', error);
+    
+    // Fallback: generate site configs without DHIS2 data
+    const fallbackDistricts = ['Kampala', 'Wakiso', 'Mukono'];
+    const fallbackVillages = ['Kyebando', 'Bwaise', 'Kazo'];
+    const fallbackHealthCenters = ['Mulago HC', 'Kawempe HC', 'Kiruddu HC'];
+    
+    let configIndex = 0;
+    for (let d = 0; d < 3; d++) {
+      for (let v = 0; v < 3; v++) {
+        const housesToCreate = randomIntBetween(1, 4);
+        for (let h = 0; h < housesToCreate; h++) {
+          const sessionsCount = configIndex < 3 ? randomIntBetween(2, 5) : 1;
+          const hasConflict = configIndex === 1 || configIndex === 2;
+          
+          siteConfigs.push({
+            district: fallbackDistricts[d],
+            villageName: fallbackVillages[v],
+            houseNumber: `H${randomIntBetween(100, 999)}`,
+            healthCenter: fallbackHealthCenters[d],
+            subCounty: `Sub County ${d + 1}`,
+            parish: `Parish ${v + 1}`,
+            sessionsCount: sessionsCount,
+            hasConflict: hasConflict
+          });
+          configIndex++;
+        }
+      }
+    }
+    
+    console.log(`✅ Generated ${siteConfigs.length} site configurations from fallback data`);
+    return siteConfigs;
+  }
+}
+
 // Function to clean up existing seeded data
 async function cleanupExistingData(transaction: any) {
-  console.log('Cleaning up existing seeded data...');
+  console.log('Cleaning up ALL existing program data...');
   
   try {
     // Delete in reverse order of dependencies to avoid foreign key constraints
-    await sequelize.query('DELETE FROM inference_results WHERE specimen_image_id IN (SELECT id FROM specimen_images WHERE specimen_id IN (SELECT id FROM specimens WHERE session_id IN (SELECT id FROM sessions WHERE device_id IN (SELECT id FROM devices WHERE program_id IN (SELECT id FROM programs WHERE name = ?)))))', {
-      replacements: ['Uganda Vector Surveillance Program'],
+    // This will delete ALL programs and their associated data, not just the seeded program
+    
+    // Delete annotations first (depends on specimens) - MUST be before specimens
+    await sequelize.query('DELETE FROM annotations', {
       transaction
     });
     
-    await sequelize.query('DELETE FROM specimen_images WHERE specimen_id IN (SELECT id FROM specimens WHERE session_id IN (SELECT id FROM sessions WHERE device_id IN (SELECT id FROM devices WHERE program_id IN (SELECT id FROM programs WHERE name = ?))))', {
-      replacements: ['Uganda Vector Surveillance Program'],
+    // Delete annotation tasks (after annotations are deleted)
+    await sequelize.query('DELETE FROM annotation_tasks', {
       transaction
     });
     
-    await sequelize.query('DELETE FROM specimens WHERE session_id IN (SELECT id FROM sessions WHERE device_id IN (SELECT id FROM devices WHERE program_id IN (SELECT id FROM programs WHERE name = ?)))', {
-      replacements: ['Uganda Vector Surveillance Program'],
+    // Delete inference results (depends on specimen images)
+    await sequelize.query('DELETE FROM inference_results', {
       transaction
     });
     
-    await sequelize.query('DELETE FROM sessions WHERE device_id IN (SELECT id FROM devices WHERE program_id IN (SELECT id FROM programs WHERE name = ?))', {
-      replacements: ['Uganda Vector Surveillance Program'],
+    // Delete specimen images (depends on specimens)
+    await sequelize.query('DELETE FROM specimen_images', {
       transaction
     });
     
-    await sequelize.query('DELETE FROM sites WHERE program_id IN (SELECT id FROM programs WHERE name = ?)', {
-      replacements: ['Uganda Vector Surveillance Program'],
+    // Delete multipart uploads (depends on specimens) - MUST be before specimens
+    await sequelize.query('DELETE FROM multipart_uploads', {
       transaction
     });
     
-    await sequelize.query('DELETE FROM devices WHERE program_id IN (SELECT id FROM programs WHERE name = ?)', {
-      replacements: ['Uganda Vector Surveillance Program'],
+    // Delete specimens (depends on sessions)
+    await sequelize.query('DELETE FROM specimens', {
       transaction
     });
     
-    await sequelize.query('DELETE FROM programs WHERE name = ?', {
-      replacements: ['Uganda Vector Surveillance Program'],
+    // Delete surveillance forms (depends on sessions)
+    await sequelize.query('DELETE FROM surveillanceforms', {
       transaction
     });
     
-    console.log('✅ Existing seeded data cleaned up successfully');
+    // Delete sessions (depends on sites and devices)
+    await sequelize.query('DELETE FROM sessions', {
+      transaction
+    });
+    
+    // Delete DHIS2 sync events (depends on sites)
+    await sequelize.query('DELETE FROM dhis2_sync_events', {
+      transaction
+    });
+    
+    // Delete site-user associations (must be deleted before sites)
+    await sequelize.query('DELETE FROM site_users', {
+      transaction
+    });
+    
+    // Delete sites (depends on programs)
+    await sequelize.query('DELETE FROM sites', {
+      transaction
+    });
+    
+    // Delete devices (depends on programs)
+    await sequelize.query('DELETE FROM devices', {
+      transaction
+    });
+    
+    // Delete programs
+    await sequelize.query('DELETE FROM programs', {
+      transaction
+    });
+    
+    console.log('✅ All existing program data cleaned up successfully (users preserved)');
   } catch (error) {
-    console.log('ℹ️  No existing seeded data found or cleanup not needed');
+    console.log('ℹ️  No existing data found or cleanup not needed:', error);
   }
 }
 
@@ -243,6 +578,17 @@ async function seedSpecimens() {
     await sequelize.authenticate();
     console.log('Database connection established.');
 
+    // Download and upload mosquito images to S3 first
+    const uploadedImages = await downloadAndUploadMosquitoImages();
+    console.log(`Using ${uploadedImages.length} real mosquito images for seeding`);
+
+    // Fetch DHIS2 site data (with fallback)
+    const siteConfigs = await fetchDHIS2SiteData();
+    
+    // Get last 3 months
+    const months = getLastThreeMonths();
+    console.log(`Seeding data for ${months.length} months:`, months.map(m => `${m.year}-${m.month + 1}`).join(', '));
+
     // Start transaction
     const transaction = await sequelize.transaction();
 
@@ -253,7 +599,7 @@ async function seedSpecimens() {
       // Create 1 Program
       console.log('Creating program...');
       const program = await Program.create({
-        name: 'Uganda Vector Surveillance Program',
+        name: 'National Malaria Elimination Division',
         country: 'Uganda'
       }, { transaction });
       console.log(`Created program: ${program.name} (ID: ${program.id})`);
@@ -267,119 +613,173 @@ async function seedSpecimens() {
       }, { transaction });
       console.log(`Created device: ${device.model} (ID: ${device.id})`);
 
-      // Create 10 Sites
-      console.log('Creating sites...');
-      const sites: Site[] = [];
-      for (let siteIndex = 0; siteIndex < SITES_PER_PROGRAM; siteIndex++) {
+      // Create Sites from configurations
+      console.log(`Creating ${siteConfigs.length} sites from DHIS2 data...`);
+      const sites: Array<{ site: Site, config: SiteConfig }> = [];
+      
+      for (let i = 0; i < siteConfigs.length; i++) {
+        const siteConfig = siteConfigs[i];
         const site = await Site.create({
           programId: program.id,
-          district: getRandomItem(DISTRICTS),
-          subCounty: getRandomItem(SUB_COUNTIES),
-          parish: getRandomItem(PARISHES),
-          villageName: getRandomItem(VILLAGE_NAMES),
-          houseNumber: `H${siteIndex + 1}${randomIntBetween(10, 99)}`,
+          district: siteConfig.district,
+          subCounty: siteConfig.subCounty || null,
+          parish: siteConfig.parish || null,
+          villageName: siteConfig.villageName,
+          houseNumber: siteConfig.houseNumber,
           isActive: true,
-          healthCenter: getRandomItem(HEALTH_CENTERS)
+          healthCenter: siteConfig.healthCenter
         }, { transaction });
-        sites.push(site);
-        console.log(`Created site ${siteIndex + 1}/10: ${site.district} - ${site.villageName} (ID: ${site.id})`);
+        sites.push({ site, config: siteConfig });
+        console.log(`Created site ${i + 1}/${siteConfigs.length}: ${site.district} - ${site.villageName} - ${site.houseNumber} (Sessions: ${siteConfig.sessionsCount}, Conflict: ${siteConfig.hasConflict})`);
       }
 
       // Create Sessions, Specimens, and Images
-      console.log('Creating sessions, specimens, and images...');
+      console.log('Creating sessions, surveillance forms, specimens, and images...');
+      let totalSessions = 0;
+      let totalSurveillanceForms = 0;
       let totalSpecimens = 0;
       let totalImages = 0;
       let totalInferenceResults = 0;
+      let specimenIdCounter = 1;
 
-      // Generate collection dates distributed across the past year
-      const totalSessions = SITES_PER_PROGRAM * SESSIONS_PER_SITE;
-      const sessionDates = generateSessionDatesDistributed(totalSessions);
-      let sessionDateIndex = 0;
-
-      for (const site of sites) {
-        // Create 10 Sessions per Site
-        for (let sessionIndex = 0; sessionIndex < SESSIONS_PER_SITE; sessionIndex++) {
-          const sessionCollectionDate = sessionDates[sessionDateIndex++];
-          const session = await Session.create({
-            frontendId: `session_${site.id}_${sessionIndex + 1}_${Date.now()}`,
-            collectorTitle: 'Dr.',
-            collectorName: getRandomItem(COLLECTOR_NAMES),
-            collectionDate: sessionCollectionDate,
-            collectionMethod: getRandomItem(COLLECTION_METHODS),
-            specimenCondition: getRandomItem(SPECIMEN_CONDITIONS),
-            submittedAt: sessionCollectionDate,
-            notes: `Collection session ${sessionIndex + 1} at ${site.villageName}`,
-            siteId: site.id,
-            deviceId: device.id,
-            latitude: randomBetween(-1.5, 4.5), // Uganda latitude range
-            longitude: randomBetween(29.5, 35.0), // Uganda longitude range
-            type: getRandomItem(SESSION_TYPES),
-            createdAt: sessionCollectionDate,
-            updatedAt: sessionCollectionDate
-          }, { transaction });
-
-          // Create 20 Specimens per Session
-          for (let specimenIndex = 0; specimenIndex < SPECIMENS_PER_SESSION; specimenIndex++) {
-            // Use the session's collection date for specimen timestamps
-            // Add a small random offset (0-6 hours) to simulate collection throughout the day
-            const specimenTimestamp = new Date(sessionCollectionDate.getTime() + Math.random() * 6 * 60 * 60 * 1000);
-
-            const specimen = await Specimen.create({
-              specimenId: `SPEC_${site.id}_${session.id}_${specimenIndex + 1}`,
-              sessionId: session.id,
-              createdAt: specimenTimestamp,
-              updatedAt: specimenTimestamp
-            }, { transaction });
-
-            totalSpecimens++;
-
-            // Generate unique fake image data for this specimen
-            const imageData = generateUniqueImageData(specimen.specimenId, 0);
+      // For each month
+      for (const monthData of months) {
+        console.log(`\n--- Seeding month ${monthData.year}-${monthData.month + 1} ---`);
+        
+        // For each site
+        for (const { site, config } of sites) {
+          const sessionsToCreate = config.sessionsCount;
+          
+          // Generate base session values (for matching sessions or first session)
+          const baseCollectorTitle = getRandomItem(COLLECTOR_TITLES);
+          const baseCollectorName = `${getRandomItem(['John', 'Mary', 'Peter', 'Sarah', 'David'])} ${getRandomItem(['Mukasa', 'Nakato', 'Okello', 'Atim', 'Kiprotich'])}`;
+          const baseCollectionMethod = getRandomItem(COLLECTION_METHODS);
+          const baseSpecimenCondition = getRandomItem(SPECIMEN_CONDITIONS);
+          
+          for (let sessionIndex = 0; sessionIndex < sessionsToCreate; sessionIndex++) {
+            const sessionCollectionDate = generateRandomDateInMonth(monthData.year, monthData.month);
             
-            // Create SpecimenImage (thumbnail)
-            const specimenImage = await SpecimenImage.create({
-              specimenId: specimen.id,
-              imageKey: imageData.imageKey,
-              filemd5: imageData.md5,
-              species: getRandomItem(SPECIES_OPTIONS),
-              sex: getRandomItem(SEX_OPTIONS),
-              abdomenStatus: getRandomItem(ABDOMEN_STATUS_OPTIONS),
-              capturedAt: specimenTimestamp,
-              createdAt: specimenTimestamp,
-              updatedAt: specimenTimestamp
+            // Determine if this session should have different values (for conflicts)
+            let collectorTitle = baseCollectorTitle;
+            let collectorName = baseCollectorName;
+            let collectionMethod = baseCollectionMethod;
+            let specimenCondition = baseSpecimenCondition;
+            
+            if (config.hasConflict && sessionIndex > 0) {
+              // Create conflicting values for subsequent sessions
+              collectorTitle = getRandomItem(COLLECTOR_TITLES);
+              collectorName = `${getRandomItem(['Jane', 'Moses', 'Grace', 'Samuel', 'Ruth'])} ${getRandomItem(['Nambi', 'Ssemakula', 'Nalwoga', 'Byaruhanga', 'Akello'])}`;
+              collectionMethod = getRandomItem(COLLECTION_METHODS);
+              specimenCondition = getRandomItem(SPECIMEN_CONDITIONS);
+            }
+            
+            const session = await Session.create({
+              frontendId: `session_${site.id}_${monthData.year}${monthData.month}_${sessionIndex}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              collectorTitle: collectorTitle,
+              collectorName: collectorName,
+              collectionDate: sessionCollectionDate,
+              collectionMethod: collectionMethod,
+              specimenCondition: specimenCondition,
+              submittedAt: sessionCollectionDate,
+              notes: `Collection at ${site.villageName}, House ${site.houseNumber}`,
+              siteId: site.id,
+              deviceId: device.id,
+              latitude: randomBetween(-1.5, 4.5), // Uganda latitude range
+              longitude: randomBetween(29.5, 35.0), // Uganda longitude range
+              type: 'SURVEILLANCE', // All seeded sessions are surveillance type
+              createdAt: sessionCollectionDate,
+              updatedAt: sessionCollectionDate
             }, { transaction });
 
-            totalImages++;
+            totalSessions++;
 
-            // Update specimen to reference this image as thumbnail
-            await specimen.update({
-              thumbnailImageId: specimenImage.id
+            // Create surveillance form for this session
+            const surveillanceFormData = generateSurveillanceFormData();
+            await SurveillanceForm.create({
+              sessionId: session.id,
+              numPeopleSleptInHouse: surveillanceFormData.numPeopleSleptInHouse,
+              wasIrsConducted: surveillanceFormData.wasIrsConducted,
+              monthsSinceIrs: surveillanceFormData.monthsSinceIrs,
+              numLlinsAvailable: surveillanceFormData.numLlinsAvailable,
+              llinType: surveillanceFormData.llinType,
+              llinBrand: surveillanceFormData.llinBrand,
+              numPeopleSleptUnderLlin: surveillanceFormData.numPeopleSleptUnderLlin,
+              createdAt: sessionCollectionDate,
+              updatedAt: sessionCollectionDate
             }, { transaction });
+            
+            totalSurveillanceForms++;
 
-            // Create InferenceResult for the image
-            const inferenceResult = await InferenceResult.create({
-              specimenImageId: specimenImage.id,
-              bboxTopLeftX: randomBetween(0, 200),
-              bboxTopLeftY: randomBetween(0, 200),
-              bboxWidth: randomBetween(50, 300),
-              bboxHeight: randomBetween(50, 300),
-              speciesLogits: generateLogits(),
-              sexLogits: generateLogits(),
-              abdomenStatusLogits: generateLogits(),
-              bboxConfidence: randomBetween(0.5, 0.99),
-              bboxClassId: randomIntBetween(0, 7),
-              speciesInferenceDuration: randomIntBetween(50, 500),
-              sexInferenceDuration: randomIntBetween(30, 300),
-              abdomenStatusInferenceDuration: randomIntBetween(30, 300),
-              bboxDetectionDuration: randomIntBetween(100, 1000),
-              createdAt: specimenTimestamp,
-              updatedAt: specimenTimestamp
-            }, { transaction });
+            // Determine number of specimens for this session (5-15, or 0 for a couple of sessions)
+            const shouldHaveZeroSpecimens = totalSessions % 15 === 0; // Every 15th session has 0 specimens
+            const specimenCount = shouldHaveZeroSpecimens ? 0 : randomIntBetween(5, 15);
 
-            totalInferenceResults++;
+            // Create Specimens
+            for (let specimenIndex = 0; specimenIndex < specimenCount; specimenIndex++) {
+              const specimenTimestamp = new Date(sessionCollectionDate.getTime() + Math.random() * 6 * 60 * 60 * 1000);
+              const specimenId = generateSpecimenId(specimenIdCounter++);
+
+              const specimen = await Specimen.create({
+                specimenId: specimenId,
+                sessionId: session.id,
+                createdAt: specimenTimestamp,
+                updatedAt: specimenTimestamp
+              }, { transaction });
+
+              totalSpecimens++;
+
+              // Get real image data from uploaded images (rotate through the 10 images)
+              const imageData = getImageDataFromUploaded(uploadedImages, specimenIdCounter);
+              
+              // Get valid species and attributes
+              const species = getRandomItem(SPECIES_OPTIONS);
+              const { sex, abdomenStatus } = getValidSpecimenAttributes(species);
+              
+              // Create SpecimenImage (thumbnail)
+              const specimenImage = await SpecimenImage.create({
+                specimenId: specimen.id,
+                imageKey: imageData.imageKey,
+                filemd5: imageData.md5,
+                species: species,
+                sex: sex,
+                abdomenStatus: abdomenStatus,
+                capturedAt: specimenTimestamp,
+                createdAt: specimenTimestamp,
+                updatedAt: specimenTimestamp
+              }, { transaction });
+
+              totalImages++;
+
+              // Update specimen to reference this image as thumbnail
+              await specimen.update({
+                thumbnailImageId: specimenImage.id
+              }, { transaction });
+
+              // Create InferenceResult for the image
+              const inferenceResult = await InferenceResult.create({
+                specimenImageId: specimenImage.id,
+                bboxTopLeftX: randomBetween(0, 200),
+                bboxTopLeftY: randomBetween(0, 200),
+                bboxWidth: randomBetween(50, 300),
+                bboxHeight: randomBetween(50, 300),
+                speciesLogits: generateLogits(),
+                sexLogits: generateLogits(),
+                abdomenStatusLogits: generateLogits(),
+                bboxConfidence: randomBetween(0.5, 0.99),
+                bboxClassId: randomIntBetween(0, 7),
+                speciesInferenceDuration: randomIntBetween(50, 500),
+                sexInferenceDuration: randomIntBetween(30, 300),
+                abdomenStatusInferenceDuration: randomIntBetween(30, 300),
+                bboxDetectionDuration: randomIntBetween(100, 1000),
+                createdAt: specimenTimestamp,
+                updatedAt: specimenTimestamp
+              }, { transaction });
+
+              totalInferenceResults++;
+            }
+
+            console.log(`  Created session for site ${site.houseNumber} (${site.villageName}): ${specimenCount} specimens`);
           }
-
-          console.log(`Created session ${sessionIndex + 1}/10 for site ${site.id} with ${SPECIMENS_PER_SESSION} specimens`);
         }
       }
 
@@ -389,13 +789,15 @@ async function seedSpecimens() {
       console.log('\n=== Seeding Summary ===');
       console.log(`✅ Programs created: 1`);
       console.log(`✅ Devices created: 1`);
-      console.log(`✅ Sites created: ${SITES_PER_PROGRAM}`);
-      console.log(`✅ Sessions created: ${SITES_PER_PROGRAM * SESSIONS_PER_SITE}`);
+      console.log(`✅ Sites created: ${sites.length}`);
+      console.log(`✅ Sessions created: ${totalSessions} (across 3 months)`);
+      console.log(`✅ Surveillance forms created: ${totalSurveillanceForms} (one per session)`);
       console.log(`✅ Specimens created: ${totalSpecimens}`);
       console.log(`✅ Specimen images created: ${totalImages}`);
       console.log(`✅ Inference results created: ${totalInferenceResults}`);
-      console.log(`✅ Date distribution: Sessions evenly distributed across past 12 months`);
-      console.log('✅ Seeding completed successfully!');
+      console.log(`✅ Sites with multiple sessions: 3`);
+      console.log(`✅ Sites with conflicting sessions: 2`);
+      console.log(`✅ Seeding completed successfully!`);
 
     } catch (error) {
       // Rollback transaction on error
