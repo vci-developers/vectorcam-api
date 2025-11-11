@@ -22,7 +22,7 @@ interface SubmitSessionRequest {
   latitude?: number;
   longitude?: number;
   type: string;
-  collectorLastTrainedOn?: number;
+  collectorLastTrainedOn: number;
 }
 
 export const schema = {
@@ -30,7 +30,7 @@ export const schema = {
   description: 'Submit a new session',
   body: {
     type: 'object',
-    required: ['frontendId', 'siteId', 'deviceId', 'type'],
+    required: ['frontendId', 'siteId', 'deviceId', 'type', 'collectorLastTrainedOn'],
     properties: {
       frontendId: { type: 'string', maxLength: 64 },
       collectorTitle: { type: 'string' },

@@ -16,6 +16,7 @@
     "db:init:force": "ts-node scripts/init-db.ts --force",
     "db:init:alter": "ts-node scripts/init-db.ts --alter",
     "db:seed:specimens": "ts-node scripts/seed-specimens.ts",
+    "db:seed:csv": "ts-node scripts/seed-from-csv.ts",
     "ci": "npm ci"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "bcrypt": "^6.0.0",
+    "csv-parse": "^5.6.0",
     "dotenv": "^16.3.1",
     "fastify": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
