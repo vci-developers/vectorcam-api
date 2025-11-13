@@ -14,6 +14,7 @@ import AnnotationTask from './AnnotationTask';
 import Annotation from './Annotation';
 import Dhis2Cache from './Dhis2Cache';
 import Dhis2SyncEvent from './Dhis2SyncEvent';
+import SessionConflictResolution from './SessionConflictResolution';
 
 export {
   Program,
@@ -32,4 +33,5 @@ export {
   Annotation,
   Dhis2Cache,
   Dhis2SyncEvent,
+  SessionConflictResolution,
 };

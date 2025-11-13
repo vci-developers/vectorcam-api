@@ -12,7 +12,9 @@ import {
   exportSurveillanceFormsCSV,
   createSurvey,
   updateSurvey,
-  getMetrics
+  getMetrics,
+  resolveConflict,
+  getConflictLogs
 } from '../handlers/session';
 import { getSessionList } from '../handlers/session/getList';
 import { getSessionReviewTask } from '../handlers/session/getReviewTask';
@@ -38,6 +40,8 @@ import { schema as getSessionSpecimenSchema } from '../handlers/session/specimen
 import { schema as createSessionSpecimenSchema } from '../handlers/session/specimens/post';
 import { schema as updateSessionSpecimenSchema } from '../handlers/session/specimens/put';
 import { schema as deleteSessionSpecimenSchema } from '../handlers/session/specimens/delete';
+import { schema as resolveConflictSchema } from '../handlers/session/resolveConflict';
+import { schema as getConflictLogsSchema } from '../handlers/session/getConflictLogs';
 import { requireAdminAuth } from '../middleware/auth.middleware';
 import { 
   siteAccessMiddleware,
@@ -168,6 +172,18 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: exportSurveillanceFormsCSVSchema,
     preHandler: [requireAdminAuth],
   }, exportSurveillanceFormsCSV);
+
+  // Resolve session conflicts (requires write access)
+  fastify.post('/conflicts/resolve', {
+    preHandler: [requireSiteWriteAccess],
+    schema: resolveConflictSchema
+  }, resolveConflict as any);
+
+  // Get conflict resolution logs (requires read access)
+  fastify.get('/conflicts/logs', {
+    preHandler: [requireSiteReadAccess],
+    schema: getConflictLogsSchema
+  }, getConflictLogs as any);
 
   done();
 } 

@@ -14,3 +14,5 @@ export {
   updateSurvey,
   exportSurveillanceFormsCSV
 } from './survey';
+export { resolveConflict } from './resolveConflict';
+export { getConflictLogs } from './getConflictLogs';
