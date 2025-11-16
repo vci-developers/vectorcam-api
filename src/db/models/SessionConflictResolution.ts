@@ -25,6 +25,7 @@ class SessionConflictResolution extends Model {
       longitude: number | null;
       type: string;
       collectorLastTrainedOn: number | null;
+      hardwareId: string | null;
     }[];
     surveillanceForms: {
       sessionId: number;
@@ -50,6 +51,7 @@ class SessionConflictResolution extends Model {
     longitude: number | null;
     type: string;
     collectorLastTrainedOn: number | null;
+    hardwareId: string | null;
     surveillanceForm: {
       numPeopleSleptInHouse: number | null;
       wasIrsConducted: boolean | null;

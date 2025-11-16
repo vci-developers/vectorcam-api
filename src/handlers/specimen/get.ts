@@ -116,6 +116,7 @@ export const schema = {
             longitude: { type: ['number', 'null'] },
             type: { type: 'string' },
             collectorLastTrainedOn: { type: ['number', 'null'] },
+            hardwareId: { type: ['string', 'null'] },
             site: {
               type: 'object',
               properties: {
@@ -199,6 +200,7 @@ export async function getSpecimenDetails(
         longitude: specimenData.session.longitude,
         type: specimenData.session.type,
         collectorLastTrainedOn: specimenData.session.collectorLastTrainedOn ? new Date(specimenData.session.collectorLastTrainedOn).getTime() : null,
+        hardwareId: specimenData.session.hardwareId,
         site: specimenData.session.site ? {
           id: specimenData.session.site.id,
           district: specimenData.session.site.district,

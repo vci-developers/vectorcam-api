@@ -18,6 +18,7 @@ interface UpdateSessionRequest {
   longitude?: number;
   type: string;
   collectorLastTrainedOn?: number;
+  hardwareId?: string;
 }
 
 export const schema = {
@@ -46,7 +47,8 @@ export const schema = {
       latitude: { type: 'number' },
       longitude: { type: 'number' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
-      collectorLastTrainedOn: { type: 'number' }
+      collectorLastTrainedOn: { type: 'number' },
+      hardwareId: { type: 'string', maxLength: 64 }
     }
   },
   response: {
@@ -73,7 +75,8 @@ export const schema = {
             latitude: { type: ['number', 'null'] },
             longitude: { type: ['number', 'null'] },
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
-            collectorLastTrainedOn: { type: ['number', 'null'] }
+            collectorLastTrainedOn: { type: ['number', 'null'] },
+            hardwareId: { type: ['string', 'null'] }
           }
         }
       }
@@ -120,7 +123,8 @@ export async function updateSession(
       latitude,
       longitude,
       type,
-      collectorLastTrainedOn
+      collectorLastTrainedOn,
+      hardwareId
     } = request.body;
 
     const session = await findSession(session_id);
@@ -170,7 +174,8 @@ export async function updateSession(
       latitude: latitude !== undefined ? latitude : session.latitude,
       longitude: longitude !== undefined ? longitude : session.longitude,
       type: type !== undefined ? type : session.type,
-      collectorLastTrainedOn: collectorLastTrainedOn !== undefined ? new Date(collectorLastTrainedOn) : session.collectorLastTrainedOn
+      collectorLastTrainedOn: collectorLastTrainedOn !== undefined ? new Date(collectorLastTrainedOn) : session.collectorLastTrainedOn,
+      hardwareId: hardwareId !== undefined ? hardwareId : session.hardwareId
     });
 
     return reply.send({

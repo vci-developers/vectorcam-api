@@ -17,6 +17,7 @@ interface ResolveConflictRequest {
     longitude?: number | null;
     type?: string;
     collectorLastTrainedOn?: number | null;
+    hardwareId?: string | null;
   };
   resolvedSurveillanceForm?: {
     numPeopleSleptInHouse?: number | null;
@@ -56,6 +57,7 @@ export const schema = {
           longitude: { type: ['number', 'null'] },
           type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
           collectorLastTrainedOn: { type: ['number', 'null'] },
+          hardwareId: { type: ['string', 'null'], maxLength: 64 },
         },
       },
       resolvedSurveillanceForm: {
@@ -205,6 +207,7 @@ export async function resolveConflict(
         collectorLastTrainedOn: session.collectorLastTrainedOn
           ? session.collectorLastTrainedOn.getTime()
           : null,
+        hardwareId: session.hardwareId,
       })),
       surveillanceForms: [] as any[],
     };
@@ -253,6 +256,7 @@ export async function resolveConflict(
         ? new Date(resolvedData.collectorLastTrainedOn)
         : null;
     }
+    if (resolvedData.hardwareId !== undefined) updateData.hardwareId = resolvedData.hardwareId;
 
     await Session.update(updateData, {
       where: {

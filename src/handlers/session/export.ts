@@ -121,7 +121,7 @@ export async function exportSessionsCSV(
     });
 
     // Generate CSV header with program data
-    let csv = 'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry\n';
+    let csv = 'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry\n';
 
     // Generate CSV rows
     for (const session of sessions) {
@@ -147,6 +147,7 @@ export async function exportSessionsCSV(
         escapeCSVField(session.longitude !== null && session.longitude !== undefined ? session.longitude : null),
         escapeCSVField(session.type),
         escapeCSVField(session.collectorLastTrainedOn?.toISOString()),
+        escapeCSVField(session.hardwareId),
         escapeCSVField(session.deviceId),
         escapeCSVField(device?.model),
         escapeCSVField(device?.registeredAt?.toISOString()),

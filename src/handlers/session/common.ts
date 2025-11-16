@@ -21,6 +21,7 @@ export interface SessionResponse {
   longitude: number | null;
   type: string;
   collectorLastTrainedOn: number | null;
+  hardwareId: string | null;
 }
 
 // Helper to format session data consistently across endpoints
@@ -43,6 +44,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     longitude: session.longitude,
     type: session.type,
     collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
+    hardwareId: session.hardwareId,
   };
 }
 
