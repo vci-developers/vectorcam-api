@@ -19,6 +19,7 @@ export const schema = {
       species: { type: 'string', description: 'Filter by species from thumbnail image' },
       sex: { type: 'string', description: 'Filter by sex from thumbnail image' },
       abdomenStatus: { type: 'string', description: 'Filter by abdomen status from thumbnail image' },
+      sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
       startDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -146,6 +147,7 @@ interface QueryParams {
   species?: string;
   sex?: string;
   abdomenStatus?: string;
+  sessionType?: string;
   startDate?: string;
   endDate?: string;
   limit?: number;
@@ -171,6 +173,7 @@ export async function getSpecimenList(
       species,
       sex,
       abdomenStatus,
+      sessionType,
       startDate,
       endDate,
       limit = 20,
@@ -269,6 +272,11 @@ export async function getSpecimenList(
       if (endDate) {
         sessionInclude.where.collectionDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
       }
+    }
+
+    // Handle session type filtering
+    if (sessionType) {
+      sessionInclude.where.type = sessionType;
     }
 
     // Add site include with restrictions

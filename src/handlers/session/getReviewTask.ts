@@ -6,6 +6,7 @@ interface QueryParams {
   startDate?: string;
   endDate?: string;
   district?: string;
+  type?: string;
   limit?: number;
   offset?: number;
 }
@@ -25,6 +26,7 @@ export const schema = {
       startDate: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
       district: { type: 'string', description: 'Filter by district name' },
+      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' }
     }
@@ -79,6 +81,7 @@ export async function getSessionReviewTask(
       startDate,
       endDate,
       district,
+      type,
       limit = 20,
       offset = 0
     } = request.query;
@@ -99,7 +102,7 @@ export async function getSessionReviewTask(
       siteWhereClause.district = district;
     }
 
-    // Build session where clause for date filtering
+    // Build session where clause for date filtering and type
     const sessionWhereClause: any = {};
     
     if (startDate || endDate) {
@@ -110,6 +113,11 @@ export async function getSessionReviewTask(
       if (endDate) {
         sessionWhereClause.collectionDate[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
       }
+    }
+
+    // Add type filter if provided
+    if (type) {
+      sessionWhereClause.type = type;
     }
 
     // Get all sessions with site information for grouping

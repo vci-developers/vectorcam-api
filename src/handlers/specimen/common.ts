@@ -58,15 +58,19 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
   let imagesToReturn: ImageResponse[] = [];
 
   if (allImages) {
-    // Get all images for this specimen
+    // Get all images with their inference results in a single query using eager loading
     const images = await SpecimenImage.findAll({
-      where: { specimenId: specimen.id }
+      where: { specimenId: specimen.id },
+      include: [{
+        model: InferenceResult,
+        as: 'inferenceResult',
+        required: false
+      }]
     });
-    // For each image, get its inference result
-    const imagesResponses = await Promise.all(images.map(async (img) => {
-      const inferenceResult = await InferenceResult.findOne({
-        where: { specimenImageId: img.id }
-      });
+    
+    // Transform the results
+    const imagesResponses = images.map((img: any) => {
+      const inferenceResult = img.inferenceResult;
       return {
         id: img.id,
         url: `/specimens/${specimen.id}/images/${img.id}`,
@@ -74,7 +78,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
         sex: img.sex,
         abdomenStatus: img.abdomenStatus,
         capturedAt: img.capturedAt ? img.capturedAt.getTime() : null,
-        submittedAt: img.createdAt.getTime(), // Add this line
+        submittedAt: img.createdAt.getTime(),
         inferenceResult: inferenceResult ? {
           id: inferenceResult.id,
           bboxTopLeftX: inferenceResult.bboxTopLeftX,
@@ -92,16 +96,23 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
           bboxDetectionDuration: inferenceResult.bboxDetectionDuration
         } : null
       };
-    }));
+    });
     imagesToReturn = imagesResponses;
     thumbnailImageObj = imagesResponses.find(img => img.id === specimen.thumbnailImageId) ?? null;
   } else {
-    // Only fetch the thumbnail image (if exists)
-    const thumbnailImage = specimen.thumbnailImageId ? await SpecimenImage.findByPk(specimen.thumbnailImageId) : null;
+    // Only fetch the thumbnail image with its inference result in a single query
+    const thumbnailImage = specimen.thumbnailImageId 
+      ? await SpecimenImage.findByPk(specimen.thumbnailImageId, {
+          include: [{
+            model: InferenceResult,
+            as: 'inferenceResult',
+            required: false
+          }]
+        })
+      : null;
+      
     if (thumbnailImage) {
-      const inferenceResult = await InferenceResult.findOne({
-        where: { specimenImageId: thumbnailImage.id }
-      });
+      const inferenceResult = (thumbnailImage as any).inferenceResult;
       const thumbDetail = {
         id: thumbnailImage.id,
         url: `/specimens/${specimen.id}/images/${thumbnailImage.id}`,
@@ -109,7 +120,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
         sex: thumbnailImage.sex,
         abdomenStatus: thumbnailImage.abdomenStatus,
         capturedAt: thumbnailImage.capturedAt ? thumbnailImage.capturedAt.getTime() : null,
-        submittedAt: thumbnailImage.createdAt.getTime(), // Add this line
+        submittedAt: thumbnailImage.createdAt.getTime(),
         inferenceResult: inferenceResult ? {
           id: inferenceResult.id,
           bboxTopLeftX: inferenceResult.bboxTopLeftX,

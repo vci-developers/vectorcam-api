@@ -8,6 +8,7 @@ interface QueryParams {
   endDate?: string;
   district?: string;
   sessionId?: string;
+  sessionType?: string;
 }
 
 export const schema = {
@@ -32,6 +33,11 @@ export const schema = {
       sessionId: {
         type: 'string',
         description: 'Filter specimens by session ID'
+      },
+      sessionType: {
+        type: 'string',
+        enum: ['SURVEILLANCE', 'DATA_COLLECTION'],
+        description: 'Filter specimens by session type'
       },
     }
   },
@@ -101,7 +107,7 @@ export async function getSpecimenCount(
   reply: FastifyReply
 ) {
   try {
-    const { startDate, endDate, district, sessionId } = request.query;
+    const { startDate, endDate, district, sessionId, sessionType } = request.query;
 
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -205,7 +211,8 @@ export async function getSpecimenCount(
       INNER JOIN sessions sess ON sp.session_id = sess.id
       INNER JOIN sites s ON sess.site_id = s.id
       LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
-      WHERE sess.type = 'surveillance'
+      WHERE 1=1
+        ${sessionType ? `AND sess.type = :sessionType` : ''}
         ${filteredSiteIds.length > 0 ? `AND s.id IN (${filteredSiteIds.join(',')})` : ''}
         ${sessionId ? `AND sess.id = :sessionId` : ''}
         ${startDate ? `AND sess.collection_date >= :startDate` : ''}
@@ -227,6 +234,9 @@ export async function getSpecimenCount(
     const replacements: any = {};
     if (sessionId) {
       replacements.sessionId = sessionId;
+    }
+    if (sessionType) {
+      replacements.sessionType = sessionType;
     }
     if (startDate) {
       replacements.startDate = new Date(startDate);

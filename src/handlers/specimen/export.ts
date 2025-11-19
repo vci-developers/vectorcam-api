@@ -30,6 +30,7 @@ export const schema = {
       endDate: { type: 'string' },
       sessionId: { type: 'number' },
       sessionFrontendId: { type: 'string' },
+      sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
       includeInferenceResult: { type: 'boolean' }
     }
   },
@@ -58,6 +59,7 @@ export interface ExportSpecimensCSVRequest {
     endDate?: string;
     sessionId?: string;
     sessionFrontendId?: string;
+    sessionType?: string;
     includeInferenceResult?: boolean;
   }
 }
@@ -71,7 +73,8 @@ export async function exportSpecimensCSV(
       startDate, 
       endDate, 
       sessionId, 
-      sessionFrontendId, 
+      sessionFrontendId,
+      sessionType,
       includeInferenceResult 
     } = request.query;
     
@@ -103,9 +106,10 @@ export async function exportSpecimensCSV(
       {
         model: Session,
         as: 'session',
-        where: sessionId || sessionFrontendId ? {
+        where: sessionId || sessionFrontendId || sessionType ? {
           ...(sessionId && { id: parseInt(sessionId) }),
-          ...(sessionFrontendId && { frontendId: sessionFrontendId })
+          ...(sessionFrontendId && { frontendId: sessionFrontendId }),
+          ...(sessionType && { type: sessionType })
         } : undefined,
         include: [
           {
