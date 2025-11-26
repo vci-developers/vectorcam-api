@@ -249,21 +249,28 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         }
 
         // Create SiteUser associations for all sites in the district
-        const siteUserPromises = sitesInDistrict.map(site => 
-          SiteUser.findOrCreate({
-            where: {
-              userId: user.id,
-              siteId: site.id
-            },
-            defaults: {
-              userId: user.id,
-              siteId: site.id
-            }
-          })
-        );
-
-        const results = await Promise.all(siteUserPromises);
-        sitesGranted = results.filter(([, created]) => created).length;
+        // First, get existing associations to calculate how many new ones were created
+        const existingSiteUsers = await SiteUser.findAll({
+          where: {
+            userId: user.id,
+            siteId: sitesInDistrict.map(site => site.id)
+          },
+          attributes: ['siteId']
+        });
+        
+        const existingSiteIds = new Set(existingSiteUsers.map(su => su.siteId));
+        
+        // Bulk create new associations, ignoring duplicates
+        const siteUserRecords = sitesInDistrict.map(site => ({
+          userId: user.id,
+          siteId: site.id
+        }));
+        
+        await SiteUser.bulkCreate(siteUserRecords, { 
+          ignoreDuplicates: true 
+        });
+        
+        sitesGranted = sitesInDistrict.length - existingSiteIds.size;
       }
 
       // Get updated user info
