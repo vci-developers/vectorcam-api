@@ -328,8 +328,8 @@ export async function syncToDHIS2(
                     (a, b) => new Date(b.collectionDate!).getTime() - new Date(a.collectionDate!).getTime()
                 )[0];
 
-                // Use the first day of the month as the event date
-                const eventDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+                // Use the current date as the event date
+                const eventDate = new Date().toISOString().split('T')[0];
 
                 // Map data to DHIS2 format
                 const dataValues = dhis2MappingService.mapToDataValues(
@@ -357,6 +357,11 @@ export async function syncToDHIS2(
                     // Found in local database - update using stored event ID
                     request.log.info(`Re-syncing: Updating existing event ${existingSyncEvent.eventId} for site ${site.id}`);
                     eventResult = await dhis2Service.updateEvent(existingSyncEvent.eventId, {
+                        program: config.dhis2.programId,
+                        programStage: config.dhis2.programStageId,
+                        orgUnit: tei.orgUnit,
+                        trackedEntityInstance: tei.trackedEntityInstance,
+                        eventDate,
                         dataValues,
                         status: 'COMPLETED',
                     });
@@ -380,6 +385,11 @@ export async function syncToDHIS2(
                         // Found in DHIS2 but missing from local database - update and sync our database
                         request.log.info(`Found orphaned event ${dhis2Event.event} in DHIS2, updating and saving to local database`);
                         eventResult = await dhis2Service.updateEvent(dhis2Event.event, {
+                            program: config.dhis2.programId,
+                            programStage: config.dhis2.programStageId,
+                            orgUnit: tei.orgUnit,
+                            trackedEntityInstance: tei.trackedEntityInstance,
+                            eventDate,
                             dataValues,
                             status: 'COMPLETED',
                         });
