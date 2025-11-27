@@ -40,8 +40,8 @@ export const schema = {
         entomologicalSummary: {
           type: 'object',
           properties: {
-            vectorDensity: { type: 'number' },
-            fedMosquitoesToPeopleSleptRatio: { type: 'number' },
+            malariaVectorDensity: { type: 'number' },
+            fedAnophelesToPeopleSleptRatio: { type: 'number' },
             totalLlins: { type: 'number' },
             totalPeopleSleptUnderLlin: { type: 'number' },
             llinsPerPerson: { type: 'number' }
@@ -138,43 +138,65 @@ export async function getMetrics(
       type: QueryTypes.SELECT
     }) as any[];
 
-    // 4. Get fed mosquitoes data (where abdomen status indicates "fed")
-    // Fed status can be determined from visualAbdomenStatus or morphAbdomenStatus in annotations
-    // or from abdomenStatus in specimen images (thumbnail)
-    const fedMosquitoesQuery = `
+    // 4. Get fed anopheles mosquitoes data
+    // Count specimens that are anopheles (species partially matches 'anopheles') and have fed abdomen status
+    const fedAnophelesQuery = `
       SELECT 
-        sess.site_id,
-        sf.num_people_slept_in_house,
         COUNT(DISTINCT CASE 
           WHEN si.abdomen_status IN ('Full fed') 
+            AND si.species LIKE '%anopheles%'
           THEN sp.id 
-        END) as fedCount
+        END) as totalFedAnopheles
       FROM sessions sess
       INNER JOIN sites s ON sess.site_id = s.id
-      LEFT JOIN surveillanceforms sf ON sess.id = sf.session_id
       LEFT JOIN specimens sp ON sess.id = sp.session_id
       LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
       WHERE s.district = :district
         AND sess.collection_date >= :startDate
         AND sess.collection_date < :endDate
         AND sess.type = 'SURVEILLANCE'
-      GROUP BY sess.id, sess.site_id, sf.num_people_slept_in_house
     `;
 
-    const fedMosquitoesData = await sequelize.query(fedMosquitoesQuery, {
+    const fedAnophelesResult = await sequelize.query(fedAnophelesQuery, {
       replacements: { district, startDate, endDate },
       type: QueryTypes.SELECT
     }) as any[];
 
+    const totalFedAnopheles = fedAnophelesResult[0]?.totalFedAnopheles || 0;
+
+    // 5. Get malaria vector density: total anopheles / total mosquitoes (excluding non-mosquitoes)
+    const malariaVectorDensityQuery = `
+      SELECT 
+        COUNT(DISTINCT CASE 
+          WHEN si.species LIKE '%anopheles%'
+          THEN sp.id 
+        END) as totalAnopheles,
+        COUNT(DISTINCT CASE 
+          WHEN si.species NOT LIKE '%non mosquito%'
+            AND si.species IS NOT NULL
+          THEN sp.id 
+        END) as totalMosquitoes
+      FROM sessions sess
+      INNER JOIN sites s ON sess.site_id = s.id
+      LEFT JOIN specimens sp ON sess.id = sp.session_id
+      LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
+      WHERE s.district = :district
+        AND sess.collection_date >= :startDate
+        AND sess.collection_date < :endDate
+        AND sess.type = 'SURVEILLANCE'
+    `;
+
+    const vectorDensityResult = await sequelize.query(malariaVectorDensityQuery, {
+      replacements: { district, startDate, endDate },
+      type: QueryTypes.SELECT
+    }) as any[];
+
+    const totalAnopheles = vectorDensityResult[0]?.totalAnopheles || 0;
+    const totalMosquitoes = vectorDensityResult[0]?.totalMosquitoes || 0;
+
     // Calculate metrics
     let totalLlins = 0;
     let totalPeopleSleptUnderLlin = 0;
-    let vectorDensitySum = 0;
-    let vectorDensityCount = 0;
-    let llinsPerPersonSum = 0;
-    let llinsPerPersonCount = 0;
-    let fedRatioSum = 0;
-    let fedRatioCount = 0;
 
     // Process surveillance data
     surveillanceData.forEach(house => {
@@ -185,39 +207,23 @@ export async function getMetrics(
       if (house.num_people_slept_under_llin !== null) {
         totalPeopleSleptUnderLlin += house.num_people_slept_under_llin;
       }
-
-      // Vector Density: number of mosquitoes per house per day
-      // Calculate as: total specimens collected from house / number of days in the date range
-      if (daysDiff > 0) {
-        const vectorDensity = house.totalSpecimens / daysDiff;
-        vectorDensitySum += vectorDensity;
-        vectorDensityCount++;
-      }
-
-      // LLINs per person: LLINs / people in house (per house, then averaged)
-      if (house.num_llins_available !== null && 
-          house.num_people_slept_in_house && 
-          house.num_people_slept_in_house > 0) {
-        const llinsPerPerson = house.num_llins_available / house.num_people_slept_in_house;
-        llinsPerPersonSum += llinsPerPerson;
-        llinsPerPersonCount++;
-      }
     });
 
-    // Process fed mosquitoes data
-    fedMosquitoesData.forEach(house => {
-      // Fed mosquitoes to people slept ratio (per house, then averaged)
-      if (house.num_people_slept_in_house && house.num_people_slept_in_house > 0) {
-        const fedRatio = house.fedCount / house.num_people_slept_in_house;
-        fedRatioSum += fedRatio;
-        fedRatioCount++;
-      }
-    });
+    // Calculate final metrics
+    // llinsPerPerson: total bednets / total people (no average)
+    const llinsPerPerson = peopleInAllHousesInspected > 0 
+      ? totalLlins / peopleInAllHousesInspected 
+      : 0;
 
-    // Calculate averages
-    const vectorDensity = vectorDensityCount > 0 ? vectorDensitySum / vectorDensityCount : 0;
-    const fedMosquitoesToPeopleSleptRatio = fedRatioCount > 0 ? fedRatioSum / fedRatioCount : 0;
-    const llinsPerPerson = llinsPerPersonCount > 0 ? llinsPerPersonSum / llinsPerPersonCount : 0;
+    // fedAnophelesToPeopleSleptRatio: total fed anopheles / total people under bednets (no average)
+    const fedAnophelesToPeopleSleptRatio = totalPeopleSleptUnderLlin > 0 
+      ? totalFedAnopheles / totalPeopleSleptUnderLlin 
+      : 0;
+
+    // malariaVectorDensity: total anopheles / total mosquitoes (excluding non-mosquitoes)
+    const malariaVectorDensity = totalMosquitoes > 0 
+      ? totalAnopheles / totalMosquitoes 
+      : 0;
 
     const response = {
       siteInformation: {
@@ -225,8 +231,8 @@ export async function getMetrics(
         peopleInAllHousesInspected
       },
       entomologicalSummary: {
-        vectorDensity: Number(vectorDensity.toFixed(2)),
-        fedMosquitoesToPeopleSleptRatio: Number(fedMosquitoesToPeopleSleptRatio.toFixed(2)),
+        malariaVectorDensity: Number(malariaVectorDensity.toFixed(2)),
+        fedAnophelesToPeopleSleptRatio: Number(fedAnophelesToPeopleSleptRatio.toFixed(2)),
         totalLlins,
         totalPeopleSleptUnderLlin,
         llinsPerPerson: Number(llinsPerPerson.toFixed(2))
