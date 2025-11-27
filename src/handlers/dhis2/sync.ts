@@ -10,7 +10,7 @@ export const schema = {
   description: 'Sync VectorCam data to DHIS2 for a specific month',
   querystring: {
     type: 'object',
-    required: ['year', 'month'],
+    required: ['year', 'month', 'district'],
     properties: {
       year: {
         type: 'number',
@@ -26,12 +26,31 @@ export const schema = {
       },
       district: {
         type: 'string',
-        description: 'District name to filter sites for sync (required for admin users)',
+        description: 'District name to filter sites for sync (required)',
       },
       dryRun: {
         type: 'boolean',
         description: 'If true, performs validation only without syncing to DHIS2',
         default: false,
+      },
+    },
+  },
+  body: {
+    type: 'object',
+    properties: {
+      irsData: {
+        type: 'array',
+        description: 'Optional IRS (Indoor Residual Spraying) data per site',
+        items: {
+          type: 'object',
+          required: ['siteId'],
+          properties: {
+            siteId: { type: 'number' },
+            wasIrsSprayed: { type: 'boolean' },
+            insecticideSprayed: { type: 'string' },
+            dateLastSprayed: { type: 'string', format: 'date' },
+          },
+        },
       },
     },
   },
@@ -100,8 +119,19 @@ export const schema = {
 interface QueryParams {
     year: number;
     month: number;
-    district?: string;
+    district: string;
     dryRun?: boolean;
+}
+
+interface IrsData {
+    siteId: number;
+    wasIrsSprayed?: boolean;
+    insecticideSprayed?: string;
+    dateLastSprayed?: string;
+}
+
+interface RequestBody {
+    irsData?: IrsData[];
 }
 
 interface DataValueWithName {
@@ -148,11 +178,12 @@ function enrichDataValues(
 }
 
 export async function syncToDHIS2(
-  request: FastifyRequest<{ Querystring: QueryParams }>,
+  request: FastifyRequest<{ Querystring: QueryParams; Body: RequestBody }>,
   reply: FastifyReply
 ) {
     try {
         const { year, month, district, dryRun = false } = request.query;
+        const { irsData = [] } = request.body || {};
 
         request.log.info(`Starting DHIS2 sync for ${year}-${month}${dryRun ? ' (dry run)' : ''}`);
 
@@ -171,41 +202,37 @@ export async function syncToDHIS2(
             return reply.code(500).send({ error: 'Site access information not available' });
         }
 
-        // Determine allowed site IDs based on user role and district filter
-        let allowedSiteIds: number[] | null = null;
+        // District is now required for all users
+        if (!district) {
+            return reply.code(400).send({ 
+                error: 'District name is required' 
+            });
+        }
 
-        // Super admins (empty userSites array) can sync all sites or filter by district
+        // Create IRS data lookup map for quick access
+        const irsDataMap = new Map<number, IrsData>();
+        for (const data of irsData) {
+            irsDataMap.set(data.siteId, data);
+        }
+
+        // Determine allowed site IDs based on user role and district filter
+        let allowedSiteIds: number[];
+
+        // Super admins (empty userSites array) can sync all sites in the district
         const isSuperAdmin = siteAccess.userSites.length === 0;
         
+        // Get sites in the district
+        const sitesInDistrict = await Site.findAll({
+            where: { district },
+            attributes: ['id'],
+        });
+
+        const districtSiteIds = sitesInDistrict.map(site => site.id);
+
         if (isSuperAdmin) {
-            // Super admin can optionally filter by district, or sync all sites
-            if (district) {
-                const sitesInDistrict = await Site.findAll({
-                    where: { district },
-                    attributes: ['id'],
-                });
-                allowedSiteIds = sitesInDistrict.map(site => site.id);
-                request.log.info(`Super admin syncing ${allowedSiteIds.length} sites in district "${district}"`);
-            } else {
-                // null means no filter - sync all sites
-                request.log.info('Super admin syncing all sites (no district filter)');
-            }
+            allowedSiteIds = districtSiteIds;
+            request.log.info(`Super admin syncing ${allowedSiteIds.length} sites in district "${district}"`);
         } else {
-            // Admin users must provide district name
-            if (!district) {
-                return reply.code(400).send({ 
-                    error: 'District name is required for admin users. Super admins can sync without district filter.' 
-                });
-            }
-
-            // Get sites in the district that the admin has write access to
-            const sitesInDistrict = await Site.findAll({
-                where: { district },
-                attributes: ['id'],
-            });
-
-            const districtSiteIds = sitesInDistrict.map(site => site.id);
-
             // Intersect with user's accessible sites
             allowedSiteIds = siteAccess.userSites.filter(siteId => districtSiteIds.includes(siteId));
 
@@ -284,12 +311,16 @@ export async function syncToDHIS2(
                         (a, b) => new Date(b.collectionDate!).getTime() - new Date(a.collectionDate!).getTime()
                     )[0];
 
+                    // Get IRS override data for this site if provided
+                    const irsOverride = irsDataMap.get(site.id);
+
                     // Map data to DHIS2 format
                     const dataValues = dhis2MappingService.mapToDataValues(
                         latestSession,
                         surveillanceForm,
                         specimenCounts,
-                        dataElementMap
+                        dataElementMap,
+                        irsOverride
                     );
 
                     successfulSyncs++;
@@ -331,12 +362,16 @@ export async function syncToDHIS2(
                 // Use the current date as the event date
                 const eventDate = new Date().toISOString().split('T')[0];
 
+                // Get IRS override data for this site if provided
+                const irsOverride = irsDataMap.get(site.id);
+
                 // Map data to DHIS2 format
                 const dataValues = dhis2MappingService.mapToDataValues(
                     latestSession,
                     surveillanceForm,
                     specimenCounts,
-                    dataElementMap
+                    dataElementMap,
+                    irsOverride
                 );
 
                 // Check if we've synced this site/month before (from our local tracking)

@@ -13,8 +13,10 @@ export const DHIS2_DATA_ELEMENT_NAMES = {
   COLLECTOR_NAME: 'MAL 001-ER10.Name of officer',
   COLLECTION_METHOD: 'MAL 001-ER29 - Mosquito collection method (PSC/LTC*)',
 
-  // Surveillance form data - Site level
+  // Surveillance form data - Site level IRS
   SITE_SPRAYED_IN_PAST_12_MONTHS: 'MAL 001-ER06. Has site sprayed in the past 12 months?',
+  INSECTICIDE_SPRAYED: 'MAL 001-ER07. Insecticide sprayed',
+  DATE_LAST_SPRAYED: 'MAL 001-ER08. Date Last Sprayed',
   
   // Surveillance form data - House level
   NUM_PEOPLE_SLEPT: 'MAL 001-ER13. No. of people who slept in the house',
@@ -110,6 +112,12 @@ export const DHIS2_DATA_ELEMENT_NAMES = {
   OTHER_CULICINES_MALE: 'MAL 001-ER24b. Other Culicines - Male',
 };
 
+export interface IrsOverrideData {
+  wasIrsSprayed?: boolean;
+  insecticideSprayed?: string;
+  dateLastSprayed?: string;
+}
+
 class DHIS2MappingService {
   /**
    * Map VectorCam data to DHIS2 data values using dynamic data element IDs
@@ -118,19 +126,34 @@ class DHIS2MappingService {
     session: Session,
     surveillanceForm: SurveillanceForm | null,
     specimenCounts: SpecimenCounts,
-    dataElementMap: Map<string, string>
+    dataElementMap: Map<string, string>,
+    irsOverride?: IrsOverrideData
   ): EventDataValue[] {
     const dataValues: EventDataValue[] = [];
 
     // Map session data
     this.mapSessionData(session, dataValues, dataElementMap);
 
-    // Always add site sprayed field (required by DHIS2), defaults to false
-    let siteSprayedInPast12Months = false;
-    if (surveillanceForm && surveillanceForm.wasIrsConducted !== null && surveillanceForm.monthsSinceIrs !== null) {
-      siteSprayedInPast12Months = surveillanceForm.wasIrsConducted && surveillanceForm.monthsSinceIrs <= 12;
+    // Map IRS data (site-level) - use override if provided, otherwise fall back to surveillanceForm
+    if (irsOverride && irsOverride.wasIrsSprayed !== undefined) {
+      // Use provided IRS data
+      this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.SITE_SPRAYED_IN_PAST_12_MONTHS, irsOverride.wasIrsSprayed, dataElementMap);
+      
+      if (irsOverride.insecticideSprayed) {
+        this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.INSECTICIDE_SPRAYED, irsOverride.insecticideSprayed, dataElementMap);
+      }
+      
+      if (irsOverride.dateLastSprayed) {
+        this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.DATE_LAST_SPRAYED, irsOverride.dateLastSprayed, dataElementMap);
+      }
+    } else {
+      // Fall back to computing from surveillanceForm (existing behavior)
+      let siteSprayedInPast12Months = false;
+      if (surveillanceForm && surveillanceForm.wasIrsConducted !== null && surveillanceForm.monthsSinceIrs !== null) {
+        siteSprayedInPast12Months = surveillanceForm.wasIrsConducted && surveillanceForm.monthsSinceIrs <= 12;
+      }
+      this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.SITE_SPRAYED_IN_PAST_12_MONTHS, siteSprayedInPast12Months, dataElementMap);
     }
-    this.addDataValue(dataValues, DHIS2_DATA_ELEMENT_NAMES.SITE_SPRAYED_IN_PAST_12_MONTHS, siteSprayedInPast12Months, dataElementMap);
 
     // Map surveillance form data
     if (surveillanceForm) {
