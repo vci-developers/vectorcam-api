@@ -22,6 +22,11 @@ const baseLogger = {
 const server: FastifyInstance = Fastify({
   logger: baseLogger,
   trustProxy: true,
+  // Set timeouts to 5 minutes to match nginx configuration
+  connectionTimeout: 300000, // 5 minutes in milliseconds
+  keepAliveTimeout: 310000, // Slightly longer than nginx
+  requestTimeout: 0, // Disable request timeout (rely on connectionTimeout instead)
+  bodyLimit: 20971520, // 20MB to match nginx client_max_body_size
 });
 
 // Wrap the logger with Sentry integration
