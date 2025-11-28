@@ -44,7 +44,11 @@ export const schema = {
             fedAnophelesToPeopleSleptRatio: { type: 'number' },
             totalLlins: { type: 'number' },
             totalPeopleSleptUnderLlin: { type: 'number' },
-            llinsPerPerson: { type: 'number' }
+            llinsPerPerson: { type: 'number' },
+
+            // for backward compatibility
+            vectorDensity: { type: 'number' },
+            fedMosquitoesToPeopleSleptRatio: { type: 'number' },
           }
         }
       }
@@ -231,11 +235,16 @@ export async function getMetrics(
         peopleInAllHousesInspected
       },
       entomologicalSummary: {
+        totalFedAnopheles,
         malariaVectorDensity: Number(malariaVectorDensity.toFixed(2)),
         fedAnophelesToPeopleSleptRatio: Number(fedAnophelesToPeopleSleptRatio.toFixed(2)),
         totalLlins,
         totalPeopleSleptUnderLlin,
-        llinsPerPerson: Number(llinsPerPerson.toFixed(2))
+        llinsPerPerson: Number(llinsPerPerson.toFixed(2)),
+
+        // for backward compatibility
+        vectorDensity: Number(malariaVectorDensity.toFixed(2)),
+        fedMosquitoesToPeopleSleptRatio: Number(fedAnophelesToPeopleSleptRatio.toFixed(2)),
       }
     };
 
