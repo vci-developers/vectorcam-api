@@ -22,6 +22,8 @@ artifacts:
     - package.json
     - package-lock.json
     - .env.example
+    - .platform/**/*
+    - .ebextensions/**/*
     - dist/**/*
     - scripts/**/*
   discard-paths: no
