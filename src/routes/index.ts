@@ -7,6 +7,7 @@ import sessionRoutes from './sessions';
 import specimenRoutes from './specimens';
 import healthRoutes from './health';
 import testSentryRoutes from './test-sentry';
+import testRoutes from './test';
 import authRoutes from './auth';
 import userRoutes from './users';
 import annotationRoutes from './annotations';
@@ -32,8 +33,11 @@ export default async function routes(server: FastifyInstance): Promise<void> {
   server.register(annotationRoutes, { prefix: '/annotations' });
   server.register(dhis2Routes, { prefix: '/dhis2' });
   
-  // Register test routes (only in development)
+  // Register test routes
+  server.register(testRoutes, { prefix: '/test' });
+  
+  // Register Sentry test routes (only in development)
   if (process.env.NODE_ENV === 'development') {
-    server.register(testSentryRoutes, { prefix: '/test' });
+    server.register(testSentryRoutes, { prefix: '/test-sentry' });
   }
 } 
