@@ -120,7 +120,7 @@ export async function exportSurveillanceFormsCSV(
     });
 
     // Generate CSV header with comprehensive data
-    let csv = 'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
+    let csv = 'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
 
     // Generate CSV rows
     for (const form of surveillanceForms) {
@@ -153,6 +153,11 @@ export async function exportSurveillanceFormsCSV(
         escapeCSVField(session?.completedAt?.toISOString()),
         escapeCSVField(session?.submittedAt?.toISOString()),
         escapeCSVField(session?.updatedAt?.toISOString()),
+        escapeCSVField(session?.latitude !== null && session?.latitude !== undefined ? session.latitude : null),
+        escapeCSVField(session?.longitude !== null && session?.longitude !== undefined ? session.longitude : null),
+        escapeCSVField(session?.type),
+        escapeCSVField(session?.collectorLastTrainedOn?.toISOString()),
+        escapeCSVField(session?.hardwareId),
         session?.siteId,
         escapeCSVField(site?.district),
         escapeCSVField(site?.subCounty),
