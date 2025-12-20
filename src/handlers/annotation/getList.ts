@@ -120,7 +120,9 @@ export const schema = {
                           houseNumber: { type: 'string' },
                           isActive: { type: 'boolean' },
                           healthCenter: { type: ['string', 'null'] }
-                        }
+                        },
+                        // Allow dynamic location hierarchy keys
+                        additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
                       }
                     }
                   }
@@ -244,7 +246,9 @@ export default async function getAnnotationList(
     });
 
     // Format response
-    const formattedAnnotations = annotations.map(annotation => formatAnnotationResponse(annotation, true));
+    const formattedAnnotations = await Promise.all(
+      annotations.map(annotation => formatAnnotationResponse(annotation, true))
+    );
 
     return reply.code(200).send({
       annotations: formattedAnnotations,

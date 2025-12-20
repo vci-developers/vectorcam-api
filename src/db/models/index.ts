@@ -15,6 +15,7 @@ import Annotation from './Annotation';
 import Dhis2Cache from './Dhis2Cache';
 import Dhis2SyncEvent from './Dhis2SyncEvent';
 import SessionConflictResolution from './SessionConflictResolution';
+import LocationType from './LocationType';
 
 export {
   Program,
@@ -34,4 +35,5 @@ export {
   Dhis2Cache,
   Dhis2SyncEvent,
   SessionConflictResolution,
+  LocationType,
 };

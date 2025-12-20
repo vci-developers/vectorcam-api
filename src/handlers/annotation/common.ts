@@ -46,10 +46,10 @@ export interface SessionWithSiteResponse extends SessionResponse {
 export interface SpecimenImageResponse extends ImageResponse {}
 
 // Helper to format annotation data consistently across endpoints
-export function formatAnnotationResponse(
+export async function formatAnnotationResponse(
   annotation: Annotation, 
   includeRelated: boolean = false
-): AnnotationResponse {
+): Promise<AnnotationResponse> {
   const response: AnnotationResponse = {
     id: annotation.id,
     annotationTaskId: annotation.annotationTaskId,
@@ -109,7 +109,7 @@ export function formatAnnotationResponse(
 
         // Add site info if available
         if (specimen.session.site) {
-          response.specimen.session.site = formatSiteResponse(specimen.session.site);
+          response.specimen.session.site = await formatSiteResponse(specimen.session.site);
         }
       }
     }

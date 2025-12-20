@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { formatSessionResponse, handleError, findSession } from './common';
 import { Site, Device } from '../../db/models';
+import { formatSiteResponse } from '../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -45,7 +46,9 @@ export const schema = {
             houseNumber: { type: 'string' },
             isActive: { type: 'boolean' },
             healthCenter: { type: 'string', nullable: true }
-          }
+          },
+          // Allow dynamic location hierarchy keys
+          additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
         },
         device: {
           type: 'object',
@@ -71,7 +74,22 @@ export async function getSessionDetails(
       {
         model: Site,
         as: 'site',
-        attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'isActive', 'healthCenter']
+        attributes: [
+          'id',
+          'programId',
+          'locationTypeId',
+          'parentId',
+          'name',
+          'district',
+          'subCounty',
+          'parish',
+          'villageName',
+          'houseNumber',
+          'isActive',
+          'healthCenter',
+          'hasData',
+          'locationHierarchy',
+        ],
       },
       {
         model: Device,
@@ -88,18 +106,11 @@ export async function getSessionDetails(
 
     // Format response with associations
     const sessionData = session.get({ plain: true }) as any;
+    const siteInstance = session.get('site') as Site | undefined;
+    const formattedSite = siteInstance ? await formatSiteResponse(siteInstance) : null;
     const response = {
       ...formatSessionResponse(session),
-      site: sessionData.site ? {
-        id: sessionData.site.id,
-        district: sessionData.site.district,
-        subCounty: sessionData.site.subCounty,
-        parish: sessionData.site.parish,
-        villageName: sessionData.site.villageName,
-        houseNumber: sessionData.site.houseNumber,
-        isActive: sessionData.site.isActive,
-        healthCenter: sessionData.site.healthCenter
-      } : null,
+      site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
       device: sessionData.device ? {
         id: sessionData.device.id,
         model: sessionData.device.model,

@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSessionById, hasSpecimens, handleError } from './common';
+import { Session, Site } from '../../db/models';
 
 export const schema = {
   tags: ['Sessions'],
@@ -60,6 +61,15 @@ export async function deleteSession(
 
     // Delete the session
     await session.destroy();
+
+    // If no sessions remain for the site, reset hasData flag
+    const remaining = await Session.count({ where: { siteId: session.siteId } });
+    if (remaining === 0) {
+      const site = await Site.findByPk(session.siteId);
+      if (site && site.hasData) {
+        await site.update({ hasData: false });
+      }
+    }
 
     return reply.send({
       message: 'Session deleted successfully',

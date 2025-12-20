@@ -14,6 +14,15 @@ import { schema as updateSchema } from '../handlers/program/put';
 import { schema as deleteSchema } from '../handlers/program/delete';
 import { schema as getListSchema } from '../handlers/program/getList';
 
+import { createLocationType } from '../handlers/program/locationType/post';
+import { getLocationTypeList } from '../handlers/program/locationType/getList';
+import { getLocationType } from '../handlers/program/locationType/get';
+import { updateLocationType } from '../handlers/program/locationType/put';
+import { schema as createLocationTypeSchema } from '../handlers/program/locationType/post';
+import { schema as getLocationTypeListSchema } from '../handlers/program/locationType/getList';
+import { schema as getLocationTypeSchema } from '../handlers/program/locationType/get';
+import { schema as updateLocationTypeSchema } from '../handlers/program/locationType/put';
+
 export default async function programRoutes(fastify: FastifyInstance) {
   // Get all programs with filters
   fastify.get('/', {
@@ -40,4 +49,25 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireAdminAuth],
     schema: deleteSchema,
   }, deleteProgram as any);
+
+  // Location types under programs
+  fastify.get('/:program_id/location-types', {
+    preHandler: [requireAdminAuth],
+    schema: getLocationTypeListSchema,
+  }, getLocationTypeList as any);
+
+  fastify.post('/:program_id/location-types', {
+    preHandler: [requireAdminAuth],
+    schema: createLocationTypeSchema,
+  }, createLocationType as any);
+
+  fastify.get('/:program_id/location-types/:location_type_id', {
+    preHandler: [requireAdminAuth],
+    schema: getLocationTypeSchema,
+  }, getLocationType as any);
+
+  fastify.put('/:program_id/location-types/:location_type_id', {
+    preHandler: [requireAdminAuth],
+    schema: updateLocationTypeSchema,
+  }, updateLocationType as any);
 } 

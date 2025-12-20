@@ -167,7 +167,7 @@ export default async function updateAnnotation(
 
     return reply.send({
       message: 'Annotation updated successfully',
-      annotation: formatAnnotationResponse(annotation)
+      annotation: await formatAnnotationResponse(annotation)
     });
 
   } catch (error: any) {

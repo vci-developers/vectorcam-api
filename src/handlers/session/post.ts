@@ -179,6 +179,11 @@ export async function submitSession(
       hardwareId
     });
 
+    // Mark site as having data
+    if (!site.hasData) {
+      await site.update({ hasData: true });
+    }
+
     return reply.code(201).send({
       message: 'Session submitted successfully',
       session: formatSessionResponse(session),

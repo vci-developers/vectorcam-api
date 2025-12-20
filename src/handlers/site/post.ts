@@ -1,9 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Site } from '../../db/models';
-import { formatSiteResponse, findProgramById } from './common';
+import { formatSiteResponse, findProgramById, rebuildLocationHierarchy } from './common';
 
 interface CreateSiteRequest {
   programId: number;
+  locationTypeId?: number;
+  parentId?: number;
+  name?: string;
   district?: string;
   subCounty?: string;
   parish?: string;
@@ -20,6 +23,9 @@ export const schema = {
     required: ['programId'],
     properties: {
       programId: { type: 'number' },
+      locationTypeId: { type: 'number' },
+      parentId: { type: 'number' },
+      name: { type: 'string' },
       district: { type: 'string' },
       subCounty: { type: 'string' },
       parish: { type: 'string' },
@@ -39,14 +45,20 @@ export const schema = {
           properties: {
             siteId: { type: 'number' },
             programId: { type: 'number' },
+            locationTypeId: { type: ['number', 'null'] },
+            parentId: { type: ['number', 'null'] },
+            name: { type: 'string' },
             district: { type: 'string' },
             subCounty: { type: 'string' },
             parish: { type: 'string' },
             villageName: { type: 'string' },
             houseNumber: { type: 'string' },
             isActive: { type: 'boolean' },
+            hasData: { type: 'boolean' },
             healthCenter: { type: 'string' },
           },
+          // Allow dynamic location keys (e.g., { [locationTypeName]: siteName })
+          additionalProperties: { type: ['string', 'number', 'boolean', 'null'] },
         },
       },
     },
@@ -58,7 +70,7 @@ export async function createSite(
   reply: FastifyReply
 ) {
   try {
-    const { programId, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
+    const { programId, locationTypeId, parentId, name, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
 
     // Validate user can create sites
     const siteAccess = request.siteAccess;
@@ -74,6 +86,9 @@ export async function createSite(
 
     const site = await Site.create({
       programId,
+      locationTypeId,
+      parentId,
+      name,
       district,
       subCounty,
       parish,
@@ -83,9 +98,12 @@ export async function createSite(
       healthCenter,
     });
 
+    const hydratedSite = await rebuildLocationHierarchy(site);
+    const formattedSite = await formatSiteResponse(hydratedSite);
+
     return reply.code(200).send({
       message: 'Site created successfully',
-      site: formatSiteResponse(site),
+      site: formattedSite,
     });
   } catch (error) {
     request.log.error(error);

@@ -3,6 +3,7 @@ import { Op } from 'sequelize';
 import { handleError } from './common';
 import { Specimen, Session, Site, Device, Program, InferenceResult, SpecimenImage } from '../../db/models';
 import { config } from '../../config/environment';
+import { formatSiteResponse } from '../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -155,7 +156,7 @@ export async function exportSpecimensCSV(
     }
 
     // Generate CSV header
-    let csvHeader = 'SpecimenID,ShouldProcessFurther,ImageID,ImageUrl,ImageS3Key,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
+    let csvHeader = 'SpecimenID,ShouldProcessFurther,ImageID,ImageUrl,ImageS3Key,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
     
     // Add inference result columns if requested
     if (includeInferenceResult) {
@@ -171,6 +172,8 @@ export async function exportSpecimensCSV(
       const site = session?.site as any;
       const device = session?.device as any;
       const program = site?.program as any;
+      const formattedSite = site ? await formatSiteResponse(site) : undefined;
+      const siteLocationHierarchy = formattedSite ? JSON.stringify(formattedSite) : '';
       // Get all images for this specimen
       const images = await SpecimenImage.findAll({ where: { specimenId: specimen.id } });
       for (const img of images) {
@@ -213,13 +216,14 @@ export async function exportSpecimensCSV(
           escapeCSVField(session?.collectorLastTrainedOn?.toISOString()),
           escapeCSVField(session?.hardwareId),
           escapeCSVField(session?.siteId),
-          escapeCSVField(site?.district),
-          escapeCSVField(site?.subCounty),
-          escapeCSVField(site?.parish),
-          escapeCSVField(site?.villageName),
-          escapeCSVField(site?.houseNumber),
+          escapeCSVField(formattedSite?.district ?? ''),
+          escapeCSVField(formattedSite?.subCounty ?? ''),
+          escapeCSVField(formattedSite?.parish ?? ''),
+          escapeCSVField(formattedSite?.villageName ?? ''),
+          escapeCSVField(formattedSite?.houseNumber ?? ''),
           escapeCSVField(site?.isActive),
-          escapeCSVField(site?.healthCenter),
+          escapeCSVField(formattedSite?.healthCenter ?? ''),
+          escapeCSVField(siteLocationHierarchy || ''),
           escapeCSVField(program?.id),
           escapeCSVField(program?.name),
           escapeCSVField(program?.country),

@@ -138,7 +138,9 @@ export const schema = {
                     houseNumber: { type: 'string' },
                     isActive: { type: 'boolean' },
                     healthCenter: { type: ['string', 'null'] }
-                  }
+                  },
+                  // Allow dynamic location hierarchy keys
+                  additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
                 }
               }
             }
@@ -223,7 +225,7 @@ export default async function getAnnotation(
       return reply.code(404).send({ error: 'Annotation not found' });
     }
 
-    return reply.send(formatAnnotationResponse(annotation, true));
+    return reply.send(await formatAnnotationResponse(annotation, true));
 
   } catch (error: any) {
     request.log.error(error);

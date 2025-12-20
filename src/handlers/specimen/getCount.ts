@@ -1,7 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session, Site, SpecimenImage } from '../../db/models';
-import { Op, QueryTypes } from 'sequelize';
+import { Op, QueryTypes, fn, col, where, literal } from 'sequelize';
 import sequelize from '../../db/index';
+import { formatSiteResponse } from '../site/common';
 
 interface QueryParams {
   startDate?: string;
@@ -9,6 +10,8 @@ interface QueryParams {
   district?: string;
   sessionId?: string;
   sessionType?: string;
+  locationTypeKey?: string;
+  locationTypeValue?: string;
 }
 
 export const schema = {
@@ -39,6 +42,14 @@ export const schema = {
         enum: ['SURVEILLANCE', 'DATA_COLLECTION'],
         description: 'Filter specimens by session type'
       },
+      locationTypeKey: {
+        type: 'string',
+        description: 'Filter by location type name key in location hierarchy'
+      },
+      locationTypeValue: {
+        type: 'string',
+        description: 'Filter by site name value for given location type key'
+      },
     }
   },
   response: {
@@ -60,13 +71,22 @@ export const schema = {
               siteInfo: {
                 type: 'object',
                 properties: {
+                  siteId: { type: 'number' },
+                  programId: { type: 'number' },
+                  locationTypeId: { type: ['number', 'null'] },
+                  parentId: { type: ['number', 'null'] },
+                  name: { type: 'string' },
                   district: { type: 'string', nullable: true },
                   subCounty: { type: 'string', nullable: true },
                   parish: { type: 'string', nullable: true },
                   villageName: { type: 'string', nullable: true },
                   houseNumber: { type: 'string' },
+                  isActive: { type: 'boolean' },
+                  hasData: { type: 'boolean' },
                   healthCenter: { type: 'string', nullable: true }
-                }
+                },
+                // Allow dynamic location hierarchy keys
+                additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
               },
               counts: {
                 type: 'array',
@@ -107,7 +127,7 @@ export async function getSpecimenCount(
   reply: FastifyReply
 ) {
   try {
-    const { startDate, endDate, district, sessionId, sessionType } = request.query;
+    const { startDate, endDate, district, sessionId, sessionType, locationTypeKey, locationTypeValue } = request.query;
 
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -137,72 +157,78 @@ export async function getSpecimenCount(
 
     // Build site restrictions based on user access and district filter
     const siteWhere: any = {};
+    let hasSiteFilter = false;
     if (siteAccess.userSites.length > 0) {
       // User has limited site access, restrict to their sites
       siteWhere.id = {
         [Op.in]: siteAccess.userSites
       };
+      hasSiteFilter = true;
     }
     
     // Add district filter if provided
     if (district) {
       siteWhere.district = district;
+      hasSiteFilter = true;
+    }
+
+    // Add dynamic location type filter if provided
+    if (locationTypeKey && locationTypeValue) {
+      const escapedKey = locationTypeKey.replace(/["\\]/g, '\\$&');
+      const jsonPath = literal(`'$."${escapedKey}"'`);
+      siteWhere[Op.and] = [
+        ...(siteWhere[Op.and] || []),
+        where(
+          fn('JSON_EXTRACT', fn('COALESCE', col('location_hierarchy'), '{}'), jsonPath),
+          locationTypeValue
+        ),
+      ];
+      hasSiteFilter = true;
     }
     
     // Get all sites that match the filters (to include all accessible sites in results)
     let filteredSiteIds: number[] = [];
     let allAccessibleSites: any[] = [];
     
-    if (district || siteAccess.userSites.length > 0) {
-      const sites = await Site.findAll({
-        where: siteWhere,
-        attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'healthCenter']
+    const siteAttributes = [
+      'id',
+      'programId',
+      'locationTypeId',
+      'parentId',
+      'name',
+      'district',
+      'subCounty',
+      'parish',
+      'villageName',
+      'houseNumber',
+      'isActive',
+      'healthCenter',
+      'hasData',
+      'locationHierarchy',
+    ];
+
+    const sites = await Site.findAll({
+      where: hasSiteFilter ? siteWhere : undefined,
+      attributes: siteAttributes,
+    });
+
+    const formattedSites = await Promise.all(sites.map(site => formatSiteResponse(site)));
+    allAccessibleSites = formattedSites.map(site => ({ siteId: site.siteId, site }));
+    filteredSiteIds = hasSiteFilter ? formattedSites.map(site => site.siteId) : [];
+
+    // If filtering was requested but no sites matched, return empty
+    if (hasSiteFilter && filteredSiteIds.length === 0) {
+      return reply.send({
+        message: 'Specimen counts retrieved successfully',
+        columns: [],
+        data: []
       });
-      allAccessibleSites = sites.map(site => ({
-        id: site.id,
-        district: site.district,
-        subCounty: site.subCounty,
-        parish: site.parish,
-        villageName: site.villageName,
-        houseNumber: site.houseNumber,
-        healthCenter: site.healthCenter
-      }));
-      filteredSiteIds = sites.map(site => site.id);
-      
-      // If no sites match the filters, return empty result
-      if (filteredSiteIds.length === 0) {
-        return reply.send({
-          message: 'Specimen counts retrieved successfully',
-          columns: [],
-          data: []
-        });
-      }
-    } else {
-      // User has access to all sites, get all sites
-      const sites = await Site.findAll({
-        attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'healthCenter']
-      });
-      allAccessibleSites = sites.map(site => ({
-        id: site.id,
-        district: site.district,
-        subCounty: site.subCounty,
-        parish: site.parish,
-        villageName: site.villageName,
-        houseNumber: site.houseNumber,
-        healthCenter: site.healthCenter
-      }));
     }
 
     // Use raw SQL query for better performance with grouping
     const query = `
       SELECT 
         s.id as siteId,
-        s.district,
-        s.sub_county as subCounty,
-        s.parish,
-        s.village_name as villageName,
-        s.house_number as houseNumber,
-        s.health_center as healthCenter,
         si.species,
         si.sex,
         si.abdomen_status as abdomenStatus,
@@ -266,14 +292,7 @@ export async function getSpecimenCount(
     // Initialize groupedBySite with all accessible sites
     const groupedBySite = new Map<number, {
       siteId: number;
-      siteInfo: {
-        district: string | null;
-        subCounty: string | null;
-        parish: string | null;
-        villageName: string | null;
-        houseNumber: string;
-        healthCenter: string | null;
-      };
+      siteInfo: Record<string, any>;
       counts: Array<{
         species: string | null;
         sex: string | null;
@@ -285,17 +304,10 @@ export async function getSpecimenCount(
     }>();
 
     // Pre-populate with all accessible sites
-    for (const site of allAccessibleSites) {
-      groupedBySite.set(site.id, {
-        siteId: site.id,
-        siteInfo: {
-          district: site.district,
-          subCounty: site.subCounty,
-          parish: site.parish,
-          villageName: site.villageName,
-          houseNumber: site.houseNumber,
-          healthCenter: site.healthCenter
-        },
+    for (const { siteId, site } of allAccessibleSites) {
+      groupedBySite.set(siteId, {
+        siteId,
+        siteInfo: site,
         counts: [],
         totalSpecimens: 0
       });

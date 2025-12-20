@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { formatSpecimenResponse, handleError } from './common';
 import { Session, Site, Device, Specimen } from '../../db/models';
+import { formatSiteResponse } from '../site/common';
 
 export const schema = {
   tags: ['Specimens'],
@@ -128,7 +129,9 @@ export const schema = {
                 houseNumber: { type: 'string' },
                 isActive: { type: 'boolean' },
                 healthCenter: { type: ['string', 'null'] }
-              }
+              },
+              // Allow dynamic location hierarchy keys
+              additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
             },
             device: {
               type: 'object',
@@ -160,7 +163,22 @@ export async function getSpecimenDetails(
           {
             model: Site,
             as: 'site',
-            attributes: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'isActive', 'healthCenter']
+            attributes: [
+              'id',
+              'programId',
+              'locationTypeId',
+              'parentId',
+              'name',
+              'district',
+              'subCounty',
+              'parish',
+              'villageName',
+              'houseNumber',
+              'isActive',
+              'healthCenter',
+              'hasData',
+              'locationHierarchy',
+            ]
           },
           {
             model: Device,
@@ -178,6 +196,9 @@ export async function getSpecimenDetails(
 
     // Format response with associations
     const specimenData = specimen.get({ plain: true }) as any;
+    const sessionInstance = specimen.get('session') as Session | undefined;
+    const siteInstance = sessionInstance?.get('site') as Site | undefined;
+    const formattedSite = siteInstance ? await formatSiteResponse(siteInstance) : null;
     const baseResponse = await formatSpecimenResponse(specimen, true);
     
     const response = {
@@ -201,16 +222,7 @@ export async function getSpecimenDetails(
         type: specimenData.session.type,
         collectorLastTrainedOn: specimenData.session.collectorLastTrainedOn ? new Date(specimenData.session.collectorLastTrainedOn).getTime() : null,
         hardwareId: specimenData.session.hardwareId,
-        site: specimenData.session.site ? {
-          id: specimenData.session.site.id,
-          district: specimenData.session.site.district,
-          subCounty: specimenData.session.site.subCounty,
-          parish: specimenData.session.site.parish,
-          villageName: specimenData.session.site.villageName,
-          houseNumber: specimenData.session.site.houseNumber,
-          isActive: specimenData.session.site.isActive,
-          healthCenter: specimenData.session.site.healthCenter
-        } : null,
+        site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
         device: specimenData.session.device ? {
           id: specimenData.session.device.id,
           model: specimenData.session.device.model,

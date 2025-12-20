@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Site } from '../../db/models';
 import { formatSiteResponse } from './common';
-import { Op, Order } from 'sequelize';
+import { Op, Order, fn, col, where, literal } from 'sequelize';
 
 export const schema = {
   tags: ['Sites'],
@@ -16,6 +16,8 @@ export const schema = {
       houseNumber: { type: 'string', description: 'Filter by house number (partial match)' },
       isActive: { type: 'boolean', description: 'Filter by active status' },
       healthCenter: { type: 'string', description: 'Filter by health center (partial match)' },
+      locationTypeKey: { type: 'string', description: 'Filter by location type name key in location hierarchy' },
+      locationTypeValue: { type: 'string', description: 'Filter by site name value for given location type key' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' },
       sortBy: { type: 'string', enum: ['id', 'district', 'subCounty', 'parish', 'villageName', 'houseNumber', 'healthCenter'], default: 'id', description: 'Field to sort by' },
@@ -39,8 +41,11 @@ export const schema = {
               villageName: { type: 'string', nullable: true },
               houseNumber: { type: 'string' },
               isActive: { type: 'boolean' },
+              hasData: { type: 'boolean' },
               healthCenter: { type: 'string', nullable: true }
-            }
+            },
+            // Allow dynamic location hierarchy keys
+            additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
           }
         },
         total: { type: 'number' },
@@ -61,6 +66,8 @@ interface QueryParams {
   houseNumber?: string;
   isActive?: boolean;
   healthCenter?: string;
+  locationTypeKey?: string;
+  locationTypeValue?: string;
   limit?: number;
   offset?: number;
   sortBy?: 'id' | 'district' | 'subCounty' | 'parish' | 'villageName' | 'houseNumber' | 'healthCenter';
@@ -81,6 +88,8 @@ export async function getSiteList(
       houseNumber,
       isActive,
       healthCenter,
+      locationTypeKey,
+      locationTypeValue,
       limit = 20,
       offset = 0,
       sortBy = 'id',
@@ -135,6 +144,17 @@ export async function getSiteList(
         [Op.like]: `%${healthCenter}%`
       };
     }
+    if (locationTypeKey && locationTypeValue) {
+      const escapedKey = locationTypeKey.replace(/["\\]/g, '\\$&');
+      const jsonPath = literal(`'$."${escapedKey}"'`);
+      whereClause[Op.and] = [
+        ...(whereClause[Op.and] || []),
+        where(
+          fn('JSON_EXTRACT', fn('COALESCE', col('location_hierarchy'), '{}'), jsonPath),
+          locationTypeValue
+        ),
+      ];
+    }
 
     // Build order clause
     const orderClause: Order = [[sortBy, sortOrder.toUpperCase()]];
@@ -154,7 +174,7 @@ export async function getSiteList(
     });
 
     // Format response
-    const formattedSites = sites.map(site => formatSiteResponse(site));
+    const formattedSites = await Promise.all(sites.map(site => formatSiteResponse(site)));
 
     return reply.code(200).send({
       sites: formattedSites,

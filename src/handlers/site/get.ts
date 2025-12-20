@@ -17,12 +17,16 @@ export const schema = {
       properties: {
         siteId: { type: 'number' },
         programId: { type: 'number' },
+        locationTypeId: { type: ['number', 'null'] },
+        parentId: { type: ['number', 'null'] },
+        name: { type: 'string' },
         district: { type: ['string', 'null'] },
         subCounty: { type: ['string', 'null'] },
         parish: { type: ['string', 'null'] },
         villageName: { type: ['string', 'null'] },
         houseNumber: { type: 'string' },
         isActive: { type: 'boolean' },
+        hasData: { type: 'boolean' },
         healthCenter: { type: ['string', 'null'] },
         program: {
           type: 'object',
@@ -31,7 +35,9 @@ export const schema = {
             name: { type: 'string' },
             country: { type: 'string' }
           }
-        }
+        },
+        // Allow dynamic location hierarchy keys
+        additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
       }
     }
   }
@@ -60,13 +66,16 @@ export async function getSiteDetails(
 
     // Format response with associations
     const siteData = site.get({ plain: true }) as any;
+    const sitePayload = await formatSiteResponse(site);
     const response = {
-      ...formatSiteResponse(site),
-      program: siteData.program ? {
-        id: siteData.program.id,
-        name: siteData.program.name,
-        country: siteData.program.country
-      } : null
+      ...sitePayload,
+      program: siteData.program
+        ? {
+            id: siteData.program.id,
+            name: siteData.program.name,
+            country: siteData.program.country,
+          }
+        : null,
     };
 
     return reply.send(response);

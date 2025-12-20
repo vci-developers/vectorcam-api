@@ -1,8 +1,11 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSiteById, formatSiteResponse, findProgramById } from './common';
+import { findSiteById, formatSiteResponse, findProgramById, rebuildLocationHierarchy } from './common';
 
 interface UpdateSiteRequest {
   programId?: number;
+  locationTypeId?: number | null;
+  parentId?: number | null;
+  name?: string | null;
   district?: string;
   subCounty?: string;
   parish?: string;
@@ -25,6 +28,9 @@ export const schema = {
     type: 'object',
     properties: {
       programId: { type: 'number' },
+      locationTypeId: { type: ['number', 'null'] },
+      parentId: { type: ['number', 'null'] },
+      name: { type: ['string', 'null'] },
       district: { type: 'string' },
       subCounty: { type: 'string' },
       parish: { type: 'string' },
@@ -44,14 +50,20 @@ export const schema = {
           properties: {
             siteId: { type: 'number' },
             programId: { type: 'number' },
+            locationTypeId: { type: ['number', 'null'] },
+            parentId: { type: ['number', 'null'] },
+            name: { type: 'string' },
             district: { type: 'string' },
             subCounty: { type: 'string' },
             parish: { type: 'string' },
             villageName: { type: 'string' },
             houseNumber: { type: 'string' },
             isActive: { type: 'boolean' },
+            hasData: { type: 'boolean' },
             healthCenter: { type: 'string' },
           },
+          // Allow dynamic location hierarchy keys
+          additionalProperties: { type: ['string', 'number', 'boolean', 'null'] },
         },
       },
     },
@@ -67,7 +79,7 @@ export async function updateSite(
 ) {
   try {
     const { site_id } = request.params;
-    const { programId, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
+    const { programId, locationTypeId, parentId, name, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
 
     const site = await findSiteById(site_id);
     if (!site) {
@@ -83,6 +95,9 @@ export async function updateSite(
 
     await site.update({
       programId: programId !== undefined ? programId : site.programId,
+      locationTypeId: locationTypeId !== undefined ? locationTypeId : site.locationTypeId,
+      parentId: parentId !== undefined ? parentId : site.parentId,
+      name: name !== undefined ? name : site.name,
       district: district !== undefined ? district : site.district,
       subCounty: subCounty !== undefined ? subCounty : site.subCounty,
       parish: parish !== undefined ? parish : site.parish,
@@ -92,9 +107,12 @@ export async function updateSite(
       healthCenter: healthCenter !== undefined ? healthCenter : site.healthCenter,
     });
 
+    const hydratedSite = await rebuildLocationHierarchy(site);
+    const formattedSite = await formatSiteResponse(hydratedSite);
+
     return reply.code(200).send({
       message: 'Site updated successfully',
-      site: formatSiteResponse(site),
+      site: formattedSite,
     });
   } catch (error) {
     request.log.error(error);

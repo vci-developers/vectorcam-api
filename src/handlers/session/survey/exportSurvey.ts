@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { handleError } from '../common';
 import { SurveillanceForm, Session, Site, Device, Program } from '../../../db/models';
+import { formatSiteResponse } from '../../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -120,7 +121,8 @@ export async function exportSurveillanceFormsCSV(
     });
 
     // Generate CSV header with comprehensive data
-    let csv = 'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
+    let csv =
+      'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt\n';
 
     // Generate CSV rows
     for (const form of surveillanceForms) {
@@ -130,6 +132,9 @@ export async function exportSurveillanceFormsCSV(
       const device = session?.device as any;
       const program = site?.program as any;
       
+      const formattedSite = site ? await formatSiteResponse(site) : undefined;
+      const siteLocationHierarchy = formattedSite ? JSON.stringify(formattedSite) : '';
+
       const row = [
         form.id,
         escapeCSVField(form.numPeopleSleptInHouse),
@@ -159,13 +164,14 @@ export async function exportSurveillanceFormsCSV(
         escapeCSVField(session?.collectorLastTrainedOn?.toISOString()),
         escapeCSVField(session?.hardwareId),
         session?.siteId,
-        escapeCSVField(site?.district),
-        escapeCSVField(site?.subCounty),
-        escapeCSVField(site?.parish),
-        escapeCSVField(site?.villageName),
-        escapeCSVField(site?.houseNumber),
+        escapeCSVField(formattedSite?.district ?? ''),
+        escapeCSVField(formattedSite?.subCounty ?? ''),
+        escapeCSVField(formattedSite?.parish ?? ''),
+        escapeCSVField(formattedSite?.villageName ?? ''),
+        escapeCSVField(formattedSite?.houseNumber ?? ''),
         escapeCSVField(site?.isActive),
-        escapeCSVField(site?.healthCenter),
+        escapeCSVField(formattedSite?.healthCenter ?? ''),
+        escapeCSVField(siteLocationHierarchy || ''),
         program?.id,
         escapeCSVField(program?.name),
         escapeCSVField(program?.country),

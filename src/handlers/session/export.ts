@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { handleError } from './common';
 import { Site, Device, Session, Program } from '../../db/models';
+import { formatSiteResponse } from '../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -121,7 +122,8 @@ export async function exportSessionsCSV(
     });
 
     // Generate CSV header with program data
-    let csv = 'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,ProgramID,ProgramName,ProgramCountry\n';
+    let csv =
+      'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry\n';
 
     // Generate CSV rows
     for (const session of sessions) {
@@ -130,6 +132,9 @@ export async function exportSessionsCSV(
       const device = session.get('device') as any;
       const program = site?.program as any;
       
+      const formattedSite = site ? await formatSiteResponse(site) : undefined;
+      const siteLocationHierarchy = formattedSite ? JSON.stringify(formattedSite) : '';
+
       const row = [
         escapeCSVField(session.id),
         escapeCSVField(session.frontendId),
@@ -152,13 +157,14 @@ export async function exportSessionsCSV(
         escapeCSVField(device?.model),
         escapeCSVField(device?.registeredAt?.toISOString()),
         escapeCSVField(session.siteId),
-        escapeCSVField(site?.district),
-        escapeCSVField(site?.subCounty),
-        escapeCSVField(site?.parish),
-        escapeCSVField(site?.villageName),
-        escapeCSVField(site?.houseNumber),
+        escapeCSVField(formattedSite?.district ?? ''),
+        escapeCSVField(formattedSite?.subCounty ?? ''),
+        escapeCSVField(formattedSite?.parish ?? ''),
+        escapeCSVField(formattedSite?.villageName ?? ''),
+        escapeCSVField(formattedSite?.houseNumber ?? ''),
         escapeCSVField(site?.isActive),
-        escapeCSVField(site?.healthCenter),
+        escapeCSVField(formattedSite?.healthCenter ?? ''),
+        escapeCSVField(siteLocationHierarchy || ''),
         escapeCSVField(program?.id),
         escapeCSVField(program?.name),
         escapeCSVField(program?.country)
