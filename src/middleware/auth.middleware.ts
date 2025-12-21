@@ -182,7 +182,7 @@ export function requireMobileAuth(
 }
 
 /**
- * Middleware to require admin privileges (for user JWT tokens with privilege >= 1)
+ * Middleware to require admin privileges (for user JWT tokens with privilege >= 2)
  */
 export function requireAdmin(
   request: FastifyRequest,
@@ -195,7 +195,7 @@ export function requireAdmin(
   }
 
   // For user tokens, check privilege level
-  if (!request.user || request.user.privilege < 1) {
+  if (!request.user || request.user.privilege < 2) {
     reply.code(403).send({ error: 'Forbidden: Admin privileges required' });
     return done(new Error('Forbidden'));
   }
@@ -204,7 +204,7 @@ export function requireAdmin(
 }
 
 /**
- * Middleware to require superadmin privileges (for user JWT tokens with privilege >= 2)
+ * Middleware to require superadmin privileges (for user JWT tokens with privilege >= 3)
  */
 export function requireSuperAdmin(
   request: FastifyRequest,
@@ -217,7 +217,7 @@ export function requireSuperAdmin(
   }
 
   // For user tokens, check privilege level
-  if (!request.user || request.user.privilege < 2) {
+  if (!request.user || request.user.privilege < 3) {
     reply.code(403).send({ error: 'Forbidden: Superadmin privileges required' });
     return done(new Error('Forbidden'));
   }

@@ -197,3 +197,11 @@ export async function hasAssociatedSessions(siteId: number): Promise<boolean> {
   });
   return sessionCount > 0;
 }
+
+// Check if site has child sites
+export async function hasChildSites(siteId: number): Promise<boolean> {
+  const childCount = await Site.count({
+    where: { parentId: siteId },
+  });
+  return childCount > 0;
+}

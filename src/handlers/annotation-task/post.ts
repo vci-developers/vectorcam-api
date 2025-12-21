@@ -120,10 +120,12 @@ export default async function createAnnotationTasks(
       return reply.code(400).send({ error: 'Year must be between 2000 and 3000' });
     }
 
-    // Get all superadmin users (privilege = 2) who are active
+    // Get all superadmin users (privilege >= 3) who are active
     const superAdminUsers = await User.findAll({
       where: {
-        privilege: 2,
+        privilege: {
+          [Op.gte]: 3
+        },
         isActive: true
       },
       order: [['id', 'ASC']]

@@ -102,12 +102,12 @@ export const getPermissionsSchema: any = {
  * Maps authenticated user permissions into structured format based on privilege level and site associations
  * 
  * Permission mapping logic:
- * - Super Admin (privilege >= 2): Full access to all sites and annotations
- * - Admin (privilege >= 1): Full access to their assigned sites and annotations
- * - Whitelisted User (privilege 0 + whitelisted): Read-only access to their assigned sites, no annotation tasks
+ * New privilege map:
+ * - 0: READ/VIEW assigned site(s)
+ * - 1: READ/VIEW all sites
+ * - 2: READ/VIEW + WRITE + PUSH assigned site(s)
+ * - 3: READ/VIEW + WRITE + PUSH all sites + ANNOTATE
  * - Regular User: No access
- * 
- * DHIS2 push permission is reserved for Super Admins only
  */
 export async function getPermissionsHandler(
   request: FastifyRequest<{ Querystring: PermissionsQuery }>,
@@ -139,8 +139,8 @@ export async function getPermissionsHandler(
 
     // If siteId query parameter is provided, filter permissions for that specific site
     if (parsedSiteId !== undefined) {
-      if (user.privilege >= 2) {
-        // Super admin has access to all sites
+      if (user.privilege >= 3 || siteAccess.userSites.length === 0) {
+        // Super admin or users with read-all permissions
         hasAccessToQueriedSite = true;
       } else {
         // Check if the site is in user's site list
@@ -161,22 +161,28 @@ export async function getPermissionsHandler(
       viewAndWriteAnnotationTasks: false,
     };
 
-    if (user.privilege >= 2) {
-      // Super Admin: Full permissions including DHIS2 push
+    if (user.privilege >= 3) {
+      // Super Admin: Full permissions including annotate and push
       sitePermissions.viewSiteMetadata = true;
       sitePermissions.writeSiteMetadata = true;
       sitePermissions.pushSiteMetadata = true;
       annotationPermissions.viewAndWriteAnnotationTasks = true;
-
       sitePermissions.canAccessSites = await Site.findAll();
-    } else if (user.privilege >= 1) {
-      // Admin: Full permissions except DHIS2 push, limited to their sites
-      sitePermissions.viewSiteMetadata = hasAccessToQueriedSite;
-      sitePermissions.writeSiteMetadata = hasAccessToQueriedSite;
-      sitePermissions.pushSiteMetadata = hasAccessToQueriedSite;
+    } else if (user.privilege === 2) {
+      // Per-site writer/pusher
+      sitePermissions.viewSiteMetadata = hasAccessToQueriedSite && siteAccess.canRead;
+      sitePermissions.writeSiteMetadata = hasAccessToQueriedSite && siteAccess.canWrite;
+      sitePermissions.pushSiteMetadata = hasAccessToQueriedSite && siteAccess.canPush;
       annotationPermissions.viewAndWriteAnnotationTasks = false;
+    } else if (user.privilege === 1) {
+      // Read-only all sites
+      sitePermissions.viewSiteMetadata = true;
+      sitePermissions.writeSiteMetadata = false;
+      sitePermissions.pushSiteMetadata = false;
+      annotationPermissions.viewAndWriteAnnotationTasks = false;
+      // Leave canAccessSites empty to indicate all sites readable
     } else if (siteAccess.canRead) {
-      // Whitelisted user: Read-only site access, no annotation tasks
+      // Privilege 0 / whitelisted read-only per site
       sitePermissions.viewSiteMetadata = hasAccessToQueriedSite;
       sitePermissions.writeSiteMetadata = false;
       sitePermissions.pushSiteMetadata = false;
@@ -184,7 +190,7 @@ export async function getPermissionsHandler(
     }
 
     // Fetch site objects for non-super admin users
-    if (user.privilege < 2 && siteAccess.userSites.length > 0) {
+    if (user.privilege < 3 && siteAccess.userSites.length > 0) {
       sitePermissions.canAccessSites = await Site.findAll({
         where: {
           id: siteAccess.userSites,

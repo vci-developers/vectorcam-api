@@ -6,7 +6,7 @@ import { SiteUser, User, Site } from '../../../db/models';
 export const addSiteUserSchema = {
   tags: ['Site Users'],
   summary: 'Add user to site',
-  description: 'Add an admin user to a site (requires admin token)',
+  description: 'Add a user to a site (requires admin token)',
   params: Type.Object({
     siteId: Type.String()
   }),
@@ -57,15 +57,15 @@ export async function addSiteUserHandler(
       return reply.code(404).send({ error: 'Site not found' });
     }
 
-    // Verify user exists and is admin (privilege = 1)
+    // Verify user exists and is eligible for per-site access (privilege 0 or 2)
     const user = await User.findByPk(userId);
     if (!user) {
       return reply.code(404).send({ error: 'User not found' });
     }
 
-    if (user.privilege !== 1) {
-      return reply.code(400).send({ error: 'Only admin users (privilege = 1) can be assigned to sites' });
-    }
+    // if (user.privilege !== 0 && user.privilege !== 2) {
+    //   return reply.code(400).send({ error: 'Only privilege 0 (view) or 2 (write/push) users can be assigned to sites' });
+    // }
 
     // Check if association already exists
     const existingAssociation = await SiteUser.findOne({

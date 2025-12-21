@@ -33,8 +33,8 @@ export const modifyUserSchema: any = {
     properties: {
       privilege: { 
         type: 'number',
-        description: 'Privilege level: 0 (no privilege), 1 (admin), 2 (superadmin)',
-        enum: [0, 1, 2]
+        description: 'Privilege level: 0=view selected sites, 1=view all, 2=write/push selected sites, 3=write/push all + annotate',
+        enum: [0, 1, 2, 3]
       },
     },
   },
@@ -93,8 +93,8 @@ export async function modifyUserHandler(
       return reply.code(400).send({ error: 'Valid user ID is required' });
     }
 
-    if (![0, 1, 2].includes(privilege)) {
-      return reply.code(400).send({ error: 'Invalid privilege level. Must be 0 (no privilege), 1 (admin), or 2 (superadmin)' });
+    if (![0, 1, 2, 3].includes(privilege)) {
+      return reply.code(400).send({ error: 'Invalid privilege level. Must be 0, 1, 2, or 3' });
     }
 
     // Find user by ID

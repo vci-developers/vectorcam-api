@@ -3,7 +3,8 @@ import {
   findSiteById, 
   handleError, 
   hasAssociatedDevices,
-  hasAssociatedSessions 
+  hasAssociatedSessions,
+  hasChildSites,
 } from './common';
 
 export const schema = {
@@ -50,6 +51,14 @@ export async function deleteSite(
     if (hasSessions) {
       return reply.code(400).send({ 
         error: 'Site cannot be deleted because it has associated sessions' 
+      });
+    }
+
+    // Check if site has child sites
+    const hasChildren = await hasChildSites(site_id);
+    if (hasChildren) {
+      return reply.code(400).send({
+        error: 'Site cannot be deleted because it has child sites',
       });
     }
 

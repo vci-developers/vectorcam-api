@@ -7,6 +7,7 @@ declare module 'fastify' {
     siteAccess?: {
       canRead: boolean;
       canWrite: boolean;
+      canPush: boolean;
       userSites: number[];
     };
   }
@@ -15,9 +16,14 @@ declare module 'fastify' {
 /**
  * Site access control middleware that enforces the following rules:
  * 
- * - Whitelisted users: can view data for their sites only
- * - Admin users (privilege >= 1): can view/edit data for their sites
- * - Super admin users (privilege >= 2): can view/edit data for any sites
+ * New privilege map:
+ * - 0: read/view for assigned site(s)
+ * - 1: read/view for all sites
+ * - 2: read/view/write/push for assigned site(s)
+ * - 3: read/view/write/push for all sites + annotate
+ *
+ * - Whitelisted users: can view data for their sites only (treated like privilege 0 if no higher privilege)
+ * - Admin token / mobile token: full access to all sites
  * - Admin token: can view/edit any data
  * - Mobile token: can view/edit any data
  */
@@ -30,6 +36,7 @@ export async function siteAccessMiddleware(
     request.siteAccess = {
       canRead: true,
       canWrite: true,
+      canPush: true,
       userSites: [] // Empty array means access to all sites
     };
     return;
@@ -186,17 +193,18 @@ export async function getUserSiteAccess(
   userId: number,
   isWhitelisted: boolean,
   privilege: number
-): Promise<{ canRead: boolean; canWrite: boolean; userSites: number[] }> {
-  // Super admin users (privilege >= 2) have full access to all sites
-  if (privilege >= 2) {
+): Promise<{ canRead: boolean; canWrite: boolean; canPush: boolean; userSites: number[] }> {
+  // Super admin users (privilege >= 3) have full access to all sites
+  if (privilege >= 3) {
     return {
       canRead: true,
       canWrite: true,
+      canPush: true,
       userSites: [] // Empty array means access to all sites
     };
   }
 
-  // For regular users and admin users (privilege >= 1), get their site associations
+  // For non-super users, get their site associations (used for privilege 0 and 2)
   const userSiteAssociations = await SiteUser.findAll({
     where: { userId },
     attributes: ['siteId']
@@ -204,20 +212,32 @@ export async function getUserSiteAccess(
 
   const userSites = userSiteAssociations.map(association => association.siteId);
 
-  // Admin users (privilege >= 1) can read and write to their sites
-  if (privilege >= 1) {
+  // Privilege 2: read/write/push to assigned sites
+  if (privilege === 2) {
     return {
       canRead: true,
       canWrite: true,
+      canPush: true,
       userSites
     };
   }
 
-  // Whitelisted regular users can only read their sites
-  if (isWhitelisted) {
+  // Privilege 1: read-only access to all sites
+  if (privilege === 1) {
     return {
       canRead: true,
       canWrite: false,
+      canPush: false,
+      userSites: [], // empty => all sites for read
+    };
+  }
+
+  // Privilege 0 (or whitelisted): read-only for assigned sites
+  if (isWhitelisted || privilege === 0) {
+    return {
+      canRead: userSites.length > 0,
+      canWrite: false,
+      canPush: false,
       userSites
     };
   }
@@ -226,6 +246,7 @@ export async function getUserSiteAccess(
   return {
     canRead: false,
     canWrite: false,
+    canPush: false,
     userSites: []
   };
 }
