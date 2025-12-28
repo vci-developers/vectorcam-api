@@ -14,5 +14,11 @@ export {
   updateSurvey,
   exportSurveillanceFormsCSV
 } from './survey';
+export {
+  getSessionFormAnswers,
+  createSessionFormAnswers,
+  updateSessionFormAnswers,
+  exportFormAnswersCSV
+} from './form';
 export { resolveConflict } from './resolveConflict';
 export { getConflictLogs } from './getConflictLogs';

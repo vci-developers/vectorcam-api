@@ -5,14 +5,34 @@ import {
   updateProgram,
   deleteProgram
 } from '../handlers/program';
+import {
+  getProgramForm,
+  getProgramFormCurrent,
+  getProgramFormList,
+  updateProgramForm,
+  checkoutProgramForm,
+  publishProgramForm,
+  createProgramFormQuestion,
+  updateProgramFormQuestion,
+  deleteProgramFormQuestion,
+} from '../handlers/program/form';
 import { getProgramList } from '../handlers/program/getList';
-import { requireAdminAuth } from '../middleware/auth.middleware';
+import { requireAdminAuth, requireAnyAuth, requireSuperAdmin } from '../middleware/auth.middleware';
 
 import { schema as createSchema } from '../handlers/program/post';
 import { schema as getSchema } from '../handlers/program/get';
 import { schema as updateSchema } from '../handlers/program/put';
 import { schema as deleteSchema } from '../handlers/program/delete';
 import { schema as getListSchema } from '../handlers/program/getList';
+import { schema as getProgramFormListSchema } from '../handlers/program/form/getList';
+import { schema as getProgramFormSchema } from '../handlers/program/form/get';
+import { schema as getProgramFormCurrentSchema } from '../handlers/program/form/getCurrent';
+import { schema as updateProgramFormSchema } from '../handlers/program/form/put';
+import { schema as checkoutProgramFormSchema } from '../handlers/program/form/checkout';
+import { schema as publishProgramFormSchema } from '../handlers/program/form/publish';
+import { schema as createProgramFormQuestionSchema } from '../handlers/program/form/questions/post';
+import { schema as updateProgramFormQuestionSchema } from '../handlers/program/form/questions/put';
+import { schema as deleteProgramFormQuestionSchema } from '../handlers/program/form/questions/delete';
 
 import { createLocationType } from '../handlers/program/locationType/post';
 import { getLocationTypeList } from '../handlers/program/locationType/getList';
@@ -70,4 +90,52 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireAdminAuth],
     schema: updateLocationTypeSchema,
   }, updateLocationType as any);
+
+  // Program forms (superadmin only)
+  fastify.get('/:program_id/forms', {
+    preHandler: [requireSuperAdmin],
+    schema: getProgramFormListSchema,
+  }, getProgramFormList as any);
+
+  // Current (pointer or latest published)
+  fastify.get('/:program_id/forms/current', {
+    preHandler: [requireAnyAuth],
+    schema: getProgramFormCurrentSchema,
+  }, getProgramFormCurrent as any);
+
+  fastify.get('/:program_id/forms/:version', {
+    preHandler: [requireSuperAdmin],
+    schema: getProgramFormSchema,
+  }, getProgramForm as any);
+
+  fastify.put('/:program_id/forms', {
+    preHandler: [requireSuperAdmin],
+    schema: updateProgramFormSchema,
+  }, updateProgramForm as any);
+
+  fastify.post('/:program_id/forms/:version/checkout', {
+    preHandler: [requireSuperAdmin],
+    schema: checkoutProgramFormSchema,
+  }, checkoutProgramForm as any);
+
+  fastify.post('/:program_id/forms/publish', {
+    preHandler: [requireSuperAdmin],
+    schema: publishProgramFormSchema,
+  }, publishProgramForm as any);
+
+  // Questions under a form (superadmin only, draft only)
+  fastify.post('/:program_id/forms/questions', {
+    preHandler: [requireSuperAdmin],
+    schema: createProgramFormQuestionSchema,
+  }, createProgramFormQuestion as any);
+
+  fastify.put('/:program_id/forms/questions/:question_id', {
+    preHandler: [requireSuperAdmin],
+    schema: updateProgramFormQuestionSchema,
+  }, updateProgramFormQuestion as any);
+
+  fastify.delete('/:program_id/forms/questions/:question_id', {
+    preHandler: [requireSuperAdmin],
+    schema: deleteProgramFormQuestionSchema,
+  }, deleteProgramFormQuestion as any);
 } 

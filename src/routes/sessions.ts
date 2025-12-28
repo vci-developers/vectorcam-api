@@ -16,6 +16,12 @@ import {
   resolveConflict,
   getConflictLogs
 } from '../handlers/session';
+import {
+  getSessionFormAnswers,
+  createSessionFormAnswers,
+  updateSessionFormAnswers,
+  exportFormAnswersCSV
+} from '../handlers/session/form';
 import { getSessionList } from '../handlers/session/getList';
 import { getSessionReviewTask } from '../handlers/session/getReviewTask';
 import * as sessionSpecimenHandlers from '../handlers/session/specimens';
@@ -36,6 +42,10 @@ import { ExportSurveillanceFormsCSVRequest, schema as exportSurveillanceFormsCSV
 import { schema as getSurveySchema } from '../handlers/session/survey/getSurvey';
 import { schema as createSurveySchema } from '../handlers/session/survey/postSurvey';
 import { schema as updateSurveySchema } from '../handlers/session/survey/putSurvey';
+import { schema as getSessionFormAnswersSchema } from '../handlers/session/form/getAnswers';
+import { schema as createSessionFormAnswersSchema } from '../handlers/session/form/post';
+import { schema as updateSessionFormAnswersSchema } from '../handlers/session/form/put';
+import { ExportFormAnswersRequest, schema as exportFormAnswersCSVSchema } from '../handlers/session/form/exportAnswers';
 import { schema as getSessionSpecimenSchema } from '../handlers/session/specimens/get';
 import { schema as createSessionSpecimenSchema } from '../handlers/session/specimens/post';
 import { schema as updateSessionSpecimenSchema } from '../handlers/session/specimens/put';
@@ -161,6 +171,22 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: updateSurveySchema
   }, updateSurvey as any);
 
+  // Dynamic custom forms
+  fastify.get('/:session_id/forms/answers', {
+    preHandler: [requireSpecificSessionReadAccess],
+    schema: getSessionFormAnswersSchema
+  }, getSessionFormAnswers as any);
+
+  fastify.post('/:session_id/forms/answers', {
+    preHandler: [requireSpecificSessionWriteAccess],
+    schema: createSessionFormAnswersSchema
+  }, createSessionFormAnswers as any);
+
+  fastify.put('/:session_id/forms/answers', {
+    preHandler: [requireSpecificSessionWriteAccess],
+    schema: updateSessionFormAnswersSchema
+  }, updateSessionFormAnswers as any);
+
   // Export sessions as CSV
   fastify.get<ExportSessionsCSVRequest>('/export/csv', {
     schema: exportSessionsCSVSchema,
@@ -172,6 +198,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: exportSurveillanceFormsCSVSchema,
     preHandler: [requireAdminAuth],
   }, exportSurveillanceFormsCSV);
+
+  // Export dynamic form answers as CSV
+  fastify.get<ExportFormAnswersRequest>('/export/forms/csv', {
+    schema: exportFormAnswersCSVSchema,
+    preHandler: [requireAdminAuth],
+  }, exportFormAnswersCSV);
 
   // Resolve session conflicts (requires write access)
   fastify.post('/conflicts/resolve', {

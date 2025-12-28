@@ -3,6 +3,9 @@ import Site from './Site';
 import Device from './Device';
 import Session from './Session';
 import SurveillanceForm from './SurveillanceForm';
+import Form from './Form';
+import FormQuestion from './FormQuestion';
+import FormAnswer from './FormAnswer';
 import Specimen from './Specimen';
 import InferenceResult from './InferenceResult';
 import SpecimenImage from './SpecimenImage';
@@ -23,6 +26,9 @@ export {
   Device,
   Session,
   SurveillanceForm,
+  Form,
+  FormQuestion,
+  FormAnswer,
   Specimen,
   InferenceResult,
   SpecimenImage,
