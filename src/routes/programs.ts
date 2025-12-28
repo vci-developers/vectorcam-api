@@ -93,7 +93,7 @@ export default async function programRoutes(fastify: FastifyInstance) {
 
   // Program forms (superadmin only)
   fastify.get('/:program_id/forms', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: getProgramFormListSchema,
   }, getProgramFormList as any);
 
@@ -104,38 +104,38 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, getProgramFormCurrent as any);
 
   fastify.get('/:program_id/forms/:version', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: getProgramFormSchema,
   }, getProgramForm as any);
 
   fastify.put('/:program_id/forms', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: updateProgramFormSchema,
   }, updateProgramForm as any);
 
   fastify.post('/:program_id/forms/:version/checkout', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: checkoutProgramFormSchema,
   }, checkoutProgramForm as any);
 
   fastify.post('/:program_id/forms/publish', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: publishProgramFormSchema,
   }, publishProgramForm as any);
 
   // Questions under a form (superadmin only, draft only)
   fastify.post('/:program_id/forms/questions', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: createProgramFormQuestionSchema,
   }, createProgramFormQuestion as any);
 
   fastify.put('/:program_id/forms/questions/:question_id', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: updateProgramFormQuestionSchema,
   }, updateProgramFormQuestion as any);
 
   fastify.delete('/:program_id/forms/questions/:question_id', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireAdminAuth],
     schema: deleteProgramFormQuestionSchema,
   }, deleteProgramFormQuestion as any);
 } 
