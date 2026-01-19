@@ -2,7 +2,6 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { 
   findSiteById, 
   handleError, 
-  hasAssociatedDevices,
   hasAssociatedSessions,
   hasChildSites,
 } from './common';
@@ -36,14 +35,6 @@ export async function deleteSite(
     const site = await findSiteById(site_id);
     if (!site) {
       return reply.code(404).send({ error: 'Site not found' });
-    }
-
-    // Check if site has associated devices
-    const hasDevices = await hasAssociatedDevices(site_id);
-    if (hasDevices) {
-      return reply.code(400).send({ 
-        error: 'Site cannot be deleted because it has associated devices' 
-      });
     }
 
     // Check if site has associated sessions

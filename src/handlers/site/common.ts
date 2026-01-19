@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { Site, Program, Device, Session, LocationType } from '../../db/models';
+import { Site, Program, Session, LocationType } from '../../db/models';
 // Site response format interface
 export interface SiteResponse {
   siteId: number;
@@ -180,14 +180,6 @@ export async function findProgramById(programId: number): Promise<Program | null
 export function handleError(error: any, request: FastifyRequest, reply: FastifyReply, message: string = 'An error occurred'): void {
   request.log.error(error);
   reply.code(500).send({ error: message });
-}
-
-// Check if site has associated devices
-export async function hasAssociatedDevices(siteId: number): Promise<boolean> {
-  const deviceCount = await Device.count({
-    where: { siteId },
-  });
-  return deviceCount > 0;
 }
 
 // Check if site has associated sessions
