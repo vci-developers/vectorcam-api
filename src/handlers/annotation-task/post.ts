@@ -143,15 +143,12 @@ export default async function createAnnotationTasks(
 
     // Find all specimens whose sessions were collected in the specified month/year
     // and that are not already assigned to any annotation task
-    const assignedSpecimenIds = await Annotation.findAll({
-      attributes: ['specimenId'],
-      transaction
-    }).then(annotations => annotations.map(a => a.specimenId));
-
     const availableSpecimens = await Specimen.findAll({
       where: {
         id: {
-          [Op.notIn]: assignedSpecimenIds.length > 0 ? assignedSpecimenIds : [0]
+          [Op.notIn]: sequelize.literal(
+            `(SELECT DISTINCT specimen_id FROM annotations WHERE specimen_id IS NOT NULL)`
+          )
         }
       },
       include: [
