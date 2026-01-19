@@ -38,10 +38,12 @@ import { createLocationType } from '../handlers/program/locationType/post';
 import { getLocationTypeList } from '../handlers/program/locationType/getList';
 import { getLocationType } from '../handlers/program/locationType/get';
 import { updateLocationType } from '../handlers/program/locationType/put';
+import { deleteLocationType } from '../handlers/program/locationType/delete';
 import { schema as createLocationTypeSchema } from '../handlers/program/locationType/post';
 import { schema as getLocationTypeListSchema } from '../handlers/program/locationType/getList';
 import { schema as getLocationTypeSchema } from '../handlers/program/locationType/get';
 import { schema as updateLocationTypeSchema } from '../handlers/program/locationType/put';
+import { schema as deleteLocationTypeSchema } from '../handlers/program/locationType/delete';
 
 export default async function programRoutes(fastify: FastifyInstance) {
   // Get all programs with filters
@@ -90,6 +92,11 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireAdminAuth],
     schema: updateLocationTypeSchema,
   }, updateLocationType as any);
+
+  fastify.delete('/:program_id/location-types/:location_type_id', {
+    preHandler: [requireAdminAuth],
+    schema: deleteLocationTypeSchema,
+  }, deleteLocationType as any);
 
   // Program forms (superadmin only)
   fastify.get('/:program_id/forms', {

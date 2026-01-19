@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { LocationType, Program } from '../../../db/models';
+import { LocationType, Program, Site } from '../../../db/models';
 import { rebuildLocationHierarchyForLocationType } from '../../site/common';
 
 export interface LocationTypeResponse {
@@ -27,6 +27,13 @@ export async function rebuildSitesForLocationType(locationTypeId: number): Promi
 export function handleError(error: any, request: FastifyRequest, reply: FastifyReply, message = 'Internal Server Error') {
   request.log.error(error);
   return reply.code(500).send({ error: message });
+}
+
+export async function hasAssociatedSites(locationTypeId: number): Promise<boolean> {
+  const siteCount = await Site.count({
+    where: { locationTypeId },
+  });
+  return siteCount > 0;
 }
 
 
