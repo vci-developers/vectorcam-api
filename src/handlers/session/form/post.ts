@@ -6,6 +6,7 @@ import { fetchQuestionsMap, FormAnswerInput, loadSessionAndForm } from './common
 interface CreateAnswersBody {
   answers: FormAnswerInput[];
   submittedAt?: number;
+  formVersion?: string;
 }
 
 export const schema = {
@@ -23,6 +24,7 @@ export const schema = {
     required: ['answers'],
     properties: {
       submittedAt: { type: 'number' },
+      formVersion: { type: 'string' },
       answers: {
         type: 'array',
         items: {
@@ -69,7 +71,7 @@ export async function createSessionFormAnswers(
   const transaction = await sequelize.transaction();
 
   try {
-    const context = await loadSessionAndForm(request, reply, request.params.session_id);
+    const context = await loadSessionAndForm(request, reply, request.params.session_id, request.body.formVersion);
     if (!context) {
       await transaction.rollback();
       return;
