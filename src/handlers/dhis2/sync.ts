@@ -216,12 +216,10 @@ export async function syncToDHIS2(
         }
 
         // Determine allowed site IDs based on user role and district filter
+        // - Admin token: unrestricted, sync all sites in the district
+        // - User JWT (privilege >= 2): scoped to their program's sites within the district
         let allowedSiteIds: number[];
 
-        // Super admins (empty userSites array) can sync all sites in the district
-        const isSuperAdmin = siteAccess.userSites.length === 0;
-        
-        // Get sites in the district
         const sitesInDistrict = await Site.findAll({
             where: { district },
             attributes: ['id'],
@@ -229,20 +227,20 @@ export async function syncToDHIS2(
 
         const districtSiteIds = sitesInDistrict.map(site => site.id);
 
-        if (isSuperAdmin) {
+        if (request.isAdminToken) {
             allowedSiteIds = districtSiteIds;
-            request.log.info(`Super admin syncing ${allowedSiteIds.length} sites in district "${district}"`);
+            request.log.info(`Admin token syncing ${allowedSiteIds.length} sites in district "${district}"`);
         } else {
-            // Intersect with user's accessible sites
+            // User JWT: intersect district sites with their program-scoped sites
             allowedSiteIds = siteAccess.userSites.filter(siteId => districtSiteIds.includes(siteId));
 
             if (allowedSiteIds.length === 0) {
                 return reply.code(403).send({ 
-                    error: `No write access to sites in district "${district}". Please contact a super admin.` 
+                    error: `No accessible sites in district "${district}" within your program.` 
                 });
             }
 
-            request.log.info(`Admin user syncing ${allowedSiteIds.length} sites in district "${district}"`);
+            request.log.info(`User syncing ${allowedSiteIds.length} program-scoped sites in district "${district}"`);
         }
 
         // Fetch data element map from DHIS2

@@ -29,6 +29,7 @@ export const getPermissionsSchema: any = {
       type: 'object',
       properties: {
         message: { type: 'string' },
+        programId: { type: 'number', description: 'The program the user is assigned to' },
         permissions: {
           type: 'object',
           properties: {
@@ -56,7 +57,7 @@ export const getPermissionsSchema: any = {
                     // Allow dynamic location hierarchy keys
                     additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
                   },
-                  description: 'Array of site objects user has access to. Empty array means access to all sites.'
+                  description: 'Array of site objects user has access to within their assigned program.'
                 },
               },
             },
@@ -101,12 +102,13 @@ export const getPermissionsSchema: any = {
  * Get current user permissions handler
  * Maps authenticated user permissions into structured format based on privilege level and site associations
  * 
+ * All access is scoped to the user's assigned program. No cross-program access is allowed.
+ * 
  * Permission mapping logic:
- * New privilege map:
- * - 0: READ/VIEW assigned site(s)
- * - 1: READ/VIEW all sites
- * - 2: READ/VIEW + WRITE + PUSH assigned site(s)
- * - 3: READ/VIEW + WRITE + PUSH all sites + ANNOTATE
+ * - 0: READ/VIEW assigned site(s) within program
+ * - 1: READ/VIEW all sites within program
+ * - 2: READ/VIEW + WRITE + PUSH assigned site(s) within program
+ * - 3: READ/VIEW + WRITE + PUSH all sites within program + ANNOTATE
  * - Regular User: No access
  */
 export async function getPermissionsHandler(
@@ -122,6 +124,13 @@ export async function getPermissionsHandler(
     }
 
     const user = request.user;
+
+    // programId must be set for whitelisted users — if null, it's an internal error
+    if (user.programId == null) {
+      request.log.error(`Internal error: whitelisted user ${user.id} has no programId`);
+      return reply.code(500).send({ error: 'Internal server error: user program not configured' });
+    }
+
     // Validate siteId parameter if provided
     let parsedSiteId: number | undefined;
     if (siteId) {
@@ -131,19 +140,19 @@ export async function getPermissionsHandler(
       }
     }
 
-    // Get site access using the shared function from middleware
-    const siteAccess = await getUserSiteAccess(user.id, user.isWhitelisted, user.privilege);
+    // Get site access using the shared function from middleware (program-scoped)
+    const siteAccess = await getUserSiteAccess(user.id, user.isWhitelisted, user.privilege, user.programId);
 
     // Structure the permissions response
     let hasAccessToQueriedSite = true;
 
     // If siteId query parameter is provided, filter permissions for that specific site
     if (parsedSiteId !== undefined) {
-      if (user.privilege >= 3 || siteAccess.userSites.length === 0) {
-        // Super admin or users with read-all permissions
-        hasAccessToQueriedSite = true;
+      if (siteAccess.userSites.length === 0) {
+        // No sites accessible (e.g. no program assigned)
+        hasAccessToQueriedSite = false;
       } else {
-        // Check if the site is in user's site list
+        // Check if the site is in user's site list (program-scoped)
         hasAccessToQueriedSite = siteAccess.userSites.includes(parsedSiteId);
       }
     }
@@ -162,12 +171,11 @@ export async function getPermissionsHandler(
     };
 
     if (user.privilege >= 3) {
-      // Super Admin: Full permissions including annotate and push
+      // Super Admin: Full permissions including annotate and push (scoped to program)
       sitePermissions.viewSiteMetadata = true;
       sitePermissions.writeSiteMetadata = true;
       sitePermissions.pushSiteMetadata = true;
       annotationPermissions.viewAndWriteAnnotationTasks = true;
-      sitePermissions.canAccessSites = await Site.findAll();
     } else if (user.privilege === 2) {
       // Per-site writer/pusher
       sitePermissions.viewSiteMetadata = hasAccessToQueriedSite && siteAccess.canRead;
@@ -175,12 +183,11 @@ export async function getPermissionsHandler(
       sitePermissions.pushSiteMetadata = hasAccessToQueriedSite && siteAccess.canPush;
       annotationPermissions.viewAndWriteAnnotationTasks = false;
     } else if (user.privilege === 1) {
-      // Read-only all sites
-      sitePermissions.viewSiteMetadata = true;
+      // Read-only all sites within program
+      sitePermissions.viewSiteMetadata = siteAccess.canRead;
       sitePermissions.writeSiteMetadata = false;
       sitePermissions.pushSiteMetadata = false;
       annotationPermissions.viewAndWriteAnnotationTasks = false;
-      // Leave canAccessSites empty to indicate all sites readable
     } else if (siteAccess.canRead) {
       // Privilege 0 / whitelisted read-only per site
       sitePermissions.viewSiteMetadata = hasAccessToQueriedSite;
@@ -189,8 +196,8 @@ export async function getPermissionsHandler(
       annotationPermissions.viewAndWriteAnnotationTasks = false;
     }
 
-    // Fetch site objects for non-super admin users
-    if (user.privilege < 3 && siteAccess.userSites.length > 0) {
+    // Fetch site objects for all privilege levels (sites are now always program-scoped)
+    if (siteAccess.userSites.length > 0) {
       sitePermissions.canAccessSites = await Site.findAll({
         where: {
           id: siteAccess.userSites,
@@ -209,6 +216,7 @@ export async function getPermissionsHandler(
 
     return reply.code(200).send({
       message: 'User permissions retrieved successfully',
+      programId: user.programId,
       permissions,
     });
   } catch (error) {

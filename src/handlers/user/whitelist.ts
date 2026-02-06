@@ -1,8 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { UserWhitelist, Site, SiteUser, User } from '../../db/models';
+import { UserWhitelist, Site, SiteUser, User, Program } from '../../db/models';
 
 interface WhitelistBody {
   email: string;
+  programId: number;
   adminPrivilege?: number;
   districtAccess?: string;
 }
@@ -20,17 +21,21 @@ export const addToWhitelistSchema: any = {
   },
   body: {
     type: 'object',
-    required: ['email'],
+    required: ['email', 'programId'],
     properties: {
       email: { type: 'string', format: 'email' },
+      programId: {
+        type: 'number',
+        description: 'Program ID to assign the user to. All site access will be scoped to this program.'
+      },
       adminPrivilege: { 
         type: 'number',
-        description: 'Optional privilege: 0=view one site, 1=view all, 2=write/push one site, 3=write/push all + annotate',
+        description: 'Optional privilege: 0=view one site, 1=view all in program, 2=write/push one site, 3=write/push all in program + annotate',
         enum: [0, 1, 2, 3]
       },
       districtAccess: {
         type: 'string',
-        description: 'Optional district name to grant access to all sites in that district'
+        description: 'Optional district name to grant access to all sites in that district within the assigned program'
       },
     },
   },
@@ -44,6 +49,7 @@ export const addToWhitelistSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            programId: { type: 'number' },
           },
         },
         user: {
@@ -52,6 +58,7 @@ export const addToWhitelistSchema: any = {
             id: { type: 'number' },
             email: { type: 'string' },
             privilege: { type: 'number' },
+            programId: { type: 'number' },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
           },
         },
@@ -66,6 +73,7 @@ export const addToWhitelistSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            programId: { type: 'number' },
           },
         },
         user: {
@@ -74,6 +82,7 @@ export const addToWhitelistSchema: any = {
             id: { type: 'number' },
             email: { type: 'string' },
             privilege: { type: 'number' },
+            programId: { type: 'number' },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
           },
         },
@@ -123,6 +132,7 @@ export const getWhitelistSchema: any = {
             properties: {
               id: { type: 'number' },
               email: { type: 'string' },
+              programId: { type: 'number' },
             },
           },
         },
@@ -201,11 +211,15 @@ export const removeFromWhitelistSchema: any = {
  */
 export async function addToWhitelistHandler(request: FastifyRequest<{ Body: WhitelistBody }>, reply: FastifyReply): Promise<void> {
   try {
-    const { email, adminPrivilege, districtAccess } = request.body;
+    const { email, programId, adminPrivilege, districtAccess } = request.body;
 
     // Validate input
     if (!email) {
       return reply.code(400).send({ error: 'Email is required' });
+    }
+
+    if (!programId) {
+      return reply.code(400).send({ error: 'Program ID is required' });
     }
 
     // Validate email format
@@ -219,6 +233,12 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       return reply.code(400).send({ error: 'Invalid privilege. Must be 0, 1, 2, or 3' });
     }
 
+    // Validate that the program exists
+    const program = await Program.findByPk(programId);
+    if (!program) {
+      return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
+    }
+
     // Check if email is already whitelisted
     const existingEntry = await UserWhitelist.findOne({ where: { email } });
     
@@ -229,23 +249,23 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
     let whitelistEntry = existingEntry;
 
     if (user) {
-      // User exists, grant privileges and site access
-      
-      // Update admin privilege if specified
+      // User exists, assign program and grant privileges/site access
+      const updateData: any = { programId };
       if (adminPrivilege !== undefined) {
-        await user.update({ privilege: adminPrivilege });
+        updateData.privilege = adminPrivilege;
       }
+      await user.update(updateData);
 
-      // Grant site access based on district if specified
+      // Grant site access based on district if specified (scoped to the assigned program)
       if (districtAccess) {
-        // Find all sites in the specified district
+        // Find all sites in the specified district AND within the assigned program
         const sitesInDistrict = await Site.findAll({
-          where: { district: districtAccess },
+          where: { district: districtAccess, programId },
           attributes: ['id']
         });
 
         if (sitesInDistrict.length === 0) {
-          return reply.code(400).send({ error: `No sites found in district: ${districtAccess}` });
+          return reply.code(400).send({ error: `No sites found in district: ${districtAccess} within program: ${programId}` });
         }
 
         // Create SiteUser associations for all sites in the district
@@ -279,15 +299,20 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         id: user.id,
         email: user.email,
         privilege: user.privilege,
+        programId: user.programId,
         sitesGranted
       };
     }
 
-    // Add to whitelist if not already there
+    // Add to whitelist or update existing entry with programId
     if (!whitelistEntry) {
       whitelistEntry = await UserWhitelist.create({
         email,
+        programId,
       });
+    } else {
+      // Update existing whitelist entry with new programId
+      await whitelistEntry.update({ programId });
     }
 
     // Generate appropriate message based on what was requested and what was found
@@ -300,9 +325,9 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         : 'Email added to whitelist successfully.';
       
       if (adminPrivilege !== undefined || districtAccess) {
-        message = `${baseMessage} User privileges updated and ${sitesGranted} sites granted access.`;
+        message = `${baseMessage} User assigned to program ${programId}, privileges updated and ${sitesGranted} sites granted access.`;
       } else {
-        message = `${baseMessage} No additional privileges requested.`;
+        message = `${baseMessage} User assigned to program ${programId}.`;
       }
     } else {
       const baseMessage = wasAlreadyWhitelisted 
@@ -317,9 +342,9 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         if (hasPrivilegeRequest) warnings.push('admin privileges');
         if (hasDistrictRequest) warnings.push('district access');
         
-        message = `${baseMessage} WARNING: User not found - ${warnings.join(' and ')} could not be granted. User will need to register first to receive these privileges.`;
+        message = `${baseMessage} Program ${programId} recorded. WARNING: User not found - ${warnings.join(' and ')} could not be granted. User will need to register first to receive these privileges.`;
       } else {
-        message = `${baseMessage} User will receive access when they register.`;
+        message = `${baseMessage} Program ${programId} recorded. User will receive access when they register.`;
       }
     }
 
@@ -330,6 +355,7 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       whitelist: {
         id: whitelistEntry.id,
         email: whitelistEntry.email,
+        programId: whitelistEntry.programId,
       },
       user: userInfo,
     });
@@ -346,7 +372,7 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
 export async function getWhitelistHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
     const whitelistEntries = await UserWhitelist.findAll({
-      attributes: ['id', 'email'],
+      attributes: ['id', 'email', 'programId'],
       order: [['id', 'DESC']],
     });
 

@@ -74,8 +74,19 @@ export async function createSite(
 
     // Validate user can create sites
     const siteAccess = request.siteAccess;
-    if (!siteAccess?.canWrite || siteAccess.userSites.length !== 0) {
+    if (!siteAccess?.canWrite) {
       return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to create sites' });
+    }
+
+    // For user JWT tokens (not admin/mobile), enforce program scope:
+    // only privilege 3 users can create sites, and only within their own program
+    if (request.authType === 'user' && request.user) {
+      if (request.user.privilege < 3) {
+        return reply.code(403).send({ error: 'Forbidden: Only program admins (privilege 3) can create sites' });
+      }
+      if (programId !== request.user.programId) {
+        return reply.code(403).send({ error: 'Forbidden: Cannot create sites in a different program' });
+      }
     }
 
     // Check if program exists

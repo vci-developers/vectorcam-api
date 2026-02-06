@@ -6,6 +6,7 @@ class User extends Model {
   declare email: string;
   declare passwordHash: string;
   declare privilege: number;
+  declare programId: number | null;
   declare isActive: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -35,6 +36,15 @@ User.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+    },
+    programId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'programs',
+        key: 'id',
+      },
+      field: 'program_id',
     },
     isActive: {
       type: DataTypes.BOOLEAN,

@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SiteUser } from '../db/models';
+import { SiteUser, Site } from '../db/models';
 
 // Extend FastifyRequest to include site access info
 declare module 'fastify' {
@@ -37,22 +37,34 @@ export async function siteAccessMiddleware(
       canRead: true,
       canWrite: true,
       canPush: true,
-      userSites: [] // Empty array means access to all sites
+      userSites: [] // Empty array means unrestricted access (admin/mobile tokens only)
     };
     return;
   }
 
-  // Must be authenticated as a user for site access
+  // Must be authenticated as a whitelisted user for site access
   if (request.authType !== 'user' || !request.user) {
     reply.code(401).send({ error: 'Unauthorized: Authentication required' });
     return;
   }
 
+  if (!request.user.isWhitelisted) {
+    reply.code(403).send({ error: 'Forbidden: Account not whitelisted. Contact an administrator.' });
+    return;
+  }
+
   const user = request.user;
 
-  // Get site access using the shared function
+  // programId must be set for whitelisted users — if null, it's an internal error
+  if (user.programId == null) {
+    request.log.error(`Internal error: whitelisted user ${user.id} has no programId`);
+    reply.code(500).send({ error: 'Internal server error: user program not configured' });
+    return;
+  }
+
+  // Get site access using the shared function (program-scoped)
   try {
-    const siteAccess = await getUserSiteAccess(user.id, user.isWhitelisted, user.privilege);
+    const siteAccess = await getUserSiteAccess(user.id, user.isWhitelisted, user.privilege, user.programId);
     request.siteAccess = siteAccess;
 
   } catch (error) {
@@ -105,7 +117,7 @@ export async function requireSpecificSiteReadAccess(
     return;
   }
 
-  // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
+  // If userSites is empty, user has unrestricted access (admin token or mobile token)
   if (siteAccess.userSites.length === 0) {
     return;
   }
@@ -141,7 +153,7 @@ export async function requireSpecificSiteWriteAccess(
     return;
   }
 
-  // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
+  // If userSites is empty, user has unrestricted access (admin token or mobile token)
   if (siteAccess.userSites.length === 0) {
     return;
   }
@@ -181,26 +193,49 @@ function getSiteIdFromRequest(request: FastifyRequest): number | null {
 }
 
 /**
- * Calculate user site access based on privilege level and site associations
+ * Calculate user site access based on privilege level, site associations, and program scope
  * This function is shared between the middleware and permissions endpoint
  * 
+ * All site access is now scoped to the user's assigned program.
+ * For privilege 1 and 3, "all sites" means "all sites within the user's program".
+ * No cross-program access is allowed.
+ * 
  * @param userId - User ID
- * @param email - User email  
+ * @param isWhitelisted - Whether the user is whitelisted
  * @param privilege - User privilege level
+ * @param programId - User's assigned program ID (null for non-whitelisted users)
  * @returns Site access result with permissions and user sites
  */
 export async function getUserSiteAccess(
   userId: number,
   isWhitelisted: boolean,
-  privilege: number
+  privilege: number,
+  programId: number | null
 ): Promise<{ canRead: boolean; canWrite: boolean; canPush: boolean; userSites: number[] }> {
-  // Super admin users (privilege >= 3) have full access to all sites
+  // Non-whitelisted users without a program have no access
+  if (!programId) {
+    return {
+      canRead: false,
+      canWrite: false,
+      canPush: false,
+      userSites: []
+    };
+  }
+
+  // Super admin users (privilege >= 3) have access to all sites within their program
   if (privilege >= 3) {
+    // Get all sites within the user's program
+    const programSites = await Site.findAll({
+      where: { programId },
+      attributes: ['id']
+    });
+    const programSiteIds = programSites.map(site => site.id);
+
     return {
       canRead: true,
       canWrite: true,
       canPush: true,
-      userSites: [] // Empty array means access to all sites
+      userSites: programSiteIds
     };
   }
 
@@ -222,13 +257,20 @@ export async function getUserSiteAccess(
     };
   }
 
-  // Privilege 1: read-only access to all sites
+  // Privilege 1: read-only access to all sites within the user's program
   if (privilege === 1) {
+    // Get all sites within the user's program
+    const programSites = await Site.findAll({
+      where: { programId },
+      attributes: ['id']
+    });
+    const programSiteIds = programSites.map(site => site.id);
+
     return {
       canRead: true,
       canWrite: false,
       canPush: false,
-      userSites: [], // empty => all sites for read
+      userSites: programSiteIds,
     };
   }
 

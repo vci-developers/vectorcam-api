@@ -4,14 +4,14 @@ import { rebuildLocationHierarchyForLocationType } from '../../site/common';
 
 export interface LocationTypeResponse {
   id: number;
-  programId: number | null;
+  programId: number;
   name: string;
 }
 
 export function formatLocationTypeResponse(locationType: LocationType): LocationTypeResponse {
   return {
     id: locationType.id,
-    programId: locationType.programId ?? null,
+    programId: locationType.programId,
     name: locationType.name,
   };
 }

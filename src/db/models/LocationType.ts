@@ -5,7 +5,7 @@ import Program from './Program';
 
 class LocationType extends Model {
   declare id: number;
-  declare programId: number | null;
+  declare programId: number;
   declare name: string;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -20,7 +20,7 @@ LocationType.init(
     },
     programId: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: false,
       references: {
         model: 'programs',
         key: 'id',

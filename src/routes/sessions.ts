@@ -61,8 +61,7 @@ import {
 } from '../middleware/siteAccess.middleware';
 import {
   requireSpecificSessionReadAccess,
-  requireSpecificSessionWriteAccess,
-  requireSiteSessionAccess
+  requireSpecificSessionWriteAccess
 } from '../middleware/sessionAccess.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {

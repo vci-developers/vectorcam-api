@@ -16,7 +16,7 @@ export async function requireSpecificSessionReadAccess(
     return;
   }
 
-  // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
+  // If userSites is empty, user has unrestricted access (admin token or mobile token)
   if (siteAccess.userSites.length === 0) {
     return;
   }
@@ -69,7 +69,7 @@ export async function requireSpecificSessionWriteAccess(
     return;
   }
 
-  // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
+  // If userSites is empty, user has unrestricted access (admin token or mobile token)
   if (siteAccess.userSites.length === 0) {
     return;
   }
@@ -147,47 +147,4 @@ export async function findSessionByIdOrFrontendId(sessionId: string | number): P
   return await Session.findOne({
     where: { frontendId: sessionId }
   });
-}
-
-/**
- * Middleware that allows access to sessions from a specific site
- * Use this for routes like /sessions/sites/:site_id
- */
-export async function requireSiteSessionAccess(
-  request: FastifyRequest,
-  reply: FastifyReply
-): Promise<void> {
-  const siteAccess = request.siteAccess;
-  
-  if (!siteAccess?.canRead) {
-    reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access session data' });
-    return;
-  }
-
-  // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
-  if (siteAccess.userSites.length === 0) {
-    return;
-  }
-
-  // Extract site ID from request parameters
-  const params = request.params as any;
-  const siteId = params.site_id || params.siteId;
-  
-  if (!siteId) {
-    reply.code(400).send({ error: 'Bad Request: Site ID not found in request' });
-    return;
-  }
-
-  const numericSiteId = parseInt(siteId, 10);
-  if (isNaN(numericSiteId)) {
-    reply.code(400).send({ error: 'Bad Request: Invalid site ID format' });
-    return;
-  }
-
-  // Check if user has access to this specific site
-  if (!siteAccess.userSites.includes(numericSiteId)) {
-    reply.code(403).send({ error: 'Forbidden: No access to sessions from this site' });
-    return;
-  }
-
 }

@@ -21,7 +21,7 @@ async function checkSpecimenAccess(
     return;
   }
 
-  // If userSites is empty, user has access to all sites (admin token, mobile token, or super admin)
+  // If userSites is empty, user has unrestricted access (admin token or mobile token)
   if (siteAccess!.userSites.length === 0) {
     return;
   }

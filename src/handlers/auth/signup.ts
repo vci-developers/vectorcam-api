@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { User } from '../../db/models';
+import { User, UserWhitelist } from '../../db/models';
 import { config } from '../../config/environment';
 import { validatePassword, validateEmail } from '../../utils/validation';
 
@@ -108,10 +108,14 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // Create user
+    // If user is whitelisted, copy programId from whitelist entry
+    const whitelistEntry = await UserWhitelist.findOne({ where: { email } });
+
+    // Create user (programId is null for non-whitelisted users)
     const user = await User.create({
       email,
       passwordHash,
+      programId: whitelistEntry?.programId ?? null,
     });
 
     // Generate tokens

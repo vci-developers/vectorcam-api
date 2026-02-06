@@ -18,6 +18,7 @@ declare module 'fastify' {
       email: string;
       isWhitelisted: boolean;
       privilege: number;
+      programId: number | null;
     };
     isAdminToken?: boolean;
     isMobileApp?: boolean;
@@ -65,23 +66,25 @@ export async function authMiddleware(
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
 
-    // Initialize user with token data, but we'll refresh privilege from DB
+    // Initialize user with token data, but we'll refresh privilege and programId from DB
     request.user = {
       id: decoded.userId,
       email: decoded.email,
       isWhitelisted: false,
       privilege: decoded.privilege, // Will be updated below
+      programId: null, // Will be updated from DB below
     };
     
     try {
-      // Fetch current user data from database to get fresh privilege level
+      // Fetch current user data from database to get fresh privilege level and programId
       const [user, userWhitelist] = await Promise.all([
-        User.findByPk(decoded.userId, { attributes: ['privilege'] }),
+        User.findByPk(decoded.userId, { attributes: ['privilege', 'programId'] }),
         UserWhitelist.findOne({ where: { email: decoded.email } })
       ]);
       
       if (user) {
         request.user.privilege = user.privilege;
+        request.user.programId = user.programId;
       }
       
       request.user.isWhitelisted = !!userWhitelist;

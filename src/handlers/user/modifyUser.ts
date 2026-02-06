@@ -1,8 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { User } from '../../db/models';
+import { User, Program } from '../../db/models';
 
 interface ModifyUserBody {
   privilege: number;
+  programId?: number;
 }
 
 interface ModifyUserParams {
@@ -33,8 +34,12 @@ export const modifyUserSchema: any = {
     properties: {
       privilege: { 
         type: 'number',
-        description: 'Privilege level: 0=view selected sites, 1=view all, 2=write/push selected sites, 3=write/push all + annotate',
+        description: 'Privilege level: 0=view selected sites, 1=view all in program, 2=write/push selected sites, 3=write/push all in program + annotate',
         enum: [0, 1, 2, 3]
+      },
+      programId: {
+        type: 'number',
+        description: 'Optional program ID to assign the user to. All site access will be scoped to this program.'
       },
     },
   },
@@ -49,6 +54,7 @@ export const modifyUserSchema: any = {
             id: { type: 'number' },
             email: { type: 'string' },
             privilege: { type: 'number' },
+            programId: { type: 'number', nullable: true },
             isActive: { type: 'boolean' },
             updatedAt: { type: 'string' },
           },
@@ -86,7 +92,7 @@ export async function modifyUserHandler(
 ): Promise<void> {
   try {
     const { id } = request.params;
-    const { privilege } = request.body;
+    const { privilege, programId } = request.body;
 
     // Validate input
     if (!id || isNaN(parseInt(id))) {
@@ -97,21 +103,34 @@ export async function modifyUserHandler(
       return reply.code(400).send({ error: 'Invalid privilege level. Must be 0, 1, 2, or 3' });
     }
 
+    // Validate programId if provided
+    if (programId !== undefined) {
+      const program = await Program.findByPk(programId);
+      if (!program) {
+        return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
+      }
+    }
+
     // Find user by ID
     const user = await User.findByPk(parseInt(id));
     if (!user) {
       return reply.code(404).send({ error: 'User not found' });
     }
 
-    // Update user privilege
-    await user.update({ privilege });
+    // Update user privilege and optionally programId
+    const updateData: any = { privilege };
+    if (programId !== undefined) {
+      updateData.programId = programId;
+    }
+    await user.update(updateData);
 
     return reply.code(200).send({
-      message: 'User privilege updated successfully',
+      message: 'User updated successfully',
       user: {
         id: user.id,
         email: user.email,
         privilege: user.privilege,
+        programId: user.programId,
         isActive: user.isActive,
         updatedAt: user.updatedAt,
       },

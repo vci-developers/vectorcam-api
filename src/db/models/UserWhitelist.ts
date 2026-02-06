@@ -4,6 +4,7 @@ import sequelize from '../index';
 class UserWhitelist extends Model {
   declare id: number;
   declare email: string;
+  declare programId: number;
 }
 
 UserWhitelist.init(
@@ -17,6 +18,15 @@ UserWhitelist.init(
       type: DataTypes.STRING(255),
       allowNull: false,
       unique: true,
+    },
+    programId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'programs',
+        key: 'id',
+      },
+      field: 'program_id',
     },
   },
   {
