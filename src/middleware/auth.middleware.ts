@@ -182,6 +182,22 @@ export function requireMobileAuth(
 }
 
 /**
+ * Middleware to require either admin or mobile authentication
+ */
+export function requireAdminOrMobileAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  done: HookHandlerDoneFunction
+): void {
+  if (!request.isAdminToken && !request.isMobileApp) {
+    reply.code(401).send({ error: 'Unauthorized: Admin or mobile token required' });
+    return done(new Error('Unauthorized'));
+  }
+  
+  done();
+}
+
+/**
  * Middleware to require admin privileges (for user JWT tokens with privilege >= 2)
  */
 export function requireAdmin(

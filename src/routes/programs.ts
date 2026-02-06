@@ -17,7 +17,7 @@ import {
   deleteProgramFormQuestion,
 } from '../handlers/program/form';
 import { getProgramList } from '../handlers/program/getList';
-import { requireAdminAuth, requireAnyAuth, requireSuperAdmin } from '../middleware/auth.middleware';
+import { requireAdminAuth, requireAnyAuth, requireSuperAdmin, requireAdminOrMobileAuth } from '../middleware/auth.middleware';
 
 import { schema as createSchema } from '../handlers/program/post';
 import { schema as getSchema } from '../handlers/program/get';
@@ -48,7 +48,7 @@ import { schema as deleteLocationTypeSchema } from '../handlers/program/location
 export default async function programRoutes(fastify: FastifyInstance) {
   // Get all programs with filters
   fastify.get('/', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireAdminOrMobileAuth],
     schema: getListSchema,
   }, getProgramList as any);
 
