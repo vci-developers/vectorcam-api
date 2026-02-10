@@ -32,6 +32,7 @@ export const schema = {
       sessionId: { type: 'number' },
       sessionFrontendId: { type: 'string' },
       sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
+      programId: { type: 'number' },
       includeInferenceResult: { type: 'boolean' }
     }
   },
@@ -61,6 +62,7 @@ export interface ExportSpecimensCSVRequest {
     sessionId?: string;
     sessionFrontendId?: string;
     sessionType?: string;
+    programId?: string;
     includeInferenceResult?: boolean;
   }
 }
@@ -76,6 +78,7 @@ export async function exportSpecimensCSV(
       sessionId, 
       sessionFrontendId,
       sessionType,
+      programId,
       includeInferenceResult 
     } = request.query;
     
@@ -119,7 +122,8 @@ export async function exportSpecimensCSV(
             include: [
               {
                 model: Program,
-                as: 'program'
+                as: 'program',
+                where: programId ? { id: parseInt(programId) } : undefined
               }
             ]
           },

@@ -6,7 +6,10 @@ import {
   User, 
   Specimen, 
   SpecimenImage, 
-  InferenceResult
+  InferenceResult,
+  Session,
+  Site,
+  Program
 } from '../../db/models';
 import { config } from '../../config/environment';
 
@@ -36,7 +39,8 @@ export const schema = {
       endDate: { type: 'string' },
       annotationTaskId: { type: 'number' },
       annotatorId: { type: 'number' },
-      status: { type: 'string', enum: ['PENDING', 'ANNOTATED', 'FLAGGED'] }
+      status: { type: 'string', enum: ['PENDING', 'ANNOTATED', 'FLAGGED'] },
+      programId: { type: 'number' }
     }
   },
   response: {
@@ -65,6 +69,7 @@ export interface ExportAnnotationsCSVRequest {
     annotationTaskId?: string;
     annotatorId?: string;
     status?: string;
+    programId?: string;
   }
 }
 
@@ -78,7 +83,8 @@ export async function exportAnnotationsCSV(
       endDate, 
       annotationTaskId,
       annotatorId,
-      status
+      status,
+      programId
     } = request.query;
     
     // Validate date range
@@ -137,7 +143,7 @@ export async function exportAnnotationsCSV(
         {
           model: Specimen,
           as: 'specimen',
-          required: false,
+          required: !!programId,
           include: [
             {
               model: SpecimenImage,
@@ -148,6 +154,25 @@ export async function exportAnnotationsCSV(
                   model: InferenceResult,
                   as: 'inferenceResult',
                   required: false
+                }
+              ]
+            },
+            {
+              model: Session,
+              as: 'session',
+              required: !!programId,
+              include: [
+                {
+                  model: Site,
+                  as: 'site',
+                  required: !!programId,
+                  include: [
+                    {
+                      model: Program,
+                      as: 'program',
+                      where: programId ? { id: parseInt(programId) } : undefined
+                    }
+                  ]
                 }
               ]
             }
