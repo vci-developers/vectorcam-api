@@ -120,30 +120,38 @@ export async function getSessionList(
       accessibleSiteIds = siteAccess.userSites;
     }
     
-    // If district filter is provided, find sites in that district
-    if (district) {
-      const districtSiteWhere: any = { district };
+    // If programId or district filter is provided, find matching sites
+    if (programId || district) {
+      const siteWhere: any = {};
+      
+      if (programId) {
+        siteWhere.programId = programId;
+      }
+      
+      if (district) {
+        siteWhere.district = district;
+      }
       
       // If user has limited access, intersect with their accessible sites
       if (accessibleSiteIds.length > 0) {
-        districtSiteWhere.id = { [Op.in]: accessibleSiteIds };
+        siteWhere.id = { [Op.in]: accessibleSiteIds };
       }
       
-      const districtSites = await Site.findAll({
-        where: districtSiteWhere,
+      const matchingSites = await Site.findAll({
+        where: siteWhere,
         attributes: ['id']
       });
       
-      const districtSiteIds = districtSites.map(site => site.id);
+      const matchingSiteIds = matchingSites.map(site => site.id);
       
-      if (districtSiteIds.length === 0) {
-        // No sites in this district that user has access to
+      if (matchingSiteIds.length === 0) {
+        // No matching sites that user has access to
         whereClause.siteId = -1; // Return no results
       } else {
-        whereClause.siteId = { [Op.in]: districtSiteIds };
+        whereClause.siteId = { [Op.in]: matchingSiteIds };
       }
     } else if (accessibleSiteIds.length > 0) {
-      // No district filter, but user has limited access
+      // No programId/district filter, but user has limited access
       whereClause.siteId = { [Op.in]: accessibleSiteIds };
     }
     
