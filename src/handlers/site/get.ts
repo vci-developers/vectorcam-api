@@ -39,7 +39,7 @@ export const schema = {
         locationHierarchy: {
           type: 'object',
           additionalProperties: { type: 'string' }
-        }
+        },
       }
     }
   }

@@ -52,11 +52,11 @@ export const getPermissionsSchema: any = {
                       villageName: { type: 'string', nullable: true },
                       houseNumber: { type: 'string' },
                       isActive: { type: 'boolean' },
-                      healthCenter: { type: 'string', nullable: true }
-                    },
-                    locationHierarchy: {
-                      type: 'object',
-                      additionalProperties: { type: 'string' }
+                      healthCenter: { type: 'string', nullable: true },
+                      locationHierarchy: {
+                        type: 'object',
+                        additionalProperties: { type: 'string' }
+                      }
                     }
                   },
                   description: 'Array of site objects user has access to within their assigned program.'

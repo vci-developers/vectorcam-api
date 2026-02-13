@@ -56,10 +56,10 @@ export const schema = {
             isActive: { type: 'boolean' },
             hasData: { type: 'boolean' },
             healthCenter: { type: 'string' },
-          },
-          locationHierarchy: {
-            type: 'object',
-            additionalProperties: { type: 'string' }
+            locationHierarchy: {
+              type: 'object',
+              additionalProperties: { type: 'string' }
+            },
           },
         },
       },

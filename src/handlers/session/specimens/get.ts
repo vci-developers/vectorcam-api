@@ -131,11 +131,11 @@ export const schema = {
                 villageName: { type: ['string', 'null'] },
                 houseNumber: { type: 'string' },
                 isActive: { type: 'boolean' },
-                healthCenter: { type: ['string', 'null'] }
-              },
-              locationHierarchy: {
-                type: 'object',
-                additionalProperties: { type: 'string' }
+                healthCenter: { type: ['string', 'null'] },
+                locationHierarchy: {
+                  type: 'object',
+                  additionalProperties: { type: 'string' }
+                }
               }
             },
             device: {

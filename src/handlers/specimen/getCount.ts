@@ -83,11 +83,11 @@ export const schema = {
                   houseNumber: { type: 'string' },
                   isActive: { type: 'boolean' },
                   hasData: { type: 'boolean' },
-                  healthCenter: { type: 'string', nullable: true }
-                },
-                locationHierarchy: {
-                  type: 'object',
-                  additionalProperties: { type: 'string' }
+                  healthCenter: { type: 'string', nullable: true },
+                  locationHierarchy: {
+                    type: 'object',
+                    additionalProperties: { type: 'string' }
+                  }
                 }
               },
               counts: {

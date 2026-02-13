@@ -45,11 +45,11 @@ export const schema = {
             villageName: { type: 'string', nullable: true },
             houseNumber: { type: 'string' },
             isActive: { type: 'boolean' },
-            healthCenter: { type: 'string', nullable: true }
-          },
-          locationHierarchy: {
-            type: 'object',
-            additionalProperties: { type: 'string' }
+            healthCenter: { type: 'string', nullable: true },
+            locationHierarchy: {
+              type: 'object',
+              additionalProperties: { type: 'string' }
+            }
           }
         },
         device: {
