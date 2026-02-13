@@ -6,6 +6,7 @@ interface WhitelistBody {
   programId: number;
   adminPrivilege?: number;
   districtAccess?: string;
+  siteIds?: number[];
 }
 
 export const addToWhitelistSchema: any = {
@@ -36,6 +37,11 @@ export const addToWhitelistSchema: any = {
       districtAccess: {
         type: 'string',
         description: 'Optional district name to grant access to all sites in that district within the assigned program'
+      },
+      siteIds: {
+        type: 'array',
+        items: { type: 'number' },
+        description: 'Optional array of site IDs to grant access to. These are merged with any sites resolved from districtAccess.'
       },
     },
   },
@@ -211,7 +217,7 @@ export const removeFromWhitelistSchema: any = {
  */
 export async function addToWhitelistHandler(request: FastifyRequest<{ Body: WhitelistBody }>, reply: FastifyReply): Promise<void> {
   try {
-    const { email, programId, adminPrivilege, districtAccess } = request.body;
+    const { email, programId, adminPrivilege, districtAccess, siteIds } = request.body;
 
     // Validate input
     if (!email) {
@@ -256,9 +262,11 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       }
       await user.update(updateData);
 
-      // Grant site access based on district if specified (scoped to the assigned program)
+      // Collect site IDs to grant access to (merge districtAccess sites and explicit siteIds)
+      const mergedSiteIdSet = new Set<number>();
+
+      // Resolve sites from districtAccess
       if (districtAccess) {
-        // Find all sites in the specified district AND within the assigned program
         const sitesInDistrict = await Site.findAll({
           where: { district: districtAccess, programId },
           attributes: ['id']
@@ -268,29 +276,57 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
           return reply.code(400).send({ error: `No sites found in district: ${districtAccess} within program: ${programId}` });
         }
 
-        // Create SiteUser associations for all sites in the district
-        // First, get existing associations to calculate how many new ones were created
+        for (const site of sitesInDistrict) {
+          mergedSiteIdSet.add(site.id);
+        }
+      }
+
+      // Add explicit siteIds
+      if (siteIds && siteIds.length > 0) {
+        // Validate that the provided site IDs exist and belong to the program
+        const validSites = await Site.findAll({
+          where: { id: siteIds, programId },
+          attributes: ['id']
+        });
+
+        const validSiteIdSet = new Set(validSites.map(s => s.id));
+        const invalidSiteIds = siteIds.filter(id => !validSiteIdSet.has(id));
+
+        if (invalidSiteIds.length > 0) {
+          return reply.code(400).send({ error: `Site IDs not found in program ${programId}: ${invalidSiteIds.join(', ')}` });
+        }
+
+        for (const id of siteIds) {
+          mergedSiteIdSet.add(id);
+        }
+      }
+
+      // Grant access to all merged sites
+      if (mergedSiteIdSet.size > 0) {
+        const allSiteIds = Array.from(mergedSiteIdSet);
+
+        // Get existing associations to calculate how many new ones were created
         const existingSiteUsers = await SiteUser.findAll({
           where: {
             userId: user.id,
-            siteId: sitesInDistrict.map(site => site.id)
+            siteId: allSiteIds
           },
           attributes: ['siteId']
         });
-        
-        const existingSiteIds = new Set(existingSiteUsers.map(su => su.siteId));
-        
+
+        const existingSiteIdSet = new Set(existingSiteUsers.map(su => su.siteId));
+
         // Bulk create new associations, ignoring duplicates
-        const siteUserRecords = sitesInDistrict.map(site => ({
+        const siteUserRecords = allSiteIds.map(siteId => ({
           userId: user.id,
-          siteId: site.id
+          siteId
         }));
-        
-        await SiteUser.bulkCreate(siteUserRecords, { 
-          ignoreDuplicates: true 
+
+        await SiteUser.bulkCreate(siteUserRecords, {
+          ignoreDuplicates: true
         });
-        
-        sitesGranted = sitesInDistrict.length - existingSiteIds.size;
+
+        sitesGranted = allSiteIds.length - existingSiteIdSet.size;
       }
 
       // Get updated user info
@@ -319,12 +355,14 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
     let message: string;
     const wasAlreadyWhitelisted = existingEntry !== null;
     
+    const hasSiteAccess = districtAccess || (siteIds && siteIds.length > 0);
+
     if (user) {
       const baseMessage = wasAlreadyWhitelisted 
         ? 'Email was already whitelisted.' 
         : 'Email added to whitelist successfully.';
       
-      if (adminPrivilege !== undefined || districtAccess) {
+      if (adminPrivilege !== undefined || hasSiteAccess) {
         message = `${baseMessage} User assigned to program ${programId}, privileges updated and ${sitesGranted} sites granted access.`;
       } else {
         message = `${baseMessage} User assigned to program ${programId}.`;
@@ -335,12 +373,11 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         : 'Email added to whitelist successfully.';
         
       const hasPrivilegeRequest = adminPrivilege !== undefined;
-      const hasDistrictRequest = districtAccess !== undefined;
       
-      if (hasPrivilegeRequest || hasDistrictRequest) {
+      if (hasPrivilegeRequest || hasSiteAccess) {
         const warnings = [];
         if (hasPrivilegeRequest) warnings.push('admin privileges');
-        if (hasDistrictRequest) warnings.push('district access');
+        if (hasSiteAccess) warnings.push('site access');
         
         message = `${baseMessage} Program ${programId} recorded. WARNING: User not found - ${warnings.join(' and ')} could not be granted. User will need to register first to receive these privileges.`;
       } else {
