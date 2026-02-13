@@ -74,7 +74,7 @@ export default async function programRoutes(fastify: FastifyInstance) {
 
   // Location types under programs
   fastify.get('/:program_id/location-types', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireAdminOrMobileAuth],
     schema: getLocationTypeListSchema,
   }, getLocationTypeList as any);
 
@@ -84,7 +84,7 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, createLocationType as any);
 
   fastify.get('/:program_id/location-types/:location_type_id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireAdminOrMobileAuth],
     schema: getLocationTypeSchema,
   }, getLocationType as any);
 

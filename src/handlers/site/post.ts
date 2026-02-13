@@ -57,8 +57,10 @@ export const schema = {
             hasData: { type: 'boolean' },
             healthCenter: { type: 'string' },
           },
-          // Allow dynamic location keys (e.g., { [locationTypeName]: siteName })
-          additionalProperties: { type: ['string', 'number', 'boolean', 'null'] },
+          locationHierarchy: {
+            type: 'object',
+            additionalProperties: { type: 'string' }
+          },
         },
       },
     },

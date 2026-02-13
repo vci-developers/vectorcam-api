@@ -17,8 +17,8 @@ export interface SiteResponse {
   villageName?: string;
   houseNumber?: string;
   healthCenter?: string;
-  // Dynamic location map keyed by location type name -> site name
-  [locationType: string]: string | number | boolean | undefined;
+  // Location hierarchy map keyed by location type name -> site name
+  locationHierarchy?: Record<string, string>;
 }
 
 const locationTypeNameCache = new Map<number, string>();
@@ -116,7 +116,7 @@ export async function formatSiteResponse(site: Site): Promise<SiteResponse> {
 
   return {
     ...base,
-    ...locationMap,
+    locationHierarchy: locationMap,
   };
 }
 

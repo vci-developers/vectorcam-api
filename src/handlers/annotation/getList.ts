@@ -121,8 +121,10 @@ export const schema = {
                           isActive: { type: 'boolean' },
                           healthCenter: { type: ['string', 'null'] }
                         },
-                        // Allow dynamic location hierarchy keys
-                        additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
+                        locationHierarchy: {
+                          type: 'object',
+                          additionalProperties: { type: 'string' }
+                        }
                       }
                     }
                   }

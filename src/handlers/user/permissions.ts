@@ -54,8 +54,10 @@ export const getPermissionsSchema: any = {
                       isActive: { type: 'boolean' },
                       healthCenter: { type: 'string', nullable: true }
                     },
-                    // Allow dynamic location hierarchy keys
-                    additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
+                    locationHierarchy: {
+                      type: 'object',
+                      additionalProperties: { type: 'string' }
+                    }
                   },
                   description: 'Array of site objects user has access to within their assigned program.'
                 },

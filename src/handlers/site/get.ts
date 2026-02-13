@@ -36,8 +36,10 @@ export const schema = {
             country: { type: 'string' }
           }
         },
-        // Allow dynamic location hierarchy keys
-        additionalProperties: { type: ['string', 'number', 'boolean', 'null'] }
+        locationHierarchy: {
+          type: 'object',
+          additionalProperties: { type: 'string' }
+        }
       }
     }
   }
