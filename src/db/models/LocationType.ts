@@ -7,6 +7,7 @@ class LocationType extends Model {
   declare id: number;
   declare programId: number;
   declare name: string;
+  declare level: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -31,6 +32,10 @@ LocationType.init(
       type: DataTypes.STRING(128),
       allowNull: false,
       unique: true,
+    },
+    level: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
     },
   },
   {

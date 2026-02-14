@@ -23,6 +23,7 @@ export const schema = {
               id: { type: 'number' },
               programId: { type: 'number' },
               name: { type: 'string' },
+              level: { type: 'number' },
             },
           },
         },
@@ -40,7 +41,7 @@ export async function getLocationTypeList(
 
     const locationTypes = await LocationType.findAll({
       where: { programId: program_id },
-      order: [['id', 'ASC']],
+      order: [['level', 'ASC'], ['id', 'ASC']],
     });
     return reply.code(200).send({
       locationTypes: locationTypes.map(formatLocationTypeResponse),

@@ -4,6 +4,7 @@ import { formatLocationTypeResponse, findProgramById, handleError } from './comm
 
 interface CreateLocationTypeRequest {
   name: string;
+  level?: number;
 }
 
 export const schema = {
@@ -20,6 +21,7 @@ export const schema = {
     required: ['name'],
     properties: {
       name: { type: 'string' },
+      level: { type: 'number' },
     },
   },
   response: {
@@ -33,6 +35,7 @@ export const schema = {
             id: { type: 'number' },
             programId: { type: 'number' },
             name: { type: 'string' },
+            level: { type: 'number' },
           },
         },
       },
@@ -46,16 +49,24 @@ export async function createLocationType(
 ) {
   try {
     const { program_id } = request.params;
-    const { name } = request.body;
+    const { name, level } = request.body;
 
     const program = await findProgramById(program_id);
     if (!program) {
       return reply.code(404).send({ error: 'Program not found' });
     }
 
+    // If level not provided, assign next level in sequence for this program
+    let assignedLevel = level;
+    if (assignedLevel === undefined) {
+      const maxLevel = await LocationType.max('level', { where: { programId: program_id } }) as number | null;
+      assignedLevel = (maxLevel ?? 0) + 1;
+    }
+
     const locationType = await LocationType.create({
       programId: program_id,
       name,
+      level: assignedLevel,
     });
 
     return reply.code(200).send({

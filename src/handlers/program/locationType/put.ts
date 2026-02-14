@@ -4,6 +4,7 @@ import { formatLocationTypeResponse, findProgramById, handleError, rebuildSitesF
 
 interface UpdateLocationTypeRequest {
   name?: string;
+  level?: number;
 }
 
 export const schema = {
@@ -20,6 +21,7 @@ export const schema = {
     type: 'object',
     properties: {
       name: { type: 'string' },
+      level: { type: 'number' },
     },
   },
   response: {
@@ -33,6 +35,7 @@ export const schema = {
             id: { type: 'number' },
             programId: { type: 'number' },
             name: { type: 'string' },
+            level: { type: 'number' },
           },
         },
       },
@@ -46,7 +49,7 @@ export async function updateLocationType(
 ) {
   try {
     const { program_id, location_type_id } = request.params;
-    const { name } = request.body;
+    const { name, level } = request.body;
 
     const locationType = await LocationType.findOne({ where: { id: location_type_id, programId: program_id } });
     if (!locationType) {
@@ -61,6 +64,7 @@ export async function updateLocationType(
     await locationType.update({
       programId: program_id,
       name: name !== undefined ? name : locationType.name,
+      level: level !== undefined ? level : locationType.level,
     });
 
     // Rebuild location hierarchy for all sites using this location type

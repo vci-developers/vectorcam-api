@@ -6,6 +6,7 @@ export interface LocationTypeResponse {
   id: number;
   programId: number;
   name: string;
+  level: number;
 }
 
 export function formatLocationTypeResponse(locationType: LocationType): LocationTypeResponse {
@@ -13,6 +14,7 @@ export function formatLocationTypeResponse(locationType: LocationType): Location
     id: locationType.id,
     programId: locationType.programId,
     name: locationType.name,
+    level: locationType.level,
   };
 }
 

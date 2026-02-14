@@ -19,6 +19,7 @@ export const schema = {
         id: { type: 'number' },
         programId: { type: 'number' },
         name: { type: 'string' },
+        level: { type: 'number' },
       },
     },
   },
