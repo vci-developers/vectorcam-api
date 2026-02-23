@@ -40,6 +40,8 @@ export const schema = {
           type: 'object',
           properties: {
             id: { type: 'number' },
+            siteId: { type: 'number' },
+            programId: { type: 'number' },
             district: { type: 'string', nullable: true },
             subCounty: { type: 'string', nullable: true },
             parish: { type: 'string', nullable: true },
@@ -57,8 +59,11 @@ export const schema = {
           type: 'object',
           properties: {
             id: { type: 'number' },
+            deviceId: { type: 'number' },
+            programId: { type: 'number' },
             model: { type: 'string' },
-            registeredAt: { type: 'number' }
+            registeredAt: { type: 'number' },
+            submittedAt: { type: 'number' }
           }
         }
       }
@@ -97,7 +102,7 @@ export async function getSessionDetails(
       {
         model: Device,
         as: 'device',
-        attributes: ['id', 'model', 'registeredAt']
+        attributes: ['id', 'programId', 'model', 'registeredAt', 'createdAt']
       }
     ];
 
@@ -116,8 +121,11 @@ export async function getSessionDetails(
       site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
       device: sessionData.device ? {
         id: sessionData.device.id,
+        deviceId: sessionData.device.id,
+        programId: sessionData.device.programId,
         model: sessionData.device.model,
-        registeredAt: new Date(sessionData.device.registeredAt).getTime()
+        registeredAt: new Date(sessionData.device.registeredAt).getTime(),
+        submittedAt: new Date(sessionData.device.createdAt).getTime()
       } : null
     };
 
