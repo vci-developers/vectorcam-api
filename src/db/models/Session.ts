@@ -29,6 +29,7 @@ class Session extends Model {
   declare type: string;
   declare collectorLastTrainedOn: Date | null;
   declare hardwareId: string | null;
+  declare totalSpecimens: number;
 }
 
 Session.init(
@@ -131,6 +132,12 @@ Session.init(
       type: DataTypes.STRING(64),
       allowNull: true,
       field: 'hardware_id',
+    },
+    totalSpecimens: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: 'total_specimens',
     },
   },
   {

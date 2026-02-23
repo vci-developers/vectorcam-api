@@ -18,6 +18,7 @@ interface ResolveConflictRequest {
     type?: string;
     collectorLastTrainedOn?: number | null;
     hardwareId?: string | null;
+    totalSpecimens?: number | null;
   };
   resolvedSurveillanceForm?: {
     numPeopleSleptInHouse?: number | null;
@@ -58,6 +59,7 @@ export const schema = {
           type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
           collectorLastTrainedOn: { type: ['number', 'null'] },
           hardwareId: { type: ['string', 'null'], maxLength: 64 },
+          totalSpecimens: { type: ['number', 'null'] },
         },
       },
       resolvedSurveillanceForm: {
@@ -208,6 +210,7 @@ export async function resolveConflict(
           ? session.collectorLastTrainedOn.getTime()
           : null,
         hardwareId: session.hardwareId,
+        totalSpecimens: session.totalSpecimens,
       })),
       surveillanceForms: [] as any[],
     };
@@ -257,7 +260,7 @@ export async function resolveConflict(
         : null;
     }
     if (resolvedData.hardwareId !== undefined) updateData.hardwareId = resolvedData.hardwareId;
-
+    if (resolvedData.totalSpecimens !== undefined) updateData.totalSpecimens = resolvedData.totalSpecimens;
     await Session.update(updateData, {
       where: {
         id: {

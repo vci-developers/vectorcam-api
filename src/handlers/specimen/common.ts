@@ -35,6 +35,7 @@ export interface SpecimenResponse {
   thumbnailUrl: string | null;
   thumbnailImageId: number | null;
   shouldProcessFurther: boolean;
+  totalImages: number;
   images: Array<ImageResponse>;
   thumbnailImage: ImageResponse | null;
 }
@@ -150,6 +151,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     thumbnailUrl: specimen.thumbnailImageId && thumbnailImageObj ? thumbnailImageObj.url : null,
     thumbnailImageId: specimen.thumbnailImageId,
     shouldProcessFurther: specimen.shouldProcessFurther,
+    totalImages: specimen.totalImages,
     images: imagesToReturn,
     thumbnailImage: thumbnailImageObj,
   };

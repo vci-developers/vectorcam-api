@@ -20,7 +20,8 @@ export const schema = {
     properties: {
       specimenId: { type: 'string' },
       thumbnailImageId: { type: 'number' },
-      shouldProcessFurther: { type: 'boolean' }
+      shouldProcessFurther: { type: 'boolean' },
+      totalImages: { type: 'number' }
     }
   },
   response: {
@@ -37,6 +38,7 @@ export const schema = {
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
+            totalImages: { type: 'number' },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -86,11 +88,11 @@ export const schema = {
 };
 
 export async function updateSessionSpecimen(
-  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; thumbnailImageId?: number; shouldProcessFurther?: boolean } }>,
+  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; thumbnailImageId?: number; shouldProcessFurther?: boolean; totalImages?: number } }>,
   reply: FastifyReply
 ) {
   const { session_id, specimen_id } = request.params;
-  const { specimenId, thumbnailImageId, shouldProcessFurther } = request.body;
+  const { specimenId, thumbnailImageId, shouldProcessFurther, totalImages } = request.body;
   try {
     // Fetch session first
     const session = await findSession(session_id);
@@ -125,7 +127,8 @@ export async function updateSessionSpecimen(
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
-      shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther
+      shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther,
+      totalImages: totalImages !== undefined ? totalImages : specimen.totalImages
     });
     const updated = await specimen.reload();
     const formatted = await formatSpecimenResponse(updated, false);

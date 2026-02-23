@@ -7,6 +7,7 @@ interface UpdateSpecimenRequest {
   specimenId?: string;
   thumbnailImageId?: number;
   shouldProcessFurther?: boolean;
+  totalImages?: number;
 }
 
 export const schema = {
@@ -23,7 +24,8 @@ export const schema = {
     properties: {
       specimenId: { type: 'string' },
       thumbnailImageId: { type: 'number' },
-      shouldProcessFurther: { type: 'boolean' }
+      shouldProcessFurther: { type: 'boolean' },
+      totalImages: { type: 'number' }
     }
   },
   response: {
@@ -40,6 +42,7 @@ export const schema = {
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
+            totalImages: { type: 'number' },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -94,7 +97,7 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, thumbnailImageId, shouldProcessFurther } = request.body;
+    const { specimenId, thumbnailImageId, shouldProcessFurther, totalImages } = request.body;
     
     const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
@@ -131,7 +134,8 @@ export async function updateSpecimen(
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
-      shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther
+      shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther,
+      totalImages: totalImages !== undefined ? totalImages : specimen.totalImages
     });
 
     // Get the updated specimen

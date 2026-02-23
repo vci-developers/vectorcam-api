@@ -26,6 +26,7 @@ class SessionConflictResolution extends Model {
       type: string;
       collectorLastTrainedOn: number | null;
       hardwareId: string | null;
+      totalSpecimens: number;
     }[];
     surveillanceForms: {
       sessionId: number;
@@ -52,6 +53,7 @@ class SessionConflictResolution extends Model {
     type: string;
     collectorLastTrainedOn: number | null;
     hardwareId: string | null;
+    totalSpecimens: number;
     surveillanceForm: {
       numPeopleSleptInHouse: number | null;
       wasIrsConducted: boolean | null;

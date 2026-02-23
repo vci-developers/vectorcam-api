@@ -26,6 +26,7 @@ export const schema = {
               thumbnailUrl: { type: ['string', 'null'] },
               thumbnailImageId: { type: ['number', 'null'] },
               shouldProcessFurther: { type: 'boolean' },
+              totalImages: { type: 'number' },
               thumbnailImage: {
                 anyOf: [
                   { type: 'null' },

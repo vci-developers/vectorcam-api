@@ -52,7 +52,8 @@ export const schema = {
               longitude: { type: ['number', 'null'] },
               type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
               collectorLastTrainedOn: { type: ['number', 'null'] },
-              hardwareId: { type: ['string', 'null'] }
+              hardwareId: { type: ['string', 'null'] },
+              totalSpecimens: { type: 'number' }
             }
           }
         },

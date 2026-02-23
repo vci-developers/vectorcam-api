@@ -22,6 +22,7 @@ export interface SessionResponse {
   type: string;
   collectorLastTrainedOn: number | null;
   hardwareId: string | null;
+  totalSpecimens: number;
 }
 
 // Helper to format session data consistently across endpoints
@@ -45,6 +46,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     type: session.type,
     collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
     hardwareId: session.hardwareId,
+    totalSpecimens: session.totalSpecimens,
   };
 }
 

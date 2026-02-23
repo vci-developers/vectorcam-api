@@ -19,6 +19,7 @@ interface UpdateSessionRequest {
   type: string;
   collectorLastTrainedOn?: number;
   hardwareId?: string;
+  totalSpecimens?: number;
 }
 
 export const schema = {
@@ -48,7 +49,8 @@ export const schema = {
       longitude: { type: 'number' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
       collectorLastTrainedOn: { type: 'number' },
-      hardwareId: { type: 'string', maxLength: 64 }
+      hardwareId: { type: 'string', maxLength: 64 },
+      totalSpecimens: { type: 'number' }
     }
   },
   response: {
@@ -76,7 +78,8 @@ export const schema = {
             longitude: { type: ['number', 'null'] },
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
             collectorLastTrainedOn: { type: ['number', 'null'] },
-            hardwareId: { type: ['string', 'null'] }
+            hardwareId: { type: ['string', 'null'] },
+            totalSpecimens: { type: 'number' }
           }
         }
       }
@@ -124,7 +127,8 @@ export async function updateSession(
       longitude,
       type,
       collectorLastTrainedOn,
-      hardwareId
+      hardwareId,
+      totalSpecimens
     } = request.body;
 
     const session = await findSession(session_id);
@@ -175,7 +179,8 @@ export async function updateSession(
       longitude: longitude !== undefined ? longitude : session.longitude,
       type: type !== undefined ? type : session.type,
       collectorLastTrainedOn: collectorLastTrainedOn !== undefined ? new Date(collectorLastTrainedOn) : session.collectorLastTrainedOn,
-      hardwareId: hardwareId !== undefined ? hardwareId : session.hardwareId
+      hardwareId: hardwareId !== undefined ? hardwareId : session.hardwareId,
+      totalSpecimens: totalSpecimens !== undefined ? totalSpecimens : session.totalSpecimens
     });
 
     return reply.send({
