@@ -7,6 +7,13 @@ import Specimen from './Specimen';
 import SurveillanceForm from './SurveillanceForm';
 import Device from './Device';
 
+export enum SessionState {
+  NEEDS_REVIEW = 'NEEDS_REVIEW',
+  IN_REVIEW = 'IN_REVIEW',
+  CERTIFIED = 'CERTIFIED',
+  SUBMITTED = 'SUBMITTED',
+}
+
 class Session extends Model {
   // Static association declarations will be created at runtime
 
@@ -30,6 +37,7 @@ class Session extends Model {
   declare collectorLastTrainedOn: Date | null;
   declare hardwareId: string | null;
   declare totalSpecimens: number;
+  declare state: SessionState;
 }
 
 Session.init(
@@ -138,6 +146,11 @@ Session.init(
       allowNull: false,
       defaultValue: 0,
       field: 'total_specimens',
+    },
+    state: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: SessionState.NEEDS_REVIEW,
     },
   },
   {

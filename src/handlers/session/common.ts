@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, Site, Device, Specimen } from '../../db/models';
+import { SessionState } from '../../db/models/Session';
 
 // Session response format interface
 export interface SessionResponse {
@@ -23,6 +24,7 @@ export interface SessionResponse {
   collectorLastTrainedOn: number | null;
   hardwareId: string | null;
   totalSpecimens: number;
+  state: SessionState;
 }
 
 // Helper to format session data consistently across endpoints
@@ -47,6 +49,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
     hardwareId: session.hardwareId,
     totalSpecimens: session.totalSpecimens,
+    state: session.state,
   };
 }
 

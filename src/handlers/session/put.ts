@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSessionById, findSiteById, findDeviceById, formatSessionResponse, handleError, findSession } from './common';
 import { Session } from '../../db/models';
+import { SessionState } from '../../db/models/Session';
 
 interface UpdateSessionRequest {
   frontendId?: string;
@@ -20,6 +21,7 @@ interface UpdateSessionRequest {
   collectorLastTrainedOn?: number;
   hardwareId?: string;
   totalSpecimens?: number;
+  state?: SessionState;
 }
 
 export const schema = {
@@ -50,7 +52,8 @@ export const schema = {
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
       collectorLastTrainedOn: { type: 'number' },
       hardwareId: { type: 'string', maxLength: 64 },
-      totalSpecimens: { type: 'number' }
+      totalSpecimens: { type: 'number' },
+      state: { type: 'string', enum: Object.values(SessionState) }
     }
   },
   response: {
@@ -79,7 +82,8 @@ export const schema = {
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
-            totalSpecimens: { type: 'number' }
+            totalSpecimens: { type: 'number' },
+            state: { type: 'string', enum: Object.values(SessionState) }
           }
         }
       }
@@ -128,7 +132,8 @@ export async function updateSession(
       type,
       collectorLastTrainedOn,
       hardwareId,
-      totalSpecimens
+      totalSpecimens,
+      state
     } = request.body;
 
     const session = await findSession(session_id);
@@ -180,7 +185,8 @@ export async function updateSession(
       type: type !== undefined ? type : session.type,
       collectorLastTrainedOn: collectorLastTrainedOn !== undefined ? new Date(collectorLastTrainedOn) : session.collectorLastTrainedOn,
       hardwareId: hardwareId !== undefined ? hardwareId : session.hardwareId,
-      totalSpecimens: totalSpecimens !== undefined ? totalSpecimens : session.totalSpecimens
+      totalSpecimens: totalSpecimens !== undefined ? totalSpecimens : session.totalSpecimens,
+      state: state !== undefined ? state : session.state
     });
 
     return reply.send({

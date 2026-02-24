@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { formatSessionResponse, handleError, findSession } from './common';
 import { Site, Device } from '../../db/models';
+import { SessionState } from '../../db/models/Session';
 import { formatSiteResponse } from '../site/common';
 
 export const schema = {
@@ -36,6 +37,7 @@ export const schema = {
         collectorLastTrainedOn: { type: ['number', 'null'] },
         hardwareId: { type: ['string', 'null'] },
         totalSpecimens: { type: 'number' },
+        state: { type: 'string', enum: Object.values(SessionState) },
         site: {
           type: 'object',
           properties: {

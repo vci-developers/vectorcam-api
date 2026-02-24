@@ -3,7 +3,8 @@ import { dhis2Service } from '../../services/dhis2.service';
 import { dhis2AggregationService } from '../../services/dhis2-aggregation.service';
 import { dhis2MappingService } from '../../services/dhis2-mapping.service';
 import { config } from '../../config/environment';
-import { Dhis2SyncEvent, Site } from '../../db/models';
+import { Dhis2SyncEvent, Site, Session } from '../../db/models';
+import { SessionState } from '../../db/models/Session';
 
 export const schema = {
   tags: ['DHIS2'],
@@ -474,6 +475,13 @@ export async function syncToDHIS2(
                         }
                     }
                 }
+
+                // Mark all sessions for this household as SUBMITTED
+                const sessionIds = sessions.map(s => s.id);
+                await Session.update(
+                    { state: SessionState.SUBMITTED },
+                    { where: { id: sessionIds } }
+                );
 
                 successfulSyncs++;
                 results.push({

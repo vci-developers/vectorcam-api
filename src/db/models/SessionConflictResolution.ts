@@ -1,5 +1,6 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../index';
+import { SessionState } from './Session';
 
 class SessionConflictResolution extends Model {
   declare id: number;
@@ -27,6 +28,7 @@ class SessionConflictResolution extends Model {
       collectorLastTrainedOn: number | null;
       hardwareId: string | null;
       totalSpecimens: number;
+      state: SessionState;
     }[];
     surveillanceForms: {
       sessionId: number;
@@ -54,6 +56,7 @@ class SessionConflictResolution extends Model {
     collectorLastTrainedOn: number | null;
     hardwareId: string | null;
     totalSpecimens: number;
+    state: SessionState;
     surveillanceForm: {
       numPeopleSleptInHouse: number | null;
       wasIrsConducted: boolean | null;

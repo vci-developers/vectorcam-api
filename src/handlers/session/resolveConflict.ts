@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, SurveillanceForm, SessionConflictResolution } from '../../db/models';
+import { SessionState } from '../../db/models/Session';
 import { Op } from 'sequelize';
 
 interface ResolveConflictRequest {
@@ -19,6 +20,7 @@ interface ResolveConflictRequest {
     collectorLastTrainedOn?: number | null;
     hardwareId?: string | null;
     totalSpecimens?: number | null;
+    state?: SessionState;
   };
   resolvedSurveillanceForm?: {
     numPeopleSleptInHouse?: number | null;
@@ -60,6 +62,7 @@ export const schema = {
           collectorLastTrainedOn: { type: ['number', 'null'] },
           hardwareId: { type: ['string', 'null'], maxLength: 64 },
           totalSpecimens: { type: ['number', 'null'] },
+          state: { type: 'string', enum: Object.values(SessionState) },
         },
       },
       resolvedSurveillanceForm: {
@@ -211,6 +214,7 @@ export async function resolveConflict(
           : null,
         hardwareId: session.hardwareId,
         totalSpecimens: session.totalSpecimens,
+        state: session.state,
       })),
       surveillanceForms: [] as any[],
     };
@@ -261,6 +265,7 @@ export async function resolveConflict(
     }
     if (resolvedData.hardwareId !== undefined) updateData.hardwareId = resolvedData.hardwareId;
     if (resolvedData.totalSpecimens !== undefined) updateData.totalSpecimens = resolvedData.totalSpecimens;
+    if (resolvedData.state !== undefined) updateData.state = resolvedData.state;
     await Session.update(updateData, {
       where: {
         id: {

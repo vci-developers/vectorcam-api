@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, Site, Device } from '../../../db/models';
+import { SessionState } from '../../../db/models/Session';
 import { formatSpecimenResponse, handleError } from '../../specimen/common';
 import { findSession, findSessionSpecimen } from '../common';
 import { formatSiteResponse } from '../../site/common';
@@ -123,6 +124,7 @@ export const schema = {
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
             totalSpecimens: { type: 'number' },
+            state: { type: 'string', enum: Object.values(SessionState) },
             site: {
               type: 'object',
               properties: {
@@ -236,6 +238,7 @@ export async function getSessionSpecimen(
         collectorLastTrainedOn: specimenData.session.collectorLastTrainedOn ? new Date(specimenData.session.collectorLastTrainedOn).getTime() : null,
         hardwareId: specimenData.session.hardwareId,
         totalSpecimens: specimenData.session.totalSpecimens,
+        state: specimenData.session.state,
         site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
         device: specimenData.session.device ? {
           id: specimenData.session.device.id,

@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, Site } from '../../db/models';
+import { SessionState } from '../../db/models/Session';
 import { formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
 
@@ -18,6 +19,7 @@ export const schema = {
       specimenCondition: { type: 'string', description: 'Filter by specimen condition (partial match)' },
       status: { type: 'string', enum: ['pending', 'completed', 'submitted'], description: 'Filter by session status' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
+      state: { type: 'string', enum: Object.values(SessionState), description: 'Filter by session state' },
       startDate: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -53,7 +55,8 @@ export const schema = {
               type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
               collectorLastTrainedOn: { type: ['number', 'null'] },
               hardwareId: { type: ['string', 'null'] },
-              totalSpecimens: { type: 'number' }
+              totalSpecimens: { type: 'number' },
+              state: { type: 'string', enum: Object.values(SessionState) }
             }
           }
         },
@@ -77,6 +80,7 @@ interface QueryParams {
   specimenCondition?: string;
   status?: 'pending' | 'completed' | 'submitted';
   type?: 'SURVEILLANCE' | 'DATA_COLLECTION';
+  state?: 'NEEDS_REVIEW' | 'IN_REVIEW' | 'CERTIFIED' | 'SUBMITTED';
   startDate?: string;
   endDate?: string;
   limit?: number;
@@ -101,6 +105,7 @@ export async function getSessionList(
       specimenCondition,
       status,
       type,
+      state,
       startDate,
       endDate,
       limit = 20,
@@ -194,6 +199,9 @@ export async function getSessionList(
     }
     if (type) {
       whereClause.type = type;
+    }
+    if (state) {
+      whereClause.state = state;
     }
 
     // Handle status filtering

@@ -119,6 +119,8 @@ export const schema = {
             type: { type: 'string' },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
+            totalSpecimens: { type: 'number' },
+            totalImages: { type: 'number' },
             site: {
               type: 'object',
               properties: {

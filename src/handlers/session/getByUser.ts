@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { handleError } from './common';
+import { SessionState } from '../../db/models/Session';
 
 export const schema = {
   tags: ['Sessions'],
@@ -37,7 +38,8 @@ export const schema = {
               type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
               collectorLastTrainedOn: { type: ['number', 'null'] },
               hardwareId: { type: ['string', 'null'] },
-              totalSpecimens: { type: 'number' }
+              totalSpecimens: { type: 'number' },
+              state: { type: 'string', enum: Object.values(SessionState) }
             }
           }
         }
