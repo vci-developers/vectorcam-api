@@ -10,11 +10,11 @@ export interface AnnotationTaskResponse {
   status: string;
   createdAt: number;
   updatedAt: number;
-  user?: UserResponse;
+  annotator?: UserResponse;
 }
 
 // Helper to format annotation task data consistently across endpoints
-export function formatAnnotationTaskResponse(task: AnnotationTask, includeUser: boolean = false): AnnotationTaskResponse {
+export function formatAnnotationTaskResponse(task: AnnotationTask, includeAnnotator: boolean = false): AnnotationTaskResponse {
   const response: AnnotationTaskResponse = {
     id: task.id,
     userId: task.userId,
@@ -25,9 +25,8 @@ export function formatAnnotationTaskResponse(task: AnnotationTask, includeUser: 
     updatedAt: task.updatedAt.getTime(),
   };
 
-  // Include user data if requested and available
-  if (includeUser && task.get('user')) {
-    response.user = formatUserResponse(task.get('user') as User);
+  if (includeAnnotator && task.get('user')) {
+    response.annotator = formatUserResponse(task.get('user') as User);
   }
 
   return response;

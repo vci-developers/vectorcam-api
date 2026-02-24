@@ -4,6 +4,9 @@ import { User } from '../../db/models';
 export interface UserResponse {
   id: number;
   email: string;
+  privilege: number;
+  programId: number | null;
+  isActive: boolean;
 }
 
 // Helper to format user data consistently across endpoints
@@ -11,6 +14,9 @@ export function formatUserResponse(user: User): UserResponse {
   return {
     id: user.id,
     email: user.email,
+    privilege: user.privilege,
+    programId: user.programId ?? null,
+    isActive: user.isActive,
   };
 }
 

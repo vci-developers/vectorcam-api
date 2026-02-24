@@ -64,7 +64,10 @@ export const schema = {
           type: 'object',
           properties: {
             id: { type: 'number' },
-            email: { type: 'string' }
+            email: { type: 'string' },
+            privilege: { type: 'number' },
+            programId: { type: ['number', 'null'] },
+            isActive: { type: 'boolean' }
           }
         },
         specimen: {

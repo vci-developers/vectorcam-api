@@ -58,15 +58,14 @@ export const schema = {
               status: { type: 'string' },
               createdAt: { type: 'number' },
               updatedAt: { type: 'number' },
-              user: {
+              annotator: {
                 type: 'object',
                 properties: {
                   id: { type: 'number' },
                   email: { type: 'string' },
                   privilege: { type: 'number' },
-                  isActive: { type: 'boolean' },
-                  createdAt: { type: 'number' },
-                  updatedAt: { type: 'number' }
+                  programId: { type: ['number', 'null'] },
+                  isActive: { type: 'boolean' }
                 }
               }
             }
