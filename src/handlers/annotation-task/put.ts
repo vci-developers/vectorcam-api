@@ -46,7 +46,7 @@ export const schema = {
           type: 'object',
           properties: {
             id: { type: 'number' },
-            userId: { type: 'number' },
+            annotatorId: { type: 'number' },
             title: { type: ['string', 'null'] },
             description: { type: ['string', 'null'] },
             status: { type: 'string' },

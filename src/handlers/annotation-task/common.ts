@@ -4,7 +4,7 @@ import { formatUserResponse, UserResponse } from '../user/common';
 // Annotation Task response format interface
 export interface AnnotationTaskResponse {
   id: number;
-  userId: number;
+  annotatorId: number;
   title: string | null;
   description: string | null;
   status: string;
@@ -17,7 +17,7 @@ export interface AnnotationTaskResponse {
 export function formatAnnotationTaskResponse(task: AnnotationTask, includeAnnotator: boolean = false): AnnotationTaskResponse {
   const response: AnnotationTaskResponse = {
     id: task.id,
-    userId: task.userId,
+    annotatorId: task.userId,
     title: task.title ?? null,
     description: task.description ?? null,
     status: task.status,
