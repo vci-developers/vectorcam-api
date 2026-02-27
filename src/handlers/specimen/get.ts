@@ -22,7 +22,7 @@ export const schema = {
         thumbnailUrl: { type: ['string', 'null'] },
         thumbnailImageId: { type: ['number', 'null'] },
         shouldProcessFurther: { type: 'boolean' },
-        totalImages: { type: 'number' },
+        expectedImages: { type: 'number' },
         images: {
           type: 'array',
           items: {
@@ -119,8 +119,8 @@ export const schema = {
             type: { type: 'string' },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
-            totalSpecimens: { type: 'number' },
-            totalImages: { type: 'number' },
+            expectedSpecimens: { type: 'number' },
+            expectedImages: { type: 'number' },
             site: {
               type: 'object',
               properties: {

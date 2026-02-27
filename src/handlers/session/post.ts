@@ -25,7 +25,7 @@ interface SubmitSessionRequest {
   type: string;
   collectorLastTrainedOn: number;
   hardwareId?: string;
-  totalSpecimens?: number;
+  expectedSpecimens?: number;
 }
 
 export const schema = {
@@ -51,7 +51,7 @@ export const schema = {
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
       collectorLastTrainedOn: { type: 'number' },
       hardwareId: { type: 'string', maxLength: 64 },
-      totalSpecimens: { type: 'number' }
+      expectedSpecimens: { type: 'number' }
     }
   },
   response: {
@@ -80,7 +80,7 @@ export const schema = {
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
-            totalSpecimens: { type: 'number' },
+            expectedSpecimens: { type: 'number' },
             state: { type: 'string', enum: Object.values(SessionState) }
           }
         }
@@ -129,7 +129,7 @@ export async function submitSession(
       type,
       collectorLastTrainedOn,
       hardwareId,
-      totalSpecimens
+      expectedSpecimens
     } = request.body;
 
     // Check if site exists
@@ -183,7 +183,7 @@ export async function submitSession(
       type,
       collectorLastTrainedOn: collectorLastTrainedOn ? new Date(collectorLastTrainedOn) : null,
       hardwareId,
-      totalSpecimens
+      expectedSpecimens
     });
 
     // Mark site as having data

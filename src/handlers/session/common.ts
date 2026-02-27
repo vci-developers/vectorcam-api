@@ -23,7 +23,7 @@ export interface SessionResponse {
   type: string;
   collectorLastTrainedOn: number | null;
   hardwareId: string | null;
-  totalSpecimens: number;
+  expectedSpecimens: number;
   state: SessionState;
 }
 
@@ -48,7 +48,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     type: session.type,
     collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
     hardwareId: session.hardwareId,
-    totalSpecimens: session.totalSpecimens,
+    expectedSpecimens: session.expectedSpecimens,
     state: session.state,
   };
 }

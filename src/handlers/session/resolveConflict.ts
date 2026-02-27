@@ -19,7 +19,7 @@ interface ResolveConflictRequest {
     type?: string;
     collectorLastTrainedOn?: number | null;
     hardwareId?: string | null;
-    totalSpecimens?: number | null;
+    expectedSpecimens?: number | null;
     state?: SessionState;
   };
   resolvedSurveillanceForm?: {
@@ -61,7 +61,7 @@ export const schema = {
           type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
           collectorLastTrainedOn: { type: ['number', 'null'] },
           hardwareId: { type: ['string', 'null'], maxLength: 64 },
-          totalSpecimens: { type: ['number', 'null'] },
+          expectedSpecimens: { type: ['number', 'null'] },
           state: { type: 'string', enum: Object.values(SessionState) },
         },
       },
@@ -213,7 +213,7 @@ export async function resolveConflict(
           ? session.collectorLastTrainedOn.getTime()
           : null,
         hardwareId: session.hardwareId,
-        totalSpecimens: session.totalSpecimens,
+        expectedSpecimens: session.expectedSpecimens,
         state: session.state,
       })),
       surveillanceForms: [] as any[],
@@ -264,7 +264,7 @@ export async function resolveConflict(
         : null;
     }
     if (resolvedData.hardwareId !== undefined) updateData.hardwareId = resolvedData.hardwareId;
-    if (resolvedData.totalSpecimens !== undefined) updateData.totalSpecimens = resolvedData.totalSpecimens;
+    if (resolvedData.expectedSpecimens !== undefined) updateData.expectedSpecimens = resolvedData.expectedSpecimens;
     if (resolvedData.state !== undefined) updateData.state = resolvedData.state;
     await Session.update(updateData, {
       where: {

@@ -26,7 +26,7 @@ export const schema = {
         thumbnailUrl: { type: ['string', 'null'] },
         thumbnailImageId: { type: ['number', 'null'] },
         shouldProcessFurther: { type: 'boolean' },
-        totalImages: { type: 'number' },
+        expectedImages: { type: 'number' },
         images: {
           type: 'array',
           items: {
@@ -123,7 +123,7 @@ export const schema = {
             type: { type: 'string' },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
-            totalSpecimens: { type: 'number' },
+            expectedSpecimens: { type: 'number' },
             state: { type: 'string', enum: Object.values(SessionState) },
             site: {
               type: 'object',
@@ -237,7 +237,7 @@ export async function getSessionSpecimen(
         type: specimenData.session.type,
         collectorLastTrainedOn: specimenData.session.collectorLastTrainedOn ? new Date(specimenData.session.collectorLastTrainedOn).getTime() : null,
         hardwareId: specimenData.session.hardwareId,
-        totalSpecimens: specimenData.session.totalSpecimens,
+        expectedSpecimens: specimenData.session.expectedSpecimens,
         state: specimenData.session.state,
         site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
         device: specimenData.session.device ? {

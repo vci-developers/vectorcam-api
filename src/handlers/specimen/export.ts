@@ -160,7 +160,7 @@ export async function exportSpecimensCSV(
     }
 
     // Generate CSV header
-    let csvHeader = 'SpecimenID,ShouldProcessFurther,TotalImages,ImageID,ImageUrl,ImageS3Key,FileMD5,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionTotalSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
+    let csvHeader = 'SpecimenID,ShouldProcessFurther,ExpectedImages,ImageID,ImageUrl,ImageS3Key,FileMD5,Species,Sex,AbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionExpectedSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceRegisteredAt';
     
     // Add inference result columns if requested
     if (includeInferenceResult) {
@@ -193,7 +193,7 @@ export async function exportSpecimensCSV(
         const row = [
           escapeCSVField(specimen.specimenId),
           escapeCSVField(specimen.shouldProcessFurther),
-          escapeCSVField(specimen.totalImages),
+          escapeCSVField(specimen.expectedImages),
           escapeCSVField(img.id),
           escapeCSVField(imageUrl),
           escapeCSVField(img.imageKey),
@@ -221,7 +221,7 @@ export async function exportSpecimensCSV(
           escapeCSVField(session?.type),
           escapeCSVField(session?.collectorLastTrainedOn?.toISOString()),
           escapeCSVField(session?.hardwareId),
-          escapeCSVField(session?.totalSpecimens),
+          escapeCSVField(session?.expectedSpecimens),
           escapeCSVField(session?.state),
           escapeCSVField(session?.siteId),
           escapeCSVField(formattedSite?.district ?? ''),

@@ -27,7 +27,7 @@ class SessionConflictResolution extends Model {
       type: string;
       collectorLastTrainedOn: number | null;
       hardwareId: string | null;
-      totalSpecimens: number;
+      expectedSpecimens: number;
       state: SessionState;
     }[];
     surveillanceForms: {
@@ -55,7 +55,7 @@ class SessionConflictResolution extends Model {
     type: string;
     collectorLastTrainedOn: number | null;
     hardwareId: string | null;
-    totalSpecimens: number;
+    expectedSpecimens: number;
     state: SessionState;
     surveillanceForm: {
       numPeopleSleptInHouse: number | null;

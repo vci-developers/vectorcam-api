@@ -88,7 +88,7 @@ export async function formatAnnotationResponse(
         thumbnailUrl: null,
         thumbnailImageId: specimen.thumbnailImageId,
         shouldProcessFurther: specimen.shouldProcessFurther ?? false,
-        totalImages: specimen.totalImages,
+        expectedImages: specimen.expectedImages,
         images: [],
         thumbnailImage: null,
       };

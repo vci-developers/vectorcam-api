@@ -20,7 +20,7 @@ interface UpdateSessionRequest {
   type: string;
   collectorLastTrainedOn?: number;
   hardwareId?: string;
-  totalSpecimens?: number;
+  expectedSpecimens?: number;
   state?: SessionState;
 }
 
@@ -52,7 +52,7 @@ export const schema = {
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'] },
       collectorLastTrainedOn: { type: 'number' },
       hardwareId: { type: 'string', maxLength: 64 },
-      totalSpecimens: { type: 'number' },
+      expectedSpecimens: { type: 'number' },
       state: { type: 'string', enum: Object.values(SessionState) }
     }
   },
@@ -82,7 +82,7 @@ export const schema = {
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
-            totalSpecimens: { type: 'number' },
+            expectedSpecimens: { type: 'number' },
             state: { type: 'string', enum: Object.values(SessionState) }
           }
         }
@@ -132,7 +132,7 @@ export async function updateSession(
       type,
       collectorLastTrainedOn,
       hardwareId,
-      totalSpecimens,
+      expectedSpecimens,
       state
     } = request.body;
 
@@ -185,7 +185,7 @@ export async function updateSession(
       type: type !== undefined ? type : session.type,
       collectorLastTrainedOn: collectorLastTrainedOn !== undefined ? new Date(collectorLastTrainedOn) : session.collectorLastTrainedOn,
       hardwareId: hardwareId !== undefined ? hardwareId : session.hardwareId,
-      totalSpecimens: totalSpecimens !== undefined ? totalSpecimens : session.totalSpecimens,
+      expectedSpecimens: expectedSpecimens !== undefined ? expectedSpecimens : session.expectedSpecimens,
       state: state !== undefined ? state : session.state
     });
 

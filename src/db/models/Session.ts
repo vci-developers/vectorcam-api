@@ -36,7 +36,7 @@ class Session extends Model {
   declare type: string;
   declare collectorLastTrainedOn: Date | null;
   declare hardwareId: string | null;
-  declare totalSpecimens: number;
+  declare expectedSpecimens: number;
   declare state: SessionState;
 }
 
@@ -141,11 +141,11 @@ Session.init(
       allowNull: true,
       field: 'hardware_id',
     },
-    totalSpecimens: {
+    expectedSpecimens: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
-      field: 'total_specimens',
+      field: 'expected_specimens',
     },
     state: {
       type: DataTypes.STRING(20),

@@ -55,7 +55,7 @@ export const schema = {
               type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
               collectorLastTrainedOn: { type: ['number', 'null'] },
               hardwareId: { type: ['string', 'null'] },
-              totalSpecimens: { type: 'number' },
+              expectedSpecimens: { type: 'number' },
               state: { type: 'string', enum: Object.values(SessionState) }
             }
           }

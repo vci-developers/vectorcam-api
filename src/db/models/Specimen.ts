@@ -10,7 +10,7 @@ class Specimen extends Model {
   declare sessionId: number;
   declare thumbnailImageId: number | null;
   declare shouldProcessFurther: boolean;
-  declare totalImages: number;
+  declare expectedImages: number;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -51,11 +51,11 @@ Specimen.init(
       defaultValue: false,
       field: 'should_process_further',
     },
-    totalImages: {
+    expectedImages: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
-      field: 'total_images',
+      field: 'expected_images',
     },
   },
   {
