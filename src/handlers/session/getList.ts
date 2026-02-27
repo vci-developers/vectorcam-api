@@ -18,7 +18,7 @@ export const schema = {
       collectionMethod: { type: 'string', description: 'Filter by collection method (partial match)' },
       specimenCondition: { type: 'string', description: 'Filter by specimen condition (partial match)' },
       status: { type: 'string', enum: ['pending', 'completed', 'submitted'], description: 'Filter by session status' },
-      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
+      type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'], description: 'Filter by session type' },
       state: { type: 'string', enum: Object.values(SessionState), description: 'Filter by session state' },
       startDate: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
@@ -52,7 +52,7 @@ export const schema = {
               deviceId: { type: 'number' },
               latitude: { type: ['number', 'null'] },
               longitude: { type: ['number', 'null'] },
-              type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', ''] },
+              type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE', ''] },
               collectorLastTrainedOn: { type: ['number', 'null'] },
               hardwareId: { type: ['string', 'null'] },
               expectedSpecimens: { type: 'number' },
@@ -79,7 +79,7 @@ interface QueryParams {
   collectionMethod?: string;
   specimenCondition?: string;
   status?: 'pending' | 'completed' | 'submitted';
-  type?: 'SURVEILLANCE' | 'DATA_COLLECTION';
+  type?: 'SURVEILLANCE' | 'DATA_COLLECTION' | 'CALIBRATION' | 'PRACTICE';
   state?: 'NEEDS_REVIEW' | 'IN_REVIEW' | 'CERTIFIED' | 'SUBMITTED';
   startDate?: string;
   endDate?: string;

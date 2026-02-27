@@ -62,7 +62,7 @@ const SPECIMEN_CONDITIONS = [
 ];
 
 // Valid session types based on database constraint
-const SESSION_TYPES = ['SURVEILLANCE', 'DATA_COLLECTION'];
+const SESSION_TYPES = ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'];
 
 const SPECIES_OPTIONS = [
   'Anopheles gambiae',

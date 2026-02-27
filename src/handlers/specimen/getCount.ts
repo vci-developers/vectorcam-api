@@ -39,7 +39,7 @@ export const schema = {
       },
       sessionType: {
         type: 'string',
-        enum: ['SURVEILLANCE', 'DATA_COLLECTION'],
+        enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'],
         description: 'Filter specimens by session type'
       },
       locationTypeKey: {

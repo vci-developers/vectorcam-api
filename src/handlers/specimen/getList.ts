@@ -19,7 +19,7 @@ export const schema = {
       species: { type: 'string', description: 'Filter by species from thumbnail image' },
       sex: { type: 'string', description: 'Filter by sex from thumbnail image' },
       abdomenStatus: { type: 'string', description: 'Filter by abdomen status from thumbnail image' },
-      sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
+      sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'], description: 'Filter by session type' },
       startDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },

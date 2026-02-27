@@ -12,6 +12,7 @@ export enum SessionState {
   IN_REVIEW = 'IN_REVIEW',
   CERTIFIED = 'CERTIFIED',
   SUBMITTED = 'SUBMITTED',
+  NOT_APPLICABLE = 'NOT_APPLICABLE',
 }
 
 class Session extends Model {

@@ -31,7 +31,7 @@ export const schema = {
       endDate: { type: 'string' },
       sessionId: { type: 'number' },
       sessionFrontendId: { type: 'string' },
-      sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION'], description: 'Filter by session type' },
+      sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'], description: 'Filter by session type' },
       programId: { type: 'number' },
       includeInferenceResult: { type: 'boolean' }
     }
