@@ -1,13 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Op, WhereOptions } from 'sequelize';
-import { AnnotationTask, User } from '../../db/models';
+import { Op, WhereOptions, fn, col, literal } from 'sequelize';
+import { AnnotationTask, Annotation, User } from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
 
 interface GetAnnotationTaskListQuery {
   page?: number;
   limit?: number;
-  startDate?: string; // ISO date string for filtering after this date
-  endDate?: string; // ISO date string for filtering before this date
+  startDate?: string; // ISO date string (YYYY-MM-DD) for filtering after this date
+  endDate?: string; // ISO date string (YYYY-MM-DD) for filtering before this date
   title?: string;
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
 }
@@ -25,8 +25,8 @@ export const schema = {
     properties: {
       page: { type: 'integer', minimum: 1, default: 1 },
       limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-      startDate: { type: 'string', format: 'date-time' },
-      endDate: { type: 'string', format: 'date-time' },
+      startDate: { type: 'string', format: 'date' },
+      endDate: { type: 'string', format: 'date' },
       title: { type: 'string' },
       status: { type: 'string', enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED'] }
     }
@@ -45,6 +45,15 @@ export const schema = {
               title: { type: ['string', 'null'] },
               description: { type: ['string', 'null'] },
               status: { type: 'string' },
+              annotationCounts: {
+                type: 'object',
+                properties: {
+                  total: { type: 'number' },
+                  pending: { type: 'number' },
+                  annotated: { type: 'number' },
+                  flagged: { type: 'number' }
+                }
+              },
               createdAt: { type: 'number' },
               updatedAt: { type: 'number' },
               annotator: {
@@ -93,11 +102,11 @@ export default async function getAnnotationTaskList(
       const dateFilter: any = {};
       
       if (startDate) {
-        dateFilter[Op.gte] = new Date(startDate);
+        dateFilter[Op.gte] = new Date(`${startDate}T00:00:00.000Z`);
       }
       
       if (endDate) {
-        dateFilter[Op.lte] = new Date(endDate);
+        dateFilter[Op.lte] = new Date(`${endDate}T23:59:59.999Z`);
       }
       
       whereConditions.createdAt = dateFilter;
@@ -133,8 +142,56 @@ export default async function getAnnotationTaskList(
       order: [['createdAt', 'DESC']]
     });
 
+    const taskIds = tasks.map(task => task.id);
+    const defaultCounts = {
+      total: 0,
+      pending: 0,
+      annotated: 0,
+      flagged: 0
+    };
+    const countsByTaskId = new Map<number, typeof defaultCounts>();
+
+    if (taskIds.length > 0) {
+      const annotationCountsRaw = await Annotation.findAll({
+        attributes: [
+          'annotationTaskId',
+          [fn('COUNT', col('id')), 'total'],
+          [fn('SUM', literal(`CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END`)), 'pending'],
+          [fn('SUM', literal(`CASE WHEN status = 'ANNOTATED' THEN 1 ELSE 0 END`)), 'annotated'],
+          [fn('SUM', literal(`CASE WHEN status = 'FLAGGED' THEN 1 ELSE 0 END`)), 'flagged']
+        ],
+        where: {
+          annotationTaskId: {
+            [Op.in]: taskIds
+          }
+        },
+        group: ['annotation_task_id'],
+        raw: true
+      });
+
+      const annotationCounts = annotationCountsRaw as unknown as Array<{
+        annotationTaskId: number;
+        total: string | number;
+        pending: string | number;
+        annotated: string | number;
+        flagged: string | number;
+      }>;
+
+      for (const row of annotationCounts) {
+        countsByTaskId.set(Number(row.annotationTaskId), {
+          total: Number(row.total) || 0,
+          pending: Number(row.pending) || 0,
+          annotated: Number(row.annotated) || 0,
+          flagged: Number(row.flagged) || 0
+        });
+      }
+    }
+
     // Format response
-    const formattedTasks = tasks.map(task => formatAnnotationTaskResponse(task, true));
+    const formattedTasks = tasks.map(task => ({
+      ...formatAnnotationTaskResponse(task, true),
+      annotationCounts: countsByTaskId.get(task.id) || defaultCounts
+    }));
 
     return reply.send({
       tasks: formattedTasks,
