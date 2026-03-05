@@ -45,6 +45,7 @@ export const schema = {
         visualSex: { type: ['string', 'null'] },
         visualAbdomenStatus: { type: ['string', 'null'] },
         notes: { type: ['string', 'null'] },
+        artifacts: { type: ['string', 'null'] },
         status: { type: 'string' },
         createdAt: { type: 'number' },
         updatedAt: { type: 'number' },
@@ -65,6 +66,7 @@ export const schema = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
             programId: { type: ['number', 'null'] },
             isActive: { type: 'boolean' }

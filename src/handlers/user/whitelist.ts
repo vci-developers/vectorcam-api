@@ -3,7 +3,7 @@ import { UserWhitelist, Site, SiteUser, User, Program } from '../../db/models';
 
 interface WhitelistBody {
   email: string;
-  programId: number;
+  programId?: number;
   adminPrivilege?: number;
   districtAccess?: string;
   siteIds?: number[];
@@ -22,12 +22,12 @@ export const addToWhitelistSchema: any = {
   },
   body: {
     type: 'object',
-    required: ['email', 'programId'],
+    required: ['email'],
     properties: {
       email: { type: 'string', format: 'email' },
       programId: {
         type: 'number',
-        description: 'Program ID to assign the user to. All site access will be scoped to this program.'
+        description: 'Optional program ID override. If omitted, the user\'s stored programId is used.'
       },
       adminPrivilege: { 
         type: 'number',
@@ -63,6 +63,7 @@ export const addToWhitelistSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
             programId: { type: 'number' },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
@@ -87,6 +88,7 @@ export const addToWhitelistSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
             programId: { type: 'number' },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
@@ -217,15 +219,11 @@ export const removeFromWhitelistSchema: any = {
  */
 export async function addToWhitelistHandler(request: FastifyRequest<{ Body: WhitelistBody }>, reply: FastifyReply): Promise<void> {
   try {
-    const { email, programId, adminPrivilege, districtAccess, siteIds } = request.body;
+    const { email, programId: providedProgramId, adminPrivilege, districtAccess, siteIds } = request.body;
 
     // Validate input
     if (!email) {
       return reply.code(400).send({ error: 'Email is required' });
-    }
-
-    if (!programId) {
-      return reply.code(400).send({ error: 'Program ID is required' });
     }
 
     // Validate email format
@@ -239,17 +237,45 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       return reply.code(400).send({ error: 'Invalid privilege. Must be 0, 1, 2, or 3' });
     }
 
-    // Validate that the program exists
-    const program = await Program.findByPk(programId);
-    if (!program) {
-      return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
-    }
-
     // Check if email is already whitelisted
     const existingEntry = await UserWhitelist.findOne({ where: { email } });
     
     // Find user by email
     const user = await User.findOne({ where: { email } });
+
+    // Resolve effective program:
+    // 1) explicit request override
+    // 2) existing user program
+    // 3) existing whitelist program
+    const programId = providedProgramId ?? user?.programId ?? existingEntry?.programId ?? null;
+    if (programId == null) {
+      return reply.code(400).send({
+        error: 'Program ID is required when user has no stored program assignment'
+      });
+    }
+
+    // Validate that the resolved program exists
+    const program = await Program.findByPk(programId);
+    if (!program) {
+      return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
+    }
+
+    // Validate explicit site IDs against the selected program (applies whether or not user exists yet)
+    const validatedSiteIds = siteIds ? Array.from(new Set(siteIds)) : [];
+    if (validatedSiteIds.length > 0) {
+      const validSites = await Site.findAll({
+        where: { id: validatedSiteIds, programId },
+        attributes: ['id']
+      });
+
+      const validSiteIdSet = new Set(validSites.map(site => site.id));
+      const invalidSiteIds = validatedSiteIds.filter(id => !validSiteIdSet.has(id));
+
+      if (invalidSiteIds.length > 0) {
+        return reply.code(400).send({ error: `Site IDs not found in program ${programId}: ${invalidSiteIds.join(', ')}` });
+      }
+    }
+
     let sitesGranted = 0;
     let userInfo = null;
     let whitelistEntry = existingEntry;
@@ -282,21 +308,8 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       }
 
       // Add explicit siteIds
-      if (siteIds && siteIds.length > 0) {
-        // Validate that the provided site IDs exist and belong to the program
-        const validSites = await Site.findAll({
-          where: { id: siteIds, programId },
-          attributes: ['id']
-        });
-
-        const validSiteIdSet = new Set(validSites.map(s => s.id));
-        const invalidSiteIds = siteIds.filter(id => !validSiteIdSet.has(id));
-
-        if (invalidSiteIds.length > 0) {
-          return reply.code(400).send({ error: `Site IDs not found in program ${programId}: ${invalidSiteIds.join(', ')}` });
-        }
-
-        for (const id of siteIds) {
+      if (validatedSiteIds.length > 0) {
+        for (const id of validatedSiteIds) {
           mergedSiteIdSet.add(id);
         }
       }
@@ -334,6 +347,7 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
       userInfo = {
         id: user.id,
         email: user.email,
+        name: user.name ?? null,
         privilege: user.privilege,
         programId: user.programId,
         sitesGranted

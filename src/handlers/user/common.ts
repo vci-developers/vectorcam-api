@@ -4,6 +4,7 @@ import { User } from '../../db/models';
 export interface UserResponse {
   id: number;
   email: string;
+  name: string | null;
   privilege: number;
   programId: number | null;
   isActive: boolean;
@@ -14,6 +15,7 @@ export function formatUserResponse(user: User): UserResponse {
   return {
     id: user.id,
     email: user.email,
+    name: user.name ?? null,
     privilege: user.privilege,
     programId: user.programId ?? null,
     isActive: user.isActive,

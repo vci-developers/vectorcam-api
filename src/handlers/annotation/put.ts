@@ -14,6 +14,7 @@ interface UpdateAnnotationBody {
   visualSex?: string;
   visualAbdomenStatus?: string;
   notes?: string;
+  artifacts?: string;
   status?: 'PENDING' | 'ANNOTATED' | 'FLAGGED';
 }
 
@@ -43,6 +44,7 @@ export const schema = {
       visualSex: { type: 'string', maxLength: 50 },
       visualAbdomenStatus: { type: 'string', maxLength: 100 },
       notes: { type: 'string' },
+      artifacts: { type: 'string' },
       status: { type: 'string', enum: ['PENDING', 'ANNOTATED', 'FLAGGED'] }
     },
     additionalProperties: false
@@ -66,6 +68,7 @@ export const schema = {
             visualSex: { type: ['string', 'null'] },
             visualAbdomenStatus: { type: ['string', 'null'] },
             notes: { type: ['string', 'null'] },
+            artifacts: { type: ['string', 'null'] },
             status: { type: 'string' },
             createdAt: { type: 'number' },
             updatedAt: { type: 'number' }
@@ -118,17 +121,17 @@ export default async function updateAnnotation(
     // Update the annotation
     await annotation.update(updates);
 
-    // Always update the annotation task's updatedAt timestamp by setting a field to itself
+    // Move parent task out of PENDING after first successful annotation update
     const annotationTaskId = annotation.annotationTaskId;
     try {
       const annotationTask = await AnnotationTask.findByPk(annotationTaskId);
       
-      if (annotationTask) {
-        await annotationTask.update({ updatedAt: new Date() });
+      if (annotationTask?.status === 'PENDING') {
+        await annotationTask.update({ status: 'IN_PROGRESS' });
       }
     } catch (taskUpdateError: any) {
       // Log the error but don't fail the annotation update
-      request.log.warn(`Failed to update annotation task ${annotationTaskId} timestamp: ${taskUpdateError.message}`);
+      request.log.warn(`Failed to update annotation task ${annotationTaskId}: ${taskUpdateError.message}`);
     }
 
     // Check if status is being changed to ANNOTATED or FLAGGED

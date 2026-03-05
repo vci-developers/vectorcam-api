@@ -1,9 +1,10 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { getAnnotationTaskList, updateAnnotationTask, deleteAnnotationTask, createAnnotationTasks } from '../handlers/annotation-task';
+import { getAnnotationTaskList, getAnnotationTask, updateAnnotationTask, deleteAnnotationTask, createAnnotationTasks } from '../handlers/annotation-task';
 import { getAnnotationList, getAnnotation, updateAnnotation, exportAnnotationsCSV } from '../handlers/annotation';
 
 // Import schemas from handler files
 import { schema as getAnnotationTaskListSchema } from '../handlers/annotation-task/getList';
+import { schema as getAnnotationTaskSchema } from '../handlers/annotation-task/get';
 import { schema as updateAnnotationTaskSchema } from '../handlers/annotation-task/put';
 import { schema as deleteAnnotationTaskSchema } from '../handlers/annotation-task/delete';
 import { schema as createAnnotationTasksSchema } from '../handlers/annotation-task/post';
@@ -23,6 +24,13 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSuperAdmin],
     schema: getAnnotationTaskListSchema
   }, getAnnotationTaskList as any);
+
+  // Get annotation task details
+  // Admin token: any task, admin user: only their own task
+  fastify.get('/task/:annotationTaskId', {
+    preHandler: [requireSuperAdmin],
+    schema: getAnnotationTaskSchema
+  }, getAnnotationTask as any);
 
   // Create annotation tasks for unassigned specimens (admin token only)
   fastify.post('/task', {

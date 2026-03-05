@@ -31,6 +31,7 @@ export const loginSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
             programId: { type: 'number', nullable: true },
             isActive: { type: 'boolean' },
@@ -103,6 +104,7 @@ export async function loginHandler(request: FastifyRequest<{ Body: LoginBody }>,
       user: {
         id: user.id,
         email: user.email,
+        name: user.name ?? null,
         privilege: user.privilege,
         programId: user.programId,
         isActive: user.isActive,

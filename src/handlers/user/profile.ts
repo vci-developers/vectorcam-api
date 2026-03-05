@@ -22,6 +22,7 @@ export const getProfileSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
             programId: { type: 'number', nullable: true },
             isActive: { type: 'boolean' },
@@ -68,6 +69,7 @@ export const getUsersSchema: any = {
             properties: {
               id: { type: 'number' },
               email: { type: 'string' },
+              name: { type: ['string', 'null'] },
               privilege: { type: 'number' },
               programId: { type: 'number', nullable: true },
               isActive: { type: 'boolean' },
@@ -103,7 +105,7 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
 
     // Fetch user details
     const user = await User.findByPk(userId, {
-      attributes: ['id', 'email', 'privilege', 'programId', 'isActive', 'createdAt', 'updatedAt'],
+      attributes: ['id', 'email', 'name', 'privilege', 'programId', 'isActive', 'createdAt', 'updatedAt'],
     });
 
     if (!user) {
@@ -121,6 +123,7 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
       user: {
         id: user.id,
         email: user.email,
+        name: user.name ?? null,
         privilege: user.privilege,
         programId: user.programId,
         isActive: user.isActive,
@@ -140,7 +143,7 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
 export async function getUsersHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
     const users = await User.findAll({
-      attributes: ['id', 'email', 'privilege', 'programId', 'isActive', 'createdAt', 'updatedAt'],
+      attributes: ['id', 'email', 'name', 'privilege', 'programId', 'isActive', 'createdAt', 'updatedAt'],
       order: [['createdAt', 'DESC']],
     });
 

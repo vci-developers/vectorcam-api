@@ -16,6 +16,7 @@ class Annotation extends Model {
   declare visualSex?: string;
   declare visualAbdomenStatus?: string;
   declare notes?: string;
+  declare artifacts?: string;
   declare status: string;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -87,6 +88,10 @@ Annotation.init(
     },
     notes: {
       type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    artifacts: {
+      type: DataTypes.STRING(255),
       allowNull: true,
     },
     status: {

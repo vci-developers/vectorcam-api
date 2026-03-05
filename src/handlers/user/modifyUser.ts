@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { User, Program } from '../../db/models';
+import { User, Program, Site, SiteUser } from '../../db/models';
 
 interface ModifyUserBody {
   privilege: number;
@@ -53,6 +53,7 @@ export const modifyUserSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
             programId: { type: 'number', nullable: true },
             isActive: { type: 'boolean' },
@@ -117,6 +118,34 @@ export async function modifyUserHandler(
       return reply.code(404).send({ error: 'User not found' });
     }
 
+    // If program is changing, reject if stale site access exists outside target program.
+    if (programId !== undefined && user.programId !== programId) {
+      const existingSiteAccess = await SiteUser.findAll({
+        where: { userId: user.id },
+        include: [
+          {
+            model: Site,
+            as: 'site',
+            attributes: ['id', 'programId'],
+            required: true
+          }
+        ]
+      });
+
+      const invalidSiteIds = existingSiteAccess
+        .filter(siteUser => {
+          const site = siteUser.get('site') as Site | undefined;
+          return !!site && site.programId !== programId;
+        })
+        .map(siteUser => siteUser.siteId);
+
+      if (invalidSiteIds.length > 0) {
+        return reply.code(400).send({
+          error: `Cannot change program. User has site access outside program ${programId}: ${invalidSiteIds.join(', ')}. Remove these site assignments first.`
+        });
+      }
+    }
+
     // Update user privilege and optionally programId
     const updateData: any = { privilege };
     if (programId !== undefined) {
@@ -129,6 +158,7 @@ export async function modifyUserHandler(
       user: {
         id: user.id,
         email: user.email,
+        name: user.name ?? null,
         privilege: user.privilege,
         programId: user.programId,
         isActive: user.isActive,

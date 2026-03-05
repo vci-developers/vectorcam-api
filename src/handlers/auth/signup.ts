@@ -1,13 +1,15 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { User, UserWhitelist } from '../../db/models';
+import { User, UserWhitelist, Program } from '../../db/models';
 import { config } from '../../config/environment';
 import { validatePassword, validateEmail } from '../../utils/validation';
 
 interface SignupBody {
   email: string;
   password: string;
+  name?: string;
+  programId?: number;
 }
 
 export const signupSchema: any = {
@@ -19,6 +21,14 @@ export const signupSchema: any = {
     required: ['email', 'password'],
     properties: {
       email: { type: 'string', format: 'email' },
+      name: {
+        type: 'string',
+        minLength: 1,
+        maxLength: 255
+      },
+      programId: {
+        type: 'number'
+      },
       password: { 
         type: 'string', 
         minLength: 8,
@@ -37,7 +47,9 @@ export const signupSchema: any = {
           properties: {
             id: { type: 'number' },
             email: { type: 'string' },
+            name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
+            programId: { type: ['number', 'null'] },
             isActive: { type: 'boolean' },
           },
         },
@@ -77,7 +89,7 @@ export const signupSchema: any = {
  */
 export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }>, reply: FastifyReply): Promise<void> {
   try {
-    const { email, password } = request.body;
+    const { email, password, name, programId } = request.body;
 
     // Validate input
     if (!email || !password) {
@@ -87,6 +99,17 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
     // Validate email format
     if (!validateEmail(email)) {
       return reply.code(400).send({ error: 'Invalid email format' });
+    }
+
+    if (name !== undefined && !name.trim()) {
+      return reply.code(400).send({ error: 'Name cannot be empty' });
+    }
+
+    if (programId !== undefined) {
+      const program = await Program.findByPk(programId);
+      if (!program) {
+        return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
+      }
     }
 
     // Validate password format
@@ -108,14 +131,15 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
     const saltRounds = 12;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    // If user is whitelisted, copy programId from whitelist entry
+    // If user is whitelisted, use this as fallback if no programId is provided in signup
     const whitelistEntry = await UserWhitelist.findOne({ where: { email } });
 
-    // Create user (programId is null for non-whitelisted users)
+    // Create user (programId may come from request, whitelist, or remain null)
     const user = await User.create({
       email,
+      name: name?.trim() || null,
       passwordHash,
-      programId: whitelistEntry?.programId ?? null,
+      programId: programId ?? whitelistEntry?.programId ?? null,
     });
 
     // Generate tokens
@@ -136,7 +160,9 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
       user: {
         id: user.id,
         email: user.email,
+        name: user.name,
         privilege: user.privilege,
+        programId: user.programId,
         isActive: user.isActive,
       },
       tokens: {

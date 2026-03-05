@@ -24,6 +24,7 @@ export interface AnnotationResponse {
   visualSex: string | null;
   visualAbdomenStatus: string | null;
   notes: string | null;
+  artifacts: string | null;
   status: string;
   createdAt: number;
   updatedAt: number;
@@ -62,6 +63,7 @@ export async function formatAnnotationResponse(
     visualSex: annotation.visualSex ?? null,
     visualAbdomenStatus: annotation.visualAbdomenStatus ?? null,
     notes: annotation.notes ?? null,
+    artifacts: annotation.artifacts ?? null,
     status: annotation.status,
     createdAt: annotation.createdAt.getTime(),
     updatedAt: annotation.updatedAt.getTime(),

@@ -4,6 +4,7 @@ import sequelize from '../index';
 class User extends Model {
   declare id: number;
   declare email: string;
+  declare name: string | null;
   declare passwordHash: string;
   declare privilege: number;
   declare programId: number | null;
@@ -26,6 +27,10 @@ User.init(
       validate: {
         isEmail: true,
       },
+    },
+    name: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
     passwordHash: {
       type: DataTypes.STRING(255),
