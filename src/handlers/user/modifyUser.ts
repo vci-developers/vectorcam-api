@@ -2,8 +2,9 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { User, Program, Site, SiteUser } from '../../db/models';
 
 interface ModifyUserBody {
-  privilege: number;
+  privilege?: number;
   programId?: number;
+  name?: string | null;
 }
 
 interface ModifyUserParams {
@@ -12,8 +13,8 @@ interface ModifyUserParams {
 
 export const modifyUserSchema: any = {
   tags: ['Users'],
-  summary: 'Modify user privileges',
-  description: 'Modify user privilege level (admin auth token required)',
+  summary: 'Modify user',
+  description: 'Modify user fields (admin auth token required)',
   headers: {
     type: 'object',
     properties: {
@@ -30,7 +31,6 @@ export const modifyUserSchema: any = {
   },
   body: {
     type: 'object',
-    required: ['privilege'],
     properties: {
       privilege: { 
         type: 'number',
@@ -40,6 +40,10 @@ export const modifyUserSchema: any = {
       programId: {
         type: 'number',
         description: 'Optional program ID to assign the user to. All site access will be scoped to this program.'
+      },
+      name: {
+        type: ['string', 'null'],
+        description: 'Optional display name for the user.'
       },
     },
   },
@@ -84,7 +88,7 @@ export const modifyUserSchema: any = {
 };
 
 /**
- * Modify user privileges handler
+ * Modify user handler
  * Requires admin auth token
  */
 export async function modifyUserHandler(
@@ -93,14 +97,14 @@ export async function modifyUserHandler(
 ): Promise<void> {
   try {
     const { id } = request.params;
-    const { privilege, programId } = request.body;
+    const { privilege, programId, name } = request.body;
 
     // Validate input
     if (!id || isNaN(parseInt(id))) {
       return reply.code(400).send({ error: 'Valid user ID is required' });
     }
 
-    if (![0, 1, 2, 3].includes(privilege)) {
+    if (privilege !== undefined && ![0, 1, 2, 3].includes(privilege)) {
       return reply.code(400).send({ error: 'Invalid privilege level. Must be 0, 1, 2, or 3' });
     }
 
@@ -146,10 +150,16 @@ export async function modifyUserHandler(
       }
     }
 
-    // Update user privilege and optionally programId
-    const updateData: any = { privilege };
+    // Update only fields provided in request body
+    const updateData: any = {};
+    if (privilege !== undefined) {
+      updateData.privilege = privilege;
+    }
     if (programId !== undefined) {
       updateData.programId = programId;
+    }
+    if (name !== undefined) {
+      updateData.name = name === null ? null : name.trim();
     }
     await user.update(updateData);
 
