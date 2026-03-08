@@ -19,6 +19,7 @@ import Dhis2Cache from './Dhis2Cache';
 import Dhis2SyncEvent from './Dhis2SyncEvent';
 import SessionConflictResolution from './SessionConflictResolution';
 import LocationType from './LocationType';
+import TusUploadLog from './TusUploadLog';
 
 export {
   Program,
@@ -42,4 +43,5 @@ export {
   Dhis2SyncEvent,
   SessionConflictResolution,
   LocationType,
+  TusUploadLog,
 };

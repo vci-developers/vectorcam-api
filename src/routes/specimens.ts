@@ -18,6 +18,7 @@ import { schema as getSchema } from '../handlers/specimen/get';
 import { schema as updateSchema } from '../handlers/specimen/put';
 import { schema as uploadImageSchema } from '../handlers/specimen/images/uploadImage';
 import { schema as getImageSchema } from '../handlers/specimen/images/getImage';
+import { schema as getTusUploadListSchema } from '../handlers/specimen/images/getTusUploadList';
 import { schema as initiateUploadSchema } from '../handlers/specimen/upload/initiate'
 import { schema as appendUploadSchema } from '../handlers/specimen/upload/append'
 import { schema as completeUploadSchema } from '../handlers/specimen/upload/complete'
@@ -154,10 +155,18 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: getUploadStatusSchema
   }, upload.getUploadStatus as any);
 
+  fastify.get('/:specimen_id/images/tus/uploads', {
+    preHandler: [requireSpecificSpecimenReadAccess],
+    schema: getTusUploadListSchema,
+  }, images.getTusUploadList as any);
   // TUS endpoints for specimen images (skip access control)
   fastify.addContentTypeParser('application/offset+octet-stream', (request, payload, done) => done(null));
-  fastify.all('/:specimen_id/images/tus', images.tusHandler);
-  fastify.all('/:specimen_id/images/tus/*', images.tusHandler);
+  fastify.all('/:specimen_id/images/tus', {
+    config: { skipSiteAccess: true },
+  }, images.tusHandler);
+  fastify.all('/:specimen_id/images/tus/*', {
+    config: { skipSiteAccess: true },
+  }, images.tusHandler);
 
   // Specimen image data endpoints (requires read access to specific specimen)
   fastify.get('/:specimen_id/images/data', {

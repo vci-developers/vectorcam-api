@@ -11,6 +11,9 @@ declare module 'fastify' {
       userSites: number[];
     };
   }
+  interface FastifyContextConfig {
+    skipSiteAccess?: boolean;
+  }
 }
 
 /**
@@ -31,6 +34,11 @@ export async function siteAccessMiddleware(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  const routeConfig = (request.routeOptions as any)?.config as Record<string, unknown> | undefined;
+  if (routeConfig?.skipSiteAccess === true) {
+    return;
+  }
+
   // Admin token and mobile token have full access
   if (request.isAdminToken || request.isMobileApp) {
     request.siteAccess = {
