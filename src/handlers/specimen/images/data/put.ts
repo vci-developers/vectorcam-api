@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models';
+import { SpecimenImage, InferenceResult, Specimen, Session } from '../../../../db/models';
 import { handleError, findSpecimenImage, parseProbabilityString } from '../../common';
+import { getChangedFields, logReviewAction } from '../../../../services/reviewActionLog.service';
 
 interface UpdateImageDataRequestBody {
   species?: string;
@@ -129,6 +130,32 @@ export async function updateImageData(
       return reply.code(404).send({ error: 'Image not found' });
     }
 
+    const beforeImageState: Record<string, unknown> = {
+      species: image.species,
+      sex: image.sex,
+      abdomenStatus: image.abdomenStatus,
+      capturedAt: image.capturedAt ? image.capturedAt.getTime() : null,
+    };
+
+    const beforeInference = await InferenceResult.findOne({ where: { specimenImageId: image.id } });
+    const beforeInferenceState: Record<string, unknown> | null = beforeInference
+      ? {
+          bboxTopLeftX: beforeInference.bboxTopLeftX,
+          bboxTopLeftY: beforeInference.bboxTopLeftY,
+          bboxWidth: beforeInference.bboxWidth,
+          bboxHeight: beforeInference.bboxHeight,
+          bboxConfidence: beforeInference.bboxConfidence,
+          bboxClassId: beforeInference.bboxClassId,
+          speciesLogits: beforeInference.speciesLogits,
+          sexLogits: beforeInference.sexLogits,
+          abdomenStatusLogits: beforeInference.abdomenStatusLogits,
+          speciesInferenceDuration: beforeInference.speciesInferenceDuration,
+          sexInferenceDuration: beforeInference.sexInferenceDuration,
+          abdomenStatusInferenceDuration: beforeInference.abdomenStatusInferenceDuration,
+          bboxDetectionDuration: beforeInference.bboxDetectionDuration,
+        }
+      : null;
+
     // Update image metadata
     await image.update({
       species,
@@ -177,6 +204,83 @@ export async function updateImageData(
       }
     } else {
       result = await InferenceResult.findOne({ where: { specimenImageId: image.id } });
+    }
+
+    const afterImageState: Record<string, unknown> = {
+      species: image.species,
+      sex: image.sex,
+      abdomenStatus: image.abdomenStatus,
+      capturedAt: image.capturedAt ? image.capturedAt.getTime() : null,
+    };
+    const imageFieldCandidates = ['species', 'sex', 'abdomenStatus', 'capturedAt'];
+    const imageFieldsToCompare = imageFieldCandidates.filter((field) => (request.body as any)[field] !== undefined);
+    const imageChanges = getChangedFields(beforeImageState, afterImageState, imageFieldsToCompare);
+
+    let inferenceChanges: Record<string, unknown> | null = null;
+    if (inferenceResult) {
+      const afterInferenceState: Record<string, unknown> | null = result
+        ? {
+            bboxTopLeftX: result.bboxTopLeftX,
+            bboxTopLeftY: result.bboxTopLeftY,
+            bboxWidth: result.bboxWidth,
+            bboxHeight: result.bboxHeight,
+            bboxConfidence: result.bboxConfidence,
+            bboxClassId: result.bboxClassId,
+            speciesLogits: result.speciesLogits,
+            sexLogits: result.sexLogits,
+            abdomenStatusLogits: result.abdomenStatusLogits,
+            speciesInferenceDuration: result.speciesInferenceDuration,
+            sexInferenceDuration: result.sexInferenceDuration,
+            abdomenStatusInferenceDuration: result.abdomenStatusInferenceDuration,
+            bboxDetectionDuration: result.bboxDetectionDuration,
+          }
+        : null;
+
+      const inferenceKeys = Object.keys(inferenceResult);
+      inferenceChanges = beforeInferenceState && afterInferenceState
+        ? getChangedFields(beforeInferenceState, afterInferenceState, inferenceKeys)
+        : {
+            before: beforeInferenceState,
+            after: afterInferenceState,
+          };
+    }
+
+    const session = await Session.findByPk(specimen.sessionId);
+    if (session) {
+      const reviewDate = session.collectionDate || session.createdAt || new Date();
+      const userId = (request as any).user?.id || null;
+      const combinedChanges: Record<string, unknown> = {};
+      if (Object.keys(imageChanges).length > 0) {
+        combinedChanges.image = imageChanges;
+      }
+      if (inferenceChanges && Object.keys(inferenceChanges).length > 0) {
+        combinedChanges.inferenceResult = inferenceChanges;
+      }
+
+      try {
+        await logReviewAction({
+          siteId: session.siteId,
+          year: reviewDate.getFullYear(),
+          month: reviewDate.getMonth() + 1,
+          action: 'update_specimen_image_prediction',
+          userId,
+          changes: combinedChanges,
+          fields: {
+            endpoint: '/specimens/:specimen_id/images/data/:image_id',
+            httpMethod: 'PUT',
+            entityType: 'specimen_image',
+            entityId: image.id,
+            sessionId: session.id,
+            specimenId: specimen.id,
+            imageId: image.id,
+          },
+          metadata: {
+            bodyKeys: Object.keys(request.body || {}),
+          },
+        });
+      } catch (logError) {
+        request.log.error({ err: logError, imageId: image.id }, 'Failed to write review action log');
+      }
     }
 
     // Build the updated image object for response

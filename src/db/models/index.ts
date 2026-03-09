@@ -20,6 +20,7 @@ import Dhis2SyncEvent from './Dhis2SyncEvent';
 import SessionConflictResolution from './SessionConflictResolution';
 import LocationType from './LocationType';
 import TusUploadLog from './TusUploadLog';
+import ReviewActionLog from './ReviewActionLog';
 
 export {
   Program,
@@ -44,4 +45,5 @@ export {
   SessionConflictResolution,
   LocationType,
   TusUploadLog,
+  ReviewActionLog,
 };

@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSessionById, findSiteById, findDeviceById, formatSessionResponse, handleError, findSession } from './common';
 import { Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
+import { getChangedFields, logReviewAction } from '../../services/reviewActionLog.service';
 
 interface UpdateSessionRequest {
   frontendId?: string;
@@ -167,6 +168,47 @@ export async function updateSession(
       }
     }
 
+    const trackedFields = [
+      'frontendId',
+      'collectorTitle',
+      'collectorName',
+      'collectionDate',
+      'collectionMethod',
+      'specimenCondition',
+      'completedAt',
+      'createdAt',
+      'notes',
+      'siteId',
+      'deviceId',
+      'latitude',
+      'longitude',
+      'type',
+      'collectorLastTrainedOn',
+      'hardwareId',
+      'expectedSpecimens',
+      'state',
+    ];
+    const beforeState: Record<string, unknown> = {
+      frontendId: session.frontendId,
+      collectorTitle: session.collectorTitle,
+      collectorName: session.collectorName,
+      collectionDate: session.collectionDate ? session.collectionDate.getTime() : null,
+      collectionMethod: session.collectionMethod,
+      specimenCondition: session.specimenCondition,
+      completedAt: session.completedAt ? session.completedAt.getTime() : null,
+      createdAt: session.createdAt ? session.createdAt.getTime() : null,
+      notes: session.notes,
+      siteId: session.siteId,
+      deviceId: session.deviceId,
+      latitude: session.latitude,
+      longitude: session.longitude,
+      type: session.type,
+      collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
+      hardwareId: session.hardwareId,
+      expectedSpecimens: session.expectedSpecimens,
+      state: session.state,
+    };
+
     // Update the session
     await session.update({
       frontendId: frontendId !== undefined ? frontendId : session.frontendId,
@@ -188,6 +230,54 @@ export async function updateSession(
       expectedSpecimens: expectedSpecimens !== undefined ? expectedSpecimens : session.expectedSpecimens,
       state: state !== undefined ? state : session.state
     });
+
+    const afterState: Record<string, unknown> = {
+      frontendId: session.frontendId,
+      collectorTitle: session.collectorTitle,
+      collectorName: session.collectorName,
+      collectionDate: session.collectionDate ? session.collectionDate.getTime() : null,
+      collectionMethod: session.collectionMethod,
+      specimenCondition: session.specimenCondition,
+      completedAt: session.completedAt ? session.completedAt.getTime() : null,
+      createdAt: session.createdAt ? session.createdAt.getTime() : null,
+      notes: session.notes,
+      siteId: session.siteId,
+      deviceId: session.deviceId,
+      latitude: session.latitude,
+      longitude: session.longitude,
+      type: session.type,
+      collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
+      hardwareId: session.hardwareId,
+      expectedSpecimens: session.expectedSpecimens,
+      state: session.state,
+    };
+    const changedFields = getChangedFields(beforeState, afterState, trackedFields);
+    const reviewDate = session.collectionDate || session.createdAt || new Date();
+    const userId = (request as any).user?.id || null;
+
+    try {
+      await logReviewAction({
+        siteId: session.siteId,
+        year: reviewDate.getFullYear(),
+        month: reviewDate.getMonth() + 1,
+        action: state === SessionState.CERTIFIED ? 'certify_session' : 'update_session_household_info',
+        userId,
+        changes: changedFields,
+        fields: {
+          endpoint: '/sessions/:session_id',
+          httpMethod: 'PUT',
+          entityType: 'session',
+          entityId: session.id,
+          sessionId: session.id,
+          requestSessionId: session_id,
+        },
+        metadata: {
+          bodyKeys: Object.keys(request.body || {}),
+        },
+      });
+    } catch (logError) {
+      request.log.error({ err: logError, sessionId: session.id }, 'Failed to write review action log');
+    }
 
     return reply.send({
       message: 'Session updated successfully',

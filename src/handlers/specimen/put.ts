@@ -1,7 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { formatSpecimenResponse, handleError } from './common';
-import { Specimen, SpecimenImage } from '../../db/models';
+import { Specimen, SpecimenImage, Session } from '../../db/models';
+import { getChangedFields, logReviewAction } from '../../services/reviewActionLog.service';
 
 interface UpdateSpecimenRequest {
   specimenId?: string;
@@ -130,6 +131,14 @@ export async function updateSpecimen(
       }
     }
 
+    const trackedFields = ['specimenId', 'thumbnailImageId', 'shouldProcessFurther', 'expectedImages'];
+    const beforeState: Record<string, unknown> = {
+      specimenId: specimen.specimenId,
+      thumbnailImageId: specimen.thumbnailImageId,
+      shouldProcessFurther: specimen.shouldProcessFurther,
+      expectedImages: specimen.expectedImages,
+    };
+
     // Update the specimen with the new data
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
@@ -137,6 +146,43 @@ export async function updateSpecimen(
       shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther,
       expectedImages: expectedImages !== undefined ? expectedImages : specimen.expectedImages
     });
+
+    const afterState: Record<string, unknown> = {
+      specimenId: specimen.specimenId,
+      thumbnailImageId: specimen.thumbnailImageId,
+      shouldProcessFurther: specimen.shouldProcessFurther,
+      expectedImages: specimen.expectedImages,
+    };
+    const changedFields = getChangedFields(beforeState, afterState, trackedFields);
+    const session = await Session.findByPk(specimen.sessionId);
+    if (session) {
+      const reviewDate = session.collectionDate || session.createdAt || new Date();
+      const userId = (request as any).user?.id || null;
+
+      try {
+        await logReviewAction({
+          siteId: session.siteId,
+          year: reviewDate.getFullYear(),
+          month: reviewDate.getMonth() + 1,
+          action: 'update_specimen_thumbnail_prediction',
+          userId,
+          changes: changedFields,
+          fields: {
+            endpoint: '/specimens/:specimen_id',
+            httpMethod: 'PUT',
+            entityType: 'specimen',
+            entityId: specimen.id,
+            sessionId: session.id,
+            specimenId: specimen.id,
+          },
+          metadata: {
+            bodyKeys: Object.keys(request.body || {}),
+          },
+        });
+      } catch (logError) {
+        request.log.error({ err: logError, specimenId: specimen.id }, 'Failed to write review action log');
+      }
+    }
 
     // Get the updated specimen
     const updatedSpecimen = await specimen.reload();

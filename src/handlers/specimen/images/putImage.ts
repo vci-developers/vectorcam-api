@@ -1,9 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SpecimenImage, InferenceResult, Specimen } from '../../../db/models';
+import { SpecimenImage, InferenceResult, Specimen, Session } from '../../../db/models';
 import { handleError, findSpecimenImage, parseProbabilityString } from '../common';
 import { uploadFileStream } from '../../../services/s3.service';
 import { createHash } from 'crypto';
 import { Readable } from 'stream';
+import { getChangedFields, logReviewAction } from '../../../services/reviewActionLog.service';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -111,6 +112,14 @@ export async function putImage(
       return reply.code(404).send({ error: 'Image not found' });
     }
 
+    const beforeImageState: Record<string, unknown> = {
+      imageKey: image.imageKey,
+      filemd5: image.filemd5,
+    };
+    const beforeSpecimenState: Record<string, unknown> = {
+      thumbnailImageId: specimen.thumbnailImageId,
+    };
+
     // If the uploaded file's md5 does not match the current filemd5, abort
     if (image.filemd5 && md5Hash !== image.filemd5) {
       return reply.code(400).send({ error: 'Uploaded image filemd5 does not match the existing image filemd5' });
@@ -126,6 +135,53 @@ export async function putImage(
     });
 
     await specimen.update({ thumbnailImageId: image.id });
+
+    const imageChanges = getChangedFields(beforeImageState, {
+      imageKey: image.imageKey,
+      filemd5: image.filemd5,
+    });
+    const specimenChanges = getChangedFields(beforeSpecimenState, {
+      thumbnailImageId: specimen.thumbnailImageId,
+    });
+
+    const session = await Session.findByPk(specimen.sessionId);
+    if (session) {
+      const reviewDate = session.collectionDate || session.createdAt || new Date();
+      const userId = (request as any).user?.id || null;
+      const combinedChanges: Record<string, unknown> = {};
+      if (Object.keys(imageChanges).length > 0) {
+        combinedChanges.image = imageChanges;
+      }
+      if (Object.keys(specimenChanges).length > 0) {
+        combinedChanges.specimen = specimenChanges;
+      }
+
+      try {
+        await logReviewAction({
+          siteId: session.siteId,
+          year: reviewDate.getFullYear(),
+          month: reviewDate.getMonth() + 1,
+          action: 'replace_specimen_image_file',
+          userId,
+          changes: combinedChanges,
+          fields: {
+            endpoint: '/specimens/:specimen_id/images/:image_id',
+            httpMethod: 'PUT',
+            entityType: 'specimen_image',
+            entityId: image.id,
+            sessionId: session.id,
+            specimenId: specimen.id,
+            imageId: image.id,
+          },
+          metadata: {
+            contentType,
+            bodyType: 'multipart/form-data',
+          },
+        });
+      } catch (logError) {
+        request.log.error({ err: logError, imageId: image.id }, 'Failed to write review action log');
+      }
+    }
 
     // Get inference result if exists
     let result = await InferenceResult.findOne({ where: { specimenImageId: image.id } });

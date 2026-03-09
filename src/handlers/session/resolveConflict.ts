@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, SurveillanceForm, SessionConflictResolution } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { Op } from 'sequelize';
+import { getChangedFields, logReviewAction } from '../../services/reviewActionLog.service';
 
 interface ResolveConflictRequest {
   sessionIds: number[];
@@ -324,6 +325,40 @@ export async function resolveConflict(
         surveillanceForm: resolvedSurveillanceForm || null,
       },
     });
+
+    const resolvedSessionKeys = Object.keys(resolvedData || {});
+    const resolvedFormKeys = Object.keys(resolvedSurveillanceForm || {});
+    const sessionFieldChanges = getChangedFields({}, resolvedData as Record<string, unknown>, resolvedSessionKeys);
+    const formFieldChanges = resolvedSurveillanceForm
+      ? getChangedFields({}, resolvedSurveillanceForm as Record<string, unknown>, resolvedFormKeys)
+      : {};
+
+    try {
+      await logReviewAction({
+        siteId,
+        year,
+        month,
+        action: 'resolve_session_conflicts',
+        userId,
+        changes: {
+          sessions: sessionFieldChanges,
+          surveillanceForm: formFieldChanges,
+        },
+        fields: {
+          endpoint: '/sessions/conflicts/resolve',
+          httpMethod: 'POST',
+          entityType: 'session_conflict_resolution',
+          entityId: resolution.id,
+          sessionIds,
+        },
+        metadata: {
+          updatedSessionCount: sessions.length,
+          resolutionId: resolution.id,
+        },
+      });
+    } catch (logError) {
+      request.log.error({ err: logError, resolutionId: resolution.id }, 'Failed to write review action log');
+    }
 
     return reply.send({
       message: 'Conflict resolved successfully',
