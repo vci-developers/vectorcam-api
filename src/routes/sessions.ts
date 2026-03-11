@@ -14,7 +14,8 @@ import {
   updateSurvey,
   getMetrics,
   resolveConflict,
-  getConflictLogs
+  getConflictLogs,
+  getReviewActionLogs
 } from '../handlers/session';
 import {
   getSessionFormAnswers,
@@ -52,6 +53,7 @@ import { schema as updateSessionSpecimenSchema } from '../handlers/session/speci
 import { schema as deleteSessionSpecimenSchema } from '../handlers/session/specimens/delete';
 import { schema as resolveConflictSchema } from '../handlers/session/resolveConflict';
 import { schema as getConflictLogsSchema } from '../handlers/session/getConflictLogs';
+import { schema as getReviewActionLogsSchema } from '../handlers/session/getReviewActionLogs';
 import { requireAdminAuth } from '../middleware/auth.middleware';
 import { 
   siteAccessMiddleware,
@@ -85,6 +87,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSiteReadAccess],
     schema: getMetricsSchema
   }, getMetrics as any);
+
+  // Get review action logs (requires read access)
+  fastify.get('/review/logs', {
+    preHandler: [requireSiteReadAccess],
+    schema: getReviewActionLogsSchema,
+  }, getReviewActionLogs as any);
 
   // Submit a new session (requires write access)
   fastify.post('/', {

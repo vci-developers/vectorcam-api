@@ -48,7 +48,6 @@ import { schema as deleteLocationTypeSchema } from '../handlers/program/location
 export default async function programRoutes(fastify: FastifyInstance) {
   // Get all programs with filters
   fastify.get('/', {
-    preHandler: [requireAdminOrMobileAuth],
     schema: getListSchema,
   }, getProgramList as any);
 

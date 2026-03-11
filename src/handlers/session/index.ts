@@ -22,3 +22,4 @@ export {
 } from './form';
 export { resolveConflict } from './resolveConflict';
 export { getConflictLogs } from './getConflictLogs';
+export { getReviewActionLogs } from './getReviewActionLogs';
