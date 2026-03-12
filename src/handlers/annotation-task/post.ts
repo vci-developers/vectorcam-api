@@ -1,12 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Transaction, Op } from 'sequelize';
 import sequelize from '../../db';
-import { AnnotationTask, Annotation, User, Specimen, Session } from '../../db/models';
+import { AnnotationTask, Annotation, User, Specimen, Session, Site, Program } from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
 
 interface CreateAnnotationTasksBody {
   title?: string;
   description?: string;
+  programId: number;
   month: number;
   year: number;
 }
@@ -15,6 +16,10 @@ interface SpecimenWithAssociations extends Specimen {
   session: {
     id: number;
     collectionDate: Date | null;
+    site: {
+      id: number;
+      programId: number;
+    };
   };
 }
 
@@ -24,17 +29,18 @@ interface CreateAnnotationTasksRequest extends FastifyRequest {
 
 export const schema = {
   tags: ['Annotations'],
-  summary: 'Create annotation tasks for specimens from a specific month/year',
-  description: 'Creates annotation tasks by randomly sampling up to 200 specimens collected in the specified month/year, with 15-20% overlap between superadmins (requires admin token)',
+  summary: 'Create annotation tasks for specimens in a specific program/month/year',
+  description: 'Creates annotation tasks by assigning unassigned specimens from the given program and month/year to superadmins in the same program, with 15-20% overlap (requires admin token)',
   body: {
     type: 'object',
     properties: {
       title: { type: 'string', maxLength: 255 },
       description: { type: 'string' },
+      programId: { type: 'number' },
       month: { type: 'number', minimum: 1, maximum: 12 },
       year: { type: 'number', minimum: 2000, maximum: 3000 }
     },
-    required: ['month', 'year']
+    required: ['programId', 'month', 'year']
   },
   response: {
     200: {
@@ -108,9 +114,13 @@ export default async function createAnnotationTasks(
   const transaction: Transaction = await sequelize.transaction();
   
   try {
-    const { title, description, month, year } = request.body;
+    const { title, description, programId, month, year } = request.body;
 
     // Validate month and year
+    if (!Number.isInteger(programId) || programId <= 0) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: 'programId must be a positive integer' });
+    }
     if (month < 1 || month > 12) {
       await transaction.rollback();
       return reply.code(400).send({ error: 'Month must be between 1 and 12' });
@@ -120,9 +130,16 @@ export default async function createAnnotationTasks(
       return reply.code(400).send({ error: 'Year must be between 2000 and 3000' });
     }
 
-    // Get all superadmin users (privilege >= 3) who are active
+    const program = await Program.findByPk(programId, { transaction });
+    if (!program) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
+    }
+
+    // Get all superadmin users (privilege >= 3) who are active in this program
     const superAdminUsers = await User.findAll({
       where: {
+        programId,
         privilege: {
           [Op.gte]: 3
         },
@@ -133,7 +150,7 @@ export default async function createAnnotationTasks(
 
     if (superAdminUsers.length === 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: 'No active superadmin users found to assign tasks to' });
+      return reply.code(400).send({ error: `No active superadmin users found for program ${programId} to assign tasks to` });
     }
 
     // Calculate the date range for the specified month and year (using UTC)
@@ -141,7 +158,7 @@ export default async function createAnnotationTasks(
     const endDate = new Date(Date.UTC(year, month, 0)); // Last day of the month
     endDate.setUTCHours(23, 59, 59, 999); // Set to end of day in UTC
 
-    // Find all specimens whose sessions were collected in the specified month/year
+    // Find all specimens in this program whose sessions were collected in the specified month/year
     // and that are not already assigned to any annotation task
     const availableSpecimens = await Specimen.findAll({
       where: {
@@ -161,7 +178,17 @@ export default async function createAnnotationTasks(
               [Op.gte]: startDate,
               [Op.lte]: endDate
             }
-          }
+          },
+          include: [
+            {
+              model: Site,
+              as: 'site',
+              required: true,
+              where: {
+                programId
+              }
+            }
+          ]
         }
       ],
       order: [['id', 'ASC']],
@@ -170,7 +197,7 @@ export default async function createAnnotationTasks(
 
     if (availableSpecimens.length === 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: `No unassigned specimens found for ${month}/${year}` });
+      return reply.code(400).send({ error: `No unassigned specimens found for program ${programId} in ${month}/${year}` });
     }
 
     // Shuffle specimens to randomize assignment
