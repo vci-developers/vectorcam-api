@@ -33,6 +33,7 @@ export const getPermissionsSchema: any = {
         permissions: {
           type: 'object',
           properties: {
+            devMode: { type: 'boolean', description: 'Whether developer mode features should be enabled in the client' },
             sites: {
               type: 'object',
               properties: {
@@ -212,6 +213,7 @@ export async function getPermissionsHandler(
     );
 
     const permissions = {
+      devMode: !!user.isDeveloper,
       sites: sitePermissions,
       annotations: annotationPermissions,
     };

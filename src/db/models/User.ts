@@ -7,6 +7,7 @@ class User extends Model {
   declare name: string | null;
   declare passwordHash: string;
   declare privilege: number;
+  declare isDeveloper: boolean;
   declare programId: number | null;
   declare isActive: boolean;
   declare createdAt: Date;
@@ -41,6 +42,12 @@ User.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
+    },
+    isDeveloper: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'is_developer',
     },
     programId: {
       type: DataTypes.INTEGER,

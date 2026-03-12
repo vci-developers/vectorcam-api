@@ -65,6 +65,7 @@ export const addToWhitelistSchema: any = {
             email: { type: 'string' },
             name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
+            isDeveloper: { type: 'boolean' },
             programId: { type: 'number' },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
           },
@@ -90,6 +91,7 @@ export const addToWhitelistSchema: any = {
             email: { type: 'string' },
             name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
+            isDeveloper: { type: 'boolean' },
             programId: { type: 'number' },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
           },
@@ -349,6 +351,7 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         email: user.email,
         name: user.name ?? null,
         privilege: user.privilege,
+        isDeveloper: user.isDeveloper,
         programId: user.programId,
         sitesGranted
       };

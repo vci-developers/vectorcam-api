@@ -18,6 +18,7 @@ declare module 'fastify' {
       email: string;
       isWhitelisted: boolean;
       privilege: number;
+      isDeveloper: boolean;
       programId: number | null;
     };
     isAdminToken?: boolean;
@@ -72,18 +73,20 @@ export async function authMiddleware(
       email: decoded.email,
       isWhitelisted: false,
       privilege: decoded.privilege, // Will be updated below
+      isDeveloper: false, // Will be updated from DB below
       programId: null, // Will be updated from DB below
     };
     
     try {
       // Fetch current user data from database to get fresh privilege level and programId
       const [user, userWhitelist] = await Promise.all([
-        User.findByPk(decoded.userId, { attributes: ['privilege', 'programId'] }),
+        User.findByPk(decoded.userId, { attributes: ['privilege', 'isDeveloper', 'programId'] }),
         UserWhitelist.findOne({ where: { email: decoded.email } })
       ]);
       
       if (user) {
         request.user.privilege = user.privilege;
+        request.user.isDeveloper = user.isDeveloper;
         request.user.programId = user.programId;
       }
       
@@ -128,8 +131,10 @@ export function requireAdminAuth(
   reply: FastifyReply,
   done: HookHandlerDoneFunction
 ): void {
-  if (!request.isAdminToken) {
-    reply.code(401).send({ error: 'Unauthorized: Admin token required' });
+  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
+
+  if (!request.isAdminToken && !isDeveloperUser) {
+    reply.code(401).send({ error: 'Unauthorized: Admin token or developer user required' });
     return done(new Error('Unauthorized'));
   }
   
@@ -192,8 +197,10 @@ export function requireAdminOrMobileAuth(
   reply: FastifyReply,
   done: HookHandlerDoneFunction
 ): void {
-  if (!request.isAdminToken && !request.isMobileApp) {
-    reply.code(401).send({ error: 'Unauthorized: Admin or mobile token required' });
+  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
+
+  if (!request.isAdminToken && !request.isMobileApp && !isDeveloperUser) {
+    reply.code(401).send({ error: 'Unauthorized: Admin/developer or mobile token required' });
     return done(new Error('Unauthorized'));
   }
   

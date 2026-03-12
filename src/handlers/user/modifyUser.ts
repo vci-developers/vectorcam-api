@@ -3,6 +3,7 @@ import { User, Program, Site, SiteUser } from '../../db/models';
 
 interface ModifyUserBody {
   privilege?: number;
+  isDeveloper?: boolean;
   programId?: number;
   name?: string | null;
 }
@@ -37,6 +38,10 @@ export const modifyUserSchema: any = {
         description: 'Privilege level: 0=view selected sites, 1=view all in program, 2=write/push selected sites, 3=write/push all in program + annotate',
         enum: [0, 1, 2, 3]
       },
+      isDeveloper: {
+        type: 'boolean',
+        description: 'Developer flag: allows access to routes guarded by admin token middleware.'
+      },
       programId: {
         type: 'number',
         description: 'Optional program ID to assign the user to. All site access will be scoped to this program.'
@@ -59,6 +64,7 @@ export const modifyUserSchema: any = {
             email: { type: 'string' },
             name: { type: ['string', 'null'] },
             privilege: { type: 'number' },
+            isDeveloper: { type: 'boolean' },
             programId: { type: 'number', nullable: true },
             isActive: { type: 'boolean' },
             updatedAt: { type: 'string' },
@@ -97,7 +103,7 @@ export async function modifyUserHandler(
 ): Promise<void> {
   try {
     const { id } = request.params;
-    const { privilege, programId, name } = request.body;
+    const { privilege, isDeveloper, programId, name } = request.body;
 
     // Validate input
     if (!id || isNaN(parseInt(id))) {
@@ -155,6 +161,9 @@ export async function modifyUserHandler(
     if (privilege !== undefined) {
       updateData.privilege = privilege;
     }
+    if (isDeveloper !== undefined) {
+      updateData.isDeveloper = isDeveloper;
+    }
     if (programId !== undefined) {
       updateData.programId = programId;
     }
@@ -170,6 +179,7 @@ export async function modifyUserHandler(
         email: user.email,
         name: user.name ?? null,
         privilege: user.privilege,
+        isDeveloper: user.isDeveloper,
         programId: user.programId,
         isActive: user.isActive,
         updatedAt: user.updatedAt,

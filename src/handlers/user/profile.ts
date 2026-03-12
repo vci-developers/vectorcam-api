@@ -71,6 +71,7 @@ export const getUsersSchema: any = {
               email: { type: 'string' },
               name: { type: ['string', 'null'] },
               privilege: { type: 'number' },
+              isDeveloper: { type: 'boolean' },
               programId: { type: 'number', nullable: true },
               isActive: { type: 'boolean' },
               createdAt: { type: 'string' },
@@ -105,7 +106,7 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
 
     // Fetch user details
     const user = await User.findByPk(userId, {
-      attributes: ['id', 'email', 'name', 'privilege', 'programId', 'isActive', 'createdAt', 'updatedAt'],
+      attributes: ['id', 'email', 'name', 'privilege', 'isDeveloper', 'programId', 'isActive', 'createdAt', 'updatedAt'],
     });
 
     if (!user) {
