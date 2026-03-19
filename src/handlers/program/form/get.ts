@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Form, FormQuestion, Program } from '../../../db/models';
-import { buildQuestionTree } from './common';
+import { programFormResponseSchema, serializeFormResponse } from './common';
 
 export const schema = {
   tags: ['Programs'],
@@ -15,53 +15,7 @@ export const schema = {
     required: ['program_id', 'version'],
   },
   response: {
-    200: {
-      type: 'object',
-      properties: {
-        id: { type: 'number' },
-        programId: { type: 'number' },
-        name: { type: 'string' },
-        version: { type: 'string' },
-        createdAt: { type: ['number', 'null'] },
-        updatedAt: { type: ['number', 'null'] },
-        questions: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: { type: 'number' },
-              formId: { type: 'number' },
-              parentId: { type: ['number', 'null'] },
-              label: { type: 'string' },
-              type: { type: 'string' },
-              required: { type: 'boolean' },
-              options: { type: ['array', 'null'] },
-              order: { type: ['number', 'null'] },
-              createdAt: { type: ['number', 'null'] },
-              updatedAt: { type: ['number', 'null'] },
-              subQuestions: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'number' },
-                    formId: { type: 'number' },
-                    parentId: { type: ['number', 'null'] },
-                    label: { type: 'string' },
-                    type: { type: 'string' },
-                    required: { type: 'boolean' },
-                    options: { type: ['array', 'null'] },
-                    order: { type: ['number', 'null'] },
-                    createdAt: { type: ['number', 'null'] },
-                    updatedAt: { type: ['number', 'null'] },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    200: programFormResponseSchema,
   },
 };
 
@@ -143,15 +97,7 @@ export async function getProgramForm(
 
     const questions = (form.get('questions') as FormQuestion[] | undefined) || [];
 
-    return reply.send({
-      id: form.id,
-      programId: form.programId,
-      name: form.name,
-      version: form.version,
-      createdAt: form.createdAt?.getTime?.() ?? null,
-      updatedAt: form.updatedAt?.getTime?.() ?? null,
-      questions: buildQuestionTree(questions),
-    });
+    return reply.send(serializeFormResponse(form, questions));
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to get program form' });

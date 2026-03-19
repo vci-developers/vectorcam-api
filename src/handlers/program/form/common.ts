@@ -1,4 +1,5 @@
 import { Transaction } from 'sequelize';
+import { Form } from '../../../db/models';
 import FormQuestion from '../../../db/models/FormQuestion';
 
 export interface FormQuestionInput {
@@ -10,6 +11,56 @@ export interface FormQuestionInput {
   parentId?: number | null;
   children?: FormQuestionInput[];
 }
+
+export const questionResponseSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    formId: { type: 'number' },
+    parentId: { type: ['number', 'null'] },
+    label: { type: 'string' },
+    type: { type: 'string' },
+    required: { type: 'boolean' },
+    options: { type: ['array', 'null'] },
+    order: { type: ['number', 'null'] },
+    createdAt: { type: ['number', 'null'] },
+    updatedAt: { type: ['number', 'null'] },
+    subQuestions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' },
+          formId: { type: 'number' },
+          parentId: { type: ['number', 'null'] },
+          label: { type: 'string' },
+          type: { type: 'string' },
+          required: { type: 'boolean' },
+          options: { type: ['array', 'null'] },
+          order: { type: ['number', 'null'] },
+          createdAt: { type: ['number', 'null'] },
+          updatedAt: { type: ['number', 'null'] },
+        },
+      },
+    },
+  },
+};
+
+export const programFormResponseSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    programId: { type: 'number' },
+    name: { type: 'string' },
+    version: { type: 'string' },
+    createdAt: { type: ['number', 'null'] },
+    updatedAt: { type: ['number', 'null'] },
+    questions: {
+      type: 'array',
+      items: questionResponseSchema,
+    },
+  },
+};
 
 export function serializeQuestion(question: FormQuestion): any {
   return {
@@ -49,6 +100,18 @@ export function buildQuestionTree(questions: FormQuestion[]): any[] {
   };
 
   return attach(null);
+}
+
+export function serializeFormResponse(form: Form, questions: FormQuestion[]): any {
+  return {
+    id: form.id,
+    programId: form.programId,
+    name: form.name,
+    version: form.version,
+    createdAt: form.createdAt?.getTime?.() ?? null,
+    updatedAt: form.updatedAt?.getTime?.() ?? null,
+    questions: buildQuestionTree(questions),
+  };
 }
 
 export async function createQuestionTree(
