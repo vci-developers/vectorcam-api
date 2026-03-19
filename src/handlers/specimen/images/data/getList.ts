@@ -23,6 +23,7 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               url: { type: 'string' },
+              metadata: { type: ['object', 'null'], additionalProperties: true },
               species: { type: ['string', 'null'] },
               sex: { type: ['string', 'null'] },
               abdomenStatus: { type: ['string', 'null'] },
@@ -97,6 +98,7 @@ export async function getImageList(
       return {
         id: img.id,
         url: `/specimens/${specimen.id}/images/${img.id}`,
+        metadata: img.metadata ?? null,
         species: img.species,
         sex: img.sex,
         abdomenStatus: img.abdomenStatus,

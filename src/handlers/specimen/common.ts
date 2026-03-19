@@ -4,6 +4,7 @@ import { Specimen, Session, InferenceResult, SpecimenImage } from '../../db/mode
 export interface ImageResponse {
   id: number;
   url: string;
+  metadata: Record<string, unknown> | null;
   species: string | null;
   sex: string | null;
   abdomenStatus: string | null;
@@ -75,6 +76,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
       return {
         id: img.id,
         url: `/specimens/${specimen.id}/images/${img.id}`,
+        metadata: img.metadata ?? null,
         species: img.species,
         sex: img.sex,
         abdomenStatus: img.abdomenStatus,
@@ -117,6 +119,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
       const thumbDetail = {
         id: thumbnailImage.id,
         url: `/specimens/${specimen.id}/images/${thumbnailImage.id}`,
+        metadata: thumbnailImage.metadata ?? null,
         species: thumbnailImage.species,
         sex: thumbnailImage.sex,
         abdomenStatus: thumbnailImage.abdomenStatus,

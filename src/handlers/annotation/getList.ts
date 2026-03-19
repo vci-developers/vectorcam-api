@@ -89,6 +89,7 @@ export const schema = {
                     properties: {
                       id: { type: 'number' },
                       url: { type: 'string' },
+                      metadata: { type: ['object', 'null'], additionalProperties: true },
                       species: { type: ['string', 'null'] },
                       sex: { type: ['string', 'null'] },
                       abdomenStatus: { type: ['string', 'null'] },

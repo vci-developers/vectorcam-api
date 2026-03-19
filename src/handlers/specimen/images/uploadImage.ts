@@ -83,6 +83,7 @@ export async function uploadImage(
     const newImage = await SpecimenImage.create({
       specimenId: specimen.id,
       imageKey,
+      metadata: null,
       filemd5: md5Hash
     });
 

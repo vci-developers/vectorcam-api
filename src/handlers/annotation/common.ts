@@ -126,6 +126,7 @@ export function formatSpecimenImageResponse(image: SpecimenImage, specimenId?: n
   const response: SpecimenImageResponse = {
     id: image.id,
     url: specimenId ? `/specimens/${specimenId}/images/${image.id}` : `/images/${image.id}`,
+    metadata: image.metadata ?? null,
     species: image.species ?? null,
     sex: image.sex ?? null,
     abdomenStatus: image.abdomenStatus ?? null,

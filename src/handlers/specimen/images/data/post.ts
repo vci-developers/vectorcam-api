@@ -3,6 +3,7 @@ import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models'
 import { handleError, parseProbabilityString } from '../../common';
 
 interface CreateImageDataRequestBody {
+  metadata?: Record<string, unknown> | null;
   species?: string;
   sex?: string;
   abdomenStatus?: string;
@@ -38,6 +39,7 @@ export const schema = {
   body: {
     type: 'object',
     properties: {
+      metadata: { type: ['object', 'null'], additionalProperties: true },
       species: { type: 'string' },
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
@@ -75,6 +77,7 @@ export const schema = {
           properties: {
             id: { type: 'number' },
             url: { type: 'string' },
+            metadata: { type: ['object', 'null'], additionalProperties: true },
             species: { type: ['string', 'null'] },
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
@@ -118,7 +121,7 @@ export async function createImageData(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { species, sex, abdomenStatus, capturedAt, filemd5, inferenceResult } = request.body;
+    const { metadata, species, sex, abdomenStatus, capturedAt, filemd5, inferenceResult } = request.body;
 
     // Find the specimen
     const specimen = await Specimen.findByPk(specimen_id);
@@ -135,6 +138,7 @@ export async function createImageData(
     // Create the SpecimenImage record
     const newImage = await SpecimenImage.create({
       specimenId: specimen.id,
+      metadata: metadata ?? null,
       species,
       sex,
       abdomenStatus,
@@ -167,6 +171,7 @@ export async function createImageData(
     const responseImage = {
       id: newImage.id,
       url: `/specimens/${specimen.id}/images/${newImage.id}`,
+      metadata: newImage.metadata ?? null,
       species: newImage.species ?? null,
       sex: newImage.sex ?? null,
       abdomenStatus: newImage.abdomenStatus ?? null,

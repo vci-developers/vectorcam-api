@@ -4,6 +4,7 @@ import { handleError, findSpecimenImage, parseProbabilityString } from '../../co
 import { getChangedFields, logReviewAction } from '../../../../services/reviewActionLog.service';
 
 interface UpdateImageDataRequestBody {
+  metadata?: Record<string, unknown> | null;
   species?: string;
   sex?: string;
   abdomenStatus?: string;
@@ -39,6 +40,7 @@ export const schema = {
   body: {
     type: 'object',
     properties: {
+      metadata: { type: ['object', 'null'], additionalProperties: true },
       species: { type: 'string' },
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
@@ -73,6 +75,7 @@ export const schema = {
           properties: {
             id: { type: 'number' },
             url: { type: 'string' },
+            metadata: { type: ['object', 'null'], additionalProperties: true },
             species: { type: ['string', 'null'] },
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
@@ -116,7 +119,7 @@ export async function updateImageData(
 ): Promise<void> {
   try {
     const { specimen_id, image_id } = request.params;
-    const { species, sex, abdomenStatus, capturedAt, inferenceResult } = request.body;
+    const { metadata, species, sex, abdomenStatus, capturedAt, inferenceResult } = request.body;
 
     // Find the specimen
     const specimen = await Specimen.findByPk(specimen_id);
@@ -131,6 +134,7 @@ export async function updateImageData(
     }
 
     const beforeImageState: Record<string, unknown> = {
+      metadata: image.metadata ?? null,
       species: image.species,
       sex: image.sex,
       abdomenStatus: image.abdomenStatus,
@@ -158,6 +162,7 @@ export async function updateImageData(
 
     // Update image metadata
     await image.update({
+      metadata: metadata !== undefined ? metadata : image.metadata,
       species,
       sex,
       abdomenStatus,
@@ -207,12 +212,13 @@ export async function updateImageData(
     }
 
     const afterImageState: Record<string, unknown> = {
+      metadata: image.metadata ?? null,
       species: image.species,
       sex: image.sex,
       abdomenStatus: image.abdomenStatus,
       capturedAt: image.capturedAt ? image.capturedAt.getTime() : null,
     };
-    const imageFieldCandidates = ['species', 'sex', 'abdomenStatus', 'capturedAt'];
+    const imageFieldCandidates = ['metadata', 'species', 'sex', 'abdomenStatus', 'capturedAt'];
     const imageFieldsToCompare = imageFieldCandidates.filter((field) => (request.body as any)[field] !== undefined);
     const imageChanges = getChangedFields(beforeImageState, afterImageState, imageFieldsToCompare);
 
@@ -287,6 +293,7 @@ export async function updateImageData(
     const updatedImage = {
       id: image.id,
       url: `/specimens/${specimen.id}/images/${image.id}`,
+      metadata: image.metadata ?? null,
       species: image.species,
       sex: image.sex,
       abdomenStatus: image.abdomenStatus,

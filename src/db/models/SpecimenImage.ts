@@ -7,6 +7,7 @@ class SpecimenImage extends Model {
   declare specimenId: number;
   declare imageKey: string;
   declare filemd5: string;
+  declare metadata: Record<string, unknown> | null;
   declare species: string | null;
   declare sex: string | null;
   declare abdomenStatus: string | null;
@@ -39,6 +40,10 @@ SpecimenImage.init(
     filemd5: {
       type: DataTypes.STRING(32),
       allowNull: false,
+    },
+    metadata: {
+      type: DataTypes.JSON,
+      allowNull: true,
     },
     species: {
       type: DataTypes.STRING(255),

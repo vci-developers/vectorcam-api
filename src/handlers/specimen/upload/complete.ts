@@ -158,6 +158,7 @@ export async function completeUpload(
       image = await SpecimenImage.create({
         specimenId: upload.specimenId,
         imageKey: upload.s3Key,
+        metadata: null,
         filemd5: calculatedMd5
       });
     }
