@@ -8,6 +8,7 @@ class FormQuestion extends Model {
   declare id: number;
   declare formId: number;
   declare parentId: number | null;
+  declare prerequisite: unknown | null;
   declare label: string;
   declare type: string;
   declare required: boolean;
@@ -43,6 +44,10 @@ FormQuestion.init(
       },
       field: 'parent_id',
       onDelete: 'CASCADE',
+    },
+    prerequisite: {
+      type: DataTypes.JSON,
+      allowNull: true,
     },
     label: {
       type: DataTypes.STRING(512),

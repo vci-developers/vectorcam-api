@@ -9,6 +9,7 @@ export interface FormQuestionInput {
   options?: unknown[] | null;
   order?: number | null;
   parentId?: number | null;
+  prerequisite?: unknown | null;
   children?: FormQuestionInput[];
 }
 
@@ -18,6 +19,7 @@ export const questionResponseSchema = {
     id: { type: 'number' },
     formId: { type: 'number' },
     parentId: { type: ['number', 'null'] },
+    prerequisite: {},
     label: { type: 'string' },
     type: { type: 'string' },
     required: { type: 'boolean' },
@@ -27,21 +29,7 @@ export const questionResponseSchema = {
     updatedAt: { type: ['number', 'null'] },
     subQuestions: {
       type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id: { type: 'number' },
-          formId: { type: 'number' },
-          parentId: { type: ['number', 'null'] },
-          label: { type: 'string' },
-          type: { type: 'string' },
-          required: { type: 'boolean' },
-          options: { type: ['array', 'null'] },
-          order: { type: ['number', 'null'] },
-          createdAt: { type: ['number', 'null'] },
-          updatedAt: { type: ['number', 'null'] },
-        },
-      },
+      items: { $ref: '#' },
     },
   },
 };
@@ -67,6 +55,7 @@ export function serializeQuestion(question: FormQuestion): any {
     id: question.id,
     formId: question.formId,
     parentId: question.parentId,
+    prerequisite: question.prerequisite ?? null,
     label: question.label,
     type: question.type,
     required: question.required,
@@ -128,6 +117,7 @@ export async function createQuestionTree(
       {
         formId,
         parentId: input.parentId ?? parentId,
+        prerequisite: input.prerequisite ?? null,
         label: input.label,
         type: input.type,
         required: input.required ?? false,
@@ -182,6 +172,7 @@ export async function cloneQuestionsToForm(
         {
           formId: targetFormId,
           parentId: newParentId,
+          prerequisite: q.prerequisite ?? null,
           label: q.label,
           type: q.type,
           required: q.required,

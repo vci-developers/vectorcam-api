@@ -10,6 +10,7 @@ interface CreateQuestionBody {
   options?: unknown[] | null;
   order?: number | null;
   parentId?: number | null;
+  prerequisite?: unknown | null;
 }
 
 export const schema = {
@@ -32,6 +33,7 @@ export const schema = {
       options: { type: ['array', 'null'] },
       order: { type: ['number', 'null'] },
       parentId: { type: ['number', 'null'] },
+      prerequisite: {},
     },
   },
   response: {
@@ -45,6 +47,7 @@ export const schema = {
             id: { type: 'number' },
             formId: { type: 'number' },
             parentId: { type: ['number', 'null'] },
+            prerequisite: {},
             label: { type: 'string' },
             type: { type: 'string' },
             required: { type: 'boolean' },
@@ -97,6 +100,7 @@ export async function createProgramFormQuestion(
       {
         formId: form.id,
         parentId,
+        prerequisite: request.body.prerequisite ?? null,
         label: request.body.label,
         type: request.body.type,
         required: request.body.required ?? false,

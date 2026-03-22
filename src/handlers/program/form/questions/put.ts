@@ -10,6 +10,7 @@ interface UpdateQuestionBody {
   options?: unknown[] | null;
   order?: number | null;
   parentId?: number | null;
+  prerequisite?: unknown | null;
 }
 
 export const schema = {
@@ -32,6 +33,7 @@ export const schema = {
       options: { type: ['array', 'null'] },
       order: { type: ['number', 'null'] },
       parentId: { type: ['number', 'null'] },
+      prerequisite: {},
     },
   },
   response: {
@@ -45,6 +47,7 @@ export const schema = {
             id: { type: 'number' },
             formId: { type: 'number' },
             parentId: { type: ['number', 'null'] },
+            prerequisite: {},
             label: { type: 'string' },
             type: { type: 'string' },
             required: { type: 'boolean' },
@@ -108,6 +111,7 @@ export async function updateProgramFormQuestion(
         options: request.body.options ?? question.options,
         order: request.body.order ?? question.order,
         parentId,
+        prerequisite: request.body.prerequisite !== undefined ? request.body.prerequisite : (question.prerequisite ?? null),
       },
       { transaction }
     );

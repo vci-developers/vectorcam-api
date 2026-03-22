@@ -36,6 +36,7 @@ export const schema = {
                   id: { type: 'number' },
                   formId: { type: 'number' },
                   parentId: { type: ['number', 'null'] },
+                  prerequisite: {},
                   label: { type: 'string' },
                   type: { type: 'string' },
                   required: { type: 'boolean' },
