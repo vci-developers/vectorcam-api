@@ -13,7 +13,7 @@ export interface FormQuestionInput {
   children?: FormQuestionInput[];
 }
 
-export const questionResponseSchema = {
+const questionDefinitionSchema = {
   type: 'object',
   properties: {
     id: { type: 'number' },
@@ -29,13 +29,18 @@ export const questionResponseSchema = {
     updatedAt: { type: ['number', 'null'] },
     subQuestions: {
       type: 'array',
-      items: { $ref: '#' },
+      items: { $ref: '#/definitions/question' },
     },
   },
 };
 
+export const questionResponseSchema = { $ref: '#/definitions/question' };
+
 export const programFormResponseSchema = {
   type: 'object',
+  definitions: {
+    question: questionDefinitionSchema,
+  },
   properties: {
     id: { type: 'number' },
     programId: { type: 'number' },
@@ -45,7 +50,7 @@ export const programFormResponseSchema = {
     updatedAt: { type: ['number', 'null'] },
     questions: {
       type: 'array',
-      items: questionResponseSchema,
+      items: { $ref: '#/definitions/question' },
     },
   },
 };
