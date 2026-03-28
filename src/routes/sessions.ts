@@ -54,7 +54,7 @@ import { schema as deleteSessionSpecimenSchema } from '../handlers/session/speci
 import { schema as resolveConflictSchema } from '../handlers/session/resolveConflict';
 import { schema as getConflictLogsSchema } from '../handlers/session/getConflictLogs';
 import { schema as getReviewActionLogsSchema } from '../handlers/session/getReviewActionLogs';
-import { requireAdminAuth } from '../middleware/auth.middleware';
+import { requireSuperAdmin } from '../middleware/auth.middleware';
 import { 
   siteAccessMiddleware,
   requireSiteReadAccess,
@@ -197,19 +197,19 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Export sessions as CSV
   fastify.get<ExportSessionsCSVRequest>('/export/csv', {
     schema: exportSessionsCSVSchema,
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSuperAdmin],
   }, exportSessionsCSV);
 
   // Export surveillance forms as CSV
   fastify.get<ExportSurveillanceFormsCSVRequest>('/export/surveillance-forms/csv', {
     schema: exportSurveillanceFormsCSVSchema,
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSuperAdmin],
   }, exportSurveillanceFormsCSV);
 
   // Export dynamic form answers as CSV
   fastify.get<ExportFormAnswersRequest>('/export/forms/csv', {
     schema: exportFormAnswersCSVSchema,
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSuperAdmin],
   }, exportFormAnswersCSV);
 
   // Resolve session conflicts (requires write access)

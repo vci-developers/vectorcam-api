@@ -34,7 +34,7 @@ import { schema as updateImageDataSchema } from '../handlers/specimen/images/dat
 import { schema as getImageListSchema } from '../handlers/specimen/images/data/getList';
 import { schema as getImageDataSchema } from '../handlers/specimen/images/data/get';
 import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
-import { requireAdminAuth } from '../middleware/auth.middleware';
+import { requireSuperAdmin } from '../middleware/auth.middleware';
 import { 
   siteAccessMiddleware,
   requireSiteReadAccess,
@@ -93,7 +93,7 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Export specimens as CSV
   fastify.get<ExportSpecimensCSVRequest>('/export/csv', {
     schema: exportSpecimensCSVSchema,
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSuperAdmin],
   }, exportSpecimensCSV);
 
   // Upload specimen image (requires write access to specific specimen)
