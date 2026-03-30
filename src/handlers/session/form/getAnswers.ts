@@ -33,6 +33,7 @@ export const schema = {
             type: 'object',
             properties: {
               id: { type: 'number' },
+              frontendId: { type: ['string', 'null'] },
               questionId: { type: 'number' },
               parentId: { type: ['number', 'null'] },
               prerequisite: {},
@@ -82,6 +83,7 @@ export async function getSessionFormAnswers(
       sessionId: context.session.id,
       answers: answers.map(answer => ({
         id: answer.id,
+        frontendId: answer.frontendId ?? null,
         questionId: answer.questionId,
         parentId: (answer.get('question') as FormQuestion | undefined)?.parentId ?? null,
         prerequisite: (answer.get('question') as FormQuestion | undefined)?.prerequisite ?? null,

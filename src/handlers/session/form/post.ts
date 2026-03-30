@@ -31,6 +31,7 @@ export const schema = {
           type: 'object',
           required: ['questionId', 'value'],
           properties: {
+            frontendId: { type: 'string' },
             questionId: { type: 'number' },
             value: {},
             dataType: { type: 'string' },
@@ -44,12 +45,14 @@ export const schema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
+        sessionId: { type: 'number' },
         answers: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
               id: { type: 'number' },
+              frontendId: { type: ['string', 'null'] },
               questionId: { type: 'number' },
               value: {},
               dataType: { type: 'string' },
@@ -105,6 +108,7 @@ export async function createSessionFormAnswers(
 
     const created = await FormAnswer.bulkCreate(
       request.body.answers.map(answer => ({
+        frontendId: answer.frontendId ?? null,
         sessionId: context.session.id,
         formId: context.form.id,
         questionId: answer.questionId,
@@ -119,8 +123,10 @@ export async function createSessionFormAnswers(
 
     return reply.code(201).send({
       message: 'Form answers submitted successfully',
+      sessionId: context.session.id,
       answers: created.map(a => ({
         id: a.id,
+        frontendId: a.frontendId ?? null,
         questionId: a.questionId,
         value: a.value,
         dataType: a.dataType,

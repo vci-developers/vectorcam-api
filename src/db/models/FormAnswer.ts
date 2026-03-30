@@ -8,6 +8,7 @@ import FormQuestion from './FormQuestion';
 
 class FormAnswer extends Model {
   declare id: number;
+  declare frontendId: string | null;
   declare sessionId: number;
   declare formId: number;
   declare questionId: number;
@@ -24,6 +25,11 @@ FormAnswer.init(
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
+    },
+    frontendId: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      field: 'frontend_id',
     },
     sessionId: {
       type: DataTypes.INTEGER,

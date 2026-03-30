@@ -31,6 +31,7 @@ export const schema = {
           type: 'object',
           required: ['questionId', 'value'],
           properties: {
+            frontendId: { type: 'string' },
             questionId: { type: 'number' },
             value: {},
             dataType: { type: 'string' },
@@ -81,6 +82,7 @@ export async function updateSessionFormAnswers(
 
     await FormAnswer.bulkCreate(
       request.body.answers.map(answer => ({
+        frontendId: answer.frontendId ?? null,
         sessionId: context.session.id,
         formId: context.form.id,
         questionId: answer.questionId,
@@ -91,7 +93,7 @@ export async function updateSessionFormAnswers(
       })),
       {
         transaction,
-        updateOnDuplicate: ['value', 'data_type', 'submitted_at', 'updated_at'],
+        updateOnDuplicate: ['frontend_id', 'value', 'data_type', 'submitted_at', 'updated_at'],
       }
     );
 

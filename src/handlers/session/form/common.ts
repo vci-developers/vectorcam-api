@@ -4,6 +4,7 @@ import { Form, FormQuestion, Program, Session, Site } from '../../../db/models';
 import { findSession } from '../common';
 
 export interface FormAnswerInput {
+  frontendId?: string;
   questionId: number;
   value: unknown;
   dataType?: string;
