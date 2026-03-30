@@ -31,7 +31,6 @@ LocationType.init(
     name: {
       type: DataTypes.STRING(128),
       allowNull: false,
-      unique: true,
     },
     level: {
       type: DataTypes.INTEGER,
@@ -43,6 +42,12 @@ LocationType.init(
     tableName: 'location_types',
     underscored: true,
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        fields: ['program_id', 'name'],
+      },
+    ],
   }
 );
 

@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { Op } from 'sequelize';
 import { LocationType } from '../../../db/models';
 import { formatLocationTypeResponse, findProgramById, handleError, rebuildSitesForLocationType } from './common';
 
@@ -40,6 +41,12 @@ export const schema = {
         },
       },
     },
+    409: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 };
 
@@ -61,10 +68,24 @@ export async function updateLocationType(
       return reply.code(404).send({ error: 'Program not found' });
     }
 
+    const nextName = name !== undefined ? name : locationType.name;
+    const nextLevel = level !== undefined ? level : locationType.level;
+
+    const duplicate = await LocationType.findOne({
+      where: {
+        programId: program_id,
+        id: { [Op.ne]: location_type_id },
+        name: nextName,
+      },
+    });
+    if (duplicate) {
+      return reply.code(409).send({ error: 'Location type name already exists for this program' });
+    }
+
     await locationType.update({
       programId: program_id,
-      name: name !== undefined ? name : locationType.name,
-      level: level !== undefined ? level : locationType.level,
+      name: nextName,
+      level: nextLevel,
     });
 
     // Rebuild location hierarchy for all sites using this location type

@@ -40,6 +40,12 @@ export const schema = {
         },
       },
     },
+    409: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
   },
 };
 
@@ -61,6 +67,11 @@ export async function createLocationType(
     if (assignedLevel === undefined) {
       const maxLevel = await LocationType.max('level', { where: { programId: program_id } }) as number | null;
       assignedLevel = (maxLevel ?? 0) + 1;
+    }
+
+    const duplicate = await LocationType.findOne({ where: { programId: program_id, name } });
+    if (duplicate) {
+      return reply.code(409).send({ error: 'Location type name already exists for this program' });
     }
 
     const locationType = await LocationType.create({
