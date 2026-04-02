@@ -148,6 +148,41 @@ export async function cloneQuestionsToForm(
   targetFormId: number,
   transaction: Transaction
 ): Promise<FormQuestion[]> {
+  const remapPrerequisiteQuestionIds = (value: unknown, idMap: Map<number, number>): unknown => {
+    if (Array.isArray(value)) {
+      return value.map(item => remapPrerequisiteQuestionIds(item, idMap));
+    }
+
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+
+    const source = value as Record<string, unknown>;
+    const mapped: Record<string, unknown> = {};
+
+    for (const [key, nestedValue] of Object.entries(source)) {
+      if (key === 'questionId') {
+        if (typeof nestedValue === 'number') {
+          mapped[key] = idMap.get(nestedValue) ?? nestedValue;
+          continue;
+        }
+
+        if (typeof nestedValue === 'string') {
+          const numericQuestionId = Number(nestedValue);
+          if (!Number.isNaN(numericQuestionId)) {
+            const remapped = idMap.get(numericQuestionId);
+            mapped[key] = remapped !== undefined ? String(remapped) : nestedValue;
+            continue;
+          }
+        }
+      }
+
+      mapped[key] = remapPrerequisiteQuestionIds(nestedValue, idMap);
+    }
+
+    return mapped;
+  };
+
   const questions = await FormQuestion.findAll({
     where: { formId: sourceFormId },
     order: [
@@ -169,6 +204,7 @@ export async function cloneQuestionsToForm(
 
   const created: FormQuestion[] = [];
   const idMap = new Map<number, number>();
+  const createdBySourceId = new Map<number, FormQuestion>();
 
   async function cloneBranch(parentId: number | null, newParentId: number | null): Promise<void> {
     const siblings = childrenMap.get(parentId) || [];
@@ -189,11 +225,24 @@ export async function cloneQuestionsToForm(
 
       created.push(newQuestion);
       idMap.set(q.id, newQuestion.id);
+      createdBySourceId.set(q.id, newQuestion);
       await cloneBranch(q.id, newQuestion.id);
     }
   }
 
   await cloneBranch(null, null);
+
+  for (const sourceQuestion of questions) {
+    const targetQuestion = createdBySourceId.get(sourceQuestion.id);
+    if (!targetQuestion) {
+      continue;
+    }
+
+    const remappedPrerequisite = remapPrerequisiteQuestionIds(sourceQuestion.prerequisite, idMap);
+    await targetQuestion.update({ prerequisite: remappedPrerequisite ?? null }, { transaction });
+    targetQuestion.setDataValue('prerequisite', remappedPrerequisite ?? null);
+  }
+
   return created;
 }
 
