@@ -14,6 +14,24 @@ interface MetricsRequest extends FastifyRequest {
   Querystring: MetricsQuery;
 }
 
+const METRIC_LABELS = {
+  siteInformation: {
+    housesUsedForCollection: 'Houses used for collection',
+    peopleInAllHousesInspected: 'People in all houses inspected',
+  },
+  entomologicalSummary: {
+    totalFedAnopheles: 'Total fed anopheles',
+    malariaVectorDensity: 'Malaria vector density',
+    fedAnophelesToPeopleSleptRatio: 'Fed anopheles to people slept under LLIN ratio',
+    totalLlins: 'Total LLINs',
+    totalPeopleSleptUnderLlin: 'Total people slept under LLIN',
+    llinsPerPerson: 'LLINs per person',
+    // for backward compatibility
+    vectorDensity: 'Vector density',
+    fedMosquitoesToPeopleSleptRatio: 'Fed mosquitoes to people slept ratio',
+  }
+} as const;
+
 export const schema = {
   tags: ['Sessions'],
   description: 'Get all metrics for a specific district and date range in one API call',
@@ -40,6 +58,7 @@ export const schema = {
         entomologicalSummary: {
           type: 'object',
           properties: {
+            totalFedAnopheles: { type: 'number' },
             malariaVectorDensity: { type: 'number' },
             fedAnophelesToPeopleSleptRatio: { type: 'number' },
             totalLlins: { type: 'number' },
@@ -49,6 +68,31 @@ export const schema = {
             // for backward compatibility
             vectorDensity: { type: 'number' },
             fedMosquitoesToPeopleSleptRatio: { type: 'number' },
+          }
+        },
+        metricLabels: {
+          type: 'object',
+          properties: {
+            siteInformation: {
+              type: 'object',
+              properties: {
+                housesUsedForCollection: { type: 'string' },
+                peopleInAllHousesInspected: { type: 'string' }
+              }
+            },
+            entomologicalSummary: {
+              type: 'object',
+              properties: {
+                totalFedAnopheles: { type: 'string' },
+                malariaVectorDensity: { type: 'string' },
+                fedAnophelesToPeopleSleptRatio: { type: 'string' },
+                totalLlins: { type: 'string' },
+                totalPeopleSleptUnderLlin: { type: 'string' },
+                llinsPerPerson: { type: 'string' },
+                vectorDensity: { type: 'string' },
+                fedMosquitoesToPeopleSleptRatio: { type: 'string' }
+              }
+            }
           }
         }
       }
@@ -245,7 +289,8 @@ export async function getMetrics(
         // for backward compatibility
         vectorDensity: Number(malariaVectorDensity.toFixed(2)),
         fedMosquitoesToPeopleSleptRatio: Number(fedAnophelesToPeopleSleptRatio.toFixed(2)),
-      }
+      },
+      metricLabels: METRIC_LABELS,
     };
 
     return reply.send(response);
