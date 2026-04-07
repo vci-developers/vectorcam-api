@@ -217,7 +217,7 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Export cleaned report as XLSX
   fastify.get<ExportSessionReportRequest>('/report', {
     schema: exportSessionReportSchema,
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requireSuperAdmin],
   }, exportSessionReport);
 
   // Resolve session conflicts (requires write access)

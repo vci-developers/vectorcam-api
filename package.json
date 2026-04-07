@@ -39,12 +39,12 @@
     "bcrypt": "^6.0.0",
     "csv-parse": "^5.6.0",
     "dotenv": "^16.3.1",
+    "exceljs": "^4.4.0",
     "fastify": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.6.5",
     "pino": "^8.16.2",
-    "sequelize": "^6.35.1",
-    "xlsx": "^0.18.5"
+    "sequelize": "^6.35.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",

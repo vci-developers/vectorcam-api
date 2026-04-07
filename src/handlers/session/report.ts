@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Op, QueryTypes } from 'sequelize';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import sequelize from '../../db';
 import {
   Form,
@@ -38,6 +38,13 @@ interface GroupAccumulator {
   siteId: number;
   site: Site;
   householdFieldValues: Map<string, Set<string>>;
+}
+
+interface HeaderColorRanges {
+  location: [number, number];
+  session: [number, number];
+  form: [number, number];
+  specimen: [number, number];
 }
 
 const DISCREPANCY_VALUE = 'DISCREPANCY';
@@ -223,7 +230,7 @@ export async function exportSessionReport(
     }
 
     if (requestedSiteIds.length > 0 && filteredSiteIds.length === 0) {
-      return sendWorkbook(reply, [['No matching sites found for provided filters.']]);
+      return await sendWorkbook(reply, [['No matching sites found for provided filters.']]);
     }
 
     const sessionWhere: any = {
@@ -276,7 +283,7 @@ export async function exportSessionReport(
     });
 
     if (sessions.length === 0) {
-      return sendWorkbook(reply, [['No report data found for provided filters.']]);
+      return await sendWorkbook(reply, [['No report data found for provided filters.']]);
     }
 
     const sessionIds = sessions.map((session) => session.id);
@@ -403,13 +410,14 @@ export async function exportSessionReport(
       groupCounts.set(columnName, (groupCounts.get(columnName) ?? 0) + Number(row.count));
     }
 
-    const householdColumns = Array.from(
+    const sessionColumns = SESSION_FIELD_LABELS.map((item) => item.label);
+    const formColumns = Array.from(
       new Set([
-        ...SESSION_FIELD_LABELS.map((item) => item.label),
         ...SURVEILLANCE_FIELD_LABELS.map((item) => item.label),
         ...dynamicQuestionLabels,
       ])
     );
+    const householdColumns = [...sessionColumns, ...formColumns];
 
     const finalSpecimenColumns = Array.from(specimenColumns).sort((a, b) => a.localeCompare(b));
 
@@ -515,7 +523,21 @@ export async function exportSessionReport(
       rows.push([]);
     }
 
-    return sendWorkbook(reply, rows);
+    const firstLocationColumn = 1;
+    const lastLocationColumn = 1 + locationHierarchyColumns.length + 5;
+    const firstSessionColumn = lastLocationColumn + 1;
+    const lastSessionColumn = firstSessionColumn + sessionColumns.length - 1;
+    const firstFormColumn = lastSessionColumn + 1;
+    const lastFormColumn = firstFormColumn + formColumns.length - 1;
+    const firstSpecimenColumn = lastFormColumn + 1;
+    const lastSpecimenColumn = firstSpecimenColumn + finalSpecimenColumns.length;
+
+    return await sendWorkbook(reply, rows, {
+      location: [firstLocationColumn, lastLocationColumn],
+      session: [firstSessionColumn, lastSessionColumn],
+      form: [firstFormColumn, lastFormColumn],
+      specimen: [firstSpecimenColumn, lastSpecimenColumn],
+    });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to export report');
   }
@@ -585,11 +607,35 @@ function extractHouseholdValuesForSession(
   return values;
 }
 
-function sendWorkbook(reply: FastifyReply, rows: Array<Array<string | number>>): void {
-  const workbook = XLSX.utils.book_new();
-  const worksheet = XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-  const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+async function sendWorkbook(
+  reply: FastifyReply,
+  rows: Array<Array<string | number>>,
+  headerRanges?: HeaderColorRanges
+): Promise<void> {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Report');
+
+  for (const row of rows) {
+    worksheet.addRow(row);
+  }
+
+  if (headerRanges) {
+    styleReportHeaders(worksheet, headerRanges);
+  }
+
+  worksheet.columns.forEach((column) => {
+    if (!column || typeof column.eachCell !== 'function') {
+      return;
+    }
+    let max = 12;
+    column.eachCell({ includeEmpty: true }, (cell) => {
+      const value = cell.value === null || cell.value === undefined ? '' : String(cell.value);
+      max = Math.max(max, Math.min(40, value.length + 2));
+    });
+    column.width = max;
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
 
   reply.header(
     'Content-Type',
@@ -597,4 +643,62 @@ function sendWorkbook(reply: FastifyReply, rows: Array<Array<string | number>>):
   );
   reply.header('Content-Disposition', 'attachment; filename=session-report.xlsx');
   reply.send(buffer);
+}
+
+function styleReportHeaders(
+  worksheet: ExcelJS.Worksheet,
+  headerRanges: HeaderColorRanges
+): void {
+  const palette = {
+    location: 'FFD9EAF7',
+    session: 'FFFCE5CD',
+    form: 'FFE2F0D9',
+    specimen: 'FFE4DFEC',
+  };
+
+  worksheet.eachRow((row) => {
+    const firstCell = row.getCell(1);
+    const firstValue = firstCell.value === null || firstCell.value === undefined
+      ? ''
+      : String(firstCell.value);
+
+    if (firstValue.startsWith('Period:')) {
+      firstCell.font = { bold: true };
+      return;
+    }
+
+    if (firstValue !== 'Site ID') {
+      return;
+    }
+
+    applyHeaderRangeStyle(row, headerRanges.location, palette.location);
+    applyHeaderRangeStyle(row, headerRanges.session, palette.session);
+    applyHeaderRangeStyle(row, headerRanges.form, palette.form);
+    applyHeaderRangeStyle(row, headerRanges.specimen, palette.specimen);
+  });
+}
+
+function applyHeaderRangeStyle(
+  row: ExcelJS.Row,
+  [startCol, endCol]: [number, number],
+  argb: string
+): void {
+  if (endCol < startCol) return;
+
+  for (let col = startCol; col <= endCol; col += 1) {
+    const cell = row.getCell(col);
+    cell.font = { bold: true };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb },
+    };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+      left: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+      bottom: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+      right: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+    };
+  }
 }
