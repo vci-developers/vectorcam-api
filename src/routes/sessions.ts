@@ -15,7 +15,8 @@ import {
   getMetrics,
   resolveConflict,
   getConflictLogs,
-  getReviewActionLogs
+  getReviewActionLogs,
+  exportSessionReport
 } from '../handlers/session';
 import {
   getSessionFormAnswers,
@@ -47,6 +48,7 @@ import { schema as getSessionFormAnswersSchema } from '../handlers/session/form/
 import { schema as createSessionFormAnswersSchema } from '../handlers/session/form/post';
 import { schema as updateSessionFormAnswersSchema } from '../handlers/session/form/put';
 import { ExportFormAnswersRequest, schema as exportFormAnswersCSVSchema } from '../handlers/session/form/exportAnswers';
+import { ExportSessionReportRequest, schema as exportSessionReportSchema } from '../handlers/session/report';
 import { schema as getSessionSpecimenSchema } from '../handlers/session/specimens/get';
 import { schema as createSessionSpecimenSchema } from '../handlers/session/specimens/post';
 import { schema as updateSessionSpecimenSchema } from '../handlers/session/specimens/put';
@@ -211,6 +213,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: exportFormAnswersCSVSchema,
     preHandler: [requireSuperAdmin],
   }, exportFormAnswersCSV);
+
+  // Export cleaned report as XLSX
+  fastify.get<ExportSessionReportRequest>('/report', {
+    schema: exportSessionReportSchema,
+    preHandler: [requireSiteReadAccess],
+  }, exportSessionReport);
 
   // Resolve session conflicts (requires write access)
   fastify.post('/conflicts/resolve', {
