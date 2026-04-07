@@ -14,6 +14,8 @@ export const schema = {
       programId: { type: 'number' },
       programCountry: { type: 'string' },
       version: { type: 'string' },
+      siteId: { type: 'number' },
+      district: { type: 'string' },
     },
   },
   response: {
@@ -30,6 +32,8 @@ export interface ExportFormAnswersRequest {
     programId?: string;
     programCountry?: string;
     version?: string;
+    siteId?: string;
+    district?: string;
   };
 }
 
@@ -52,7 +56,7 @@ export async function exportFormAnswersCSV(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { startDate, endDate, programId, programCountry, version } = request.query;
+    const { startDate, endDate, programId, programCountry, version, siteId, district } = request.query;
 
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
       return reply.code(400).send({ error: 'Start date must be before end date' });
@@ -81,6 +85,14 @@ export async function exportFormAnswersCSV(
       programWhere.country = programCountry;
     }
 
+    const siteWhere: any = {};
+    if (siteId) {
+      siteWhere.id = parseInt(siteId, 10);
+    }
+    if (district) {
+      siteWhere.district = district;
+    }
+
     const answers = await FormAnswer.findAll({
       where,
       include: [
@@ -99,7 +111,11 @@ export async function exportFormAnswersCSV(
         {
           model: Session,
           as: 'session',
-          include: [{ model: Site, as: 'site' }],
+          include: [{
+            model: Site,
+            as: 'site',
+            where: Object.keys(siteWhere).length ? siteWhere : undefined,
+          }],
         },
         { model: FormQuestion, as: 'question' },
       ],

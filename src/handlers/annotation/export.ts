@@ -40,7 +40,9 @@ export const schema = {
       annotationTaskId: { type: 'number' },
       annotatorId: { type: 'number' },
       status: { type: 'string', enum: ['PENDING', 'ANNOTATED', 'FLAGGED'] },
-      programId: { type: 'number' }
+      programId: { type: 'number' },
+      siteId: { type: 'number' },
+      district: { type: 'string' }
     }
   },
   response: {
@@ -70,6 +72,8 @@ export interface ExportAnnotationsCSVRequest {
     annotatorId?: string;
     status?: string;
     programId?: string;
+    siteId?: string;
+    district?: string;
   }
 }
 
@@ -84,7 +88,9 @@ export async function exportAnnotationsCSV(
       annotationTaskId,
       annotatorId,
       status,
-      programId
+      programId,
+      siteId,
+      district
     } = request.query;
     
     // Validate date range
@@ -125,6 +131,12 @@ export async function exportAnnotationsCSV(
       where.status = status;
     }
 
+    const siteWhere = siteId || district ? {
+      ...(siteId && { id: parseInt(siteId, 10) }),
+      ...(district && { district })
+    } : undefined;
+    const requiresSessionSiteJoin = !!(programId || siteId || district);
+
     // Fetch annotations with all related data
     const annotations = await Annotation.findAll({
       where,
@@ -143,7 +155,7 @@ export async function exportAnnotationsCSV(
         {
           model: Specimen,
           as: 'specimen',
-          required: !!programId,
+          required: requiresSessionSiteJoin,
           include: [
             {
               model: SpecimenImage,
@@ -160,12 +172,13 @@ export async function exportAnnotationsCSV(
             {
               model: Session,
               as: 'session',
-              required: !!programId,
+              required: requiresSessionSiteJoin,
               include: [
                 {
                   model: Site,
                   as: 'site',
-                  required: !!programId,
+                  required: requiresSessionSiteJoin,
+                  where: siteWhere,
                   include: [
                     {
                       model: Program,

@@ -30,7 +30,8 @@ export const schema = {
       endDate: { type: 'number' },
       programId: { type: 'number' },
       programCountry: { type: 'string' },
-      siteId: { type: 'number' }
+      siteId: { type: 'number' },
+      district: { type: 'string' }
     }
   },
   response: {
@@ -59,6 +60,7 @@ export interface ExportSessionsCSVRequest {
     programId?: string;
     programCountry?: string;
     siteId?: string;
+    district?: string;
   }
 }
 
@@ -67,7 +69,7 @@ export async function exportSessionsCSV(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { startDate, endDate, programId, programCountry, siteId } = request.query;
+    const { startDate, endDate, programId, programCountry, siteId, district } = request.query;
     
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -95,11 +97,14 @@ export async function exportSessionsCSV(
       where.siteId = parseInt(siteId);
     }
 
+    const siteWhere = district ? { district } : undefined;
+
     // Build include conditions with nested filtering
     const includeConditions = [
       { 
         model: Site, 
         as: 'site',
+        where: siteWhere,
         include: [
           {
             model: Program,

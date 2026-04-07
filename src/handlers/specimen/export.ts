@@ -33,6 +33,8 @@ export const schema = {
       sessionFrontendId: { type: 'string' },
       sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'], description: 'Filter by session type' },
       programId: { type: 'number' },
+      siteId: { type: 'number' },
+      district: { type: 'string' },
       includeInferenceResult: { type: 'boolean' }
     }
   },
@@ -63,6 +65,8 @@ export interface ExportSpecimensCSVRequest {
     sessionFrontendId?: string;
     sessionType?: string;
     programId?: string;
+    siteId?: string;
+    district?: string;
     includeInferenceResult?: boolean;
   }
 }
@@ -79,6 +83,8 @@ export async function exportSpecimensCSV(
       sessionFrontendId,
       sessionType,
       programId,
+      siteId,
+      district,
       includeInferenceResult 
     } = request.query;
     
@@ -105,6 +111,11 @@ export async function exportSpecimensCSV(
       };
     }
 
+    const siteWhere = siteId || district ? {
+      ...(siteId && { id: parseInt(siteId, 10) }),
+      ...(district && { district })
+    } : undefined;
+
     // Build include conditions with nested filtering
     const includeConditions = [
       {
@@ -119,6 +130,7 @@ export async function exportSpecimensCSV(
           {
             model: Site,
             as: 'site',
+            where: siteWhere,
             include: [
               {
                 model: Program,

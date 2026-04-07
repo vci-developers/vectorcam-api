@@ -29,7 +29,9 @@ export const schema = {
       startDate: { type: 'string' },
       endDate: { type: 'string' },
       programId: { type: 'number' },
-      programCountry: { type: 'string' }
+      programCountry: { type: 'string' },
+      siteId: { type: 'number' },
+      district: { type: 'string' }
     }
   },
   response: {
@@ -57,6 +59,8 @@ export interface ExportSurveillanceFormsCSVRequest {
     endDate?: string;
     programId?: string;
     programCountry?: string;
+    siteId?: string;
+    district?: string;
   }
 }
 
@@ -65,7 +69,7 @@ export async function exportSurveillanceFormsCSV(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { startDate, endDate, programId, programCountry } = request.query;
+    const { startDate, endDate, programId, programCountry, siteId, district } = request.query;
     
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -88,6 +92,11 @@ export async function exportSurveillanceFormsCSV(
       };
     }
 
+    const siteWhere = siteId || district ? {
+      ...(siteId && { id: parseInt(siteId, 10) }),
+      ...(district && { district })
+    } : undefined;
+
     // Build include conditions with nested filtering
     const includeConditions = [
       {
@@ -97,6 +106,7 @@ export async function exportSurveillanceFormsCSV(
           {
             model: Site,
             as: 'site',
+            where: siteWhere,
             include: [
               {
                 model: Program,
