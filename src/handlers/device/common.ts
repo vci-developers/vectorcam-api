@@ -5,6 +5,7 @@ import { Device, Program, Session } from '../../db/models';
 export interface DeviceResponse {
   deviceId: number;
   model: string;
+  appVersion: string | null;
   registeredAt: number; // Unix timestamp in milliseconds
   programId: number;
   submittedAt: number; // Unix timestamp in milliseconds
@@ -15,6 +16,7 @@ export function formatDeviceResponse(device: Device): DeviceResponse {
   return {
     deviceId: device.id,
     model: device.model,
+    appVersion: device.appVersion,
     registeredAt: device.registeredAt.getTime(), // Convert Date to Unix timestamp in milliseconds
     programId: device.programId,
     submittedAt: device.createdAt.getTime(),

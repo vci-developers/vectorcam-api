@@ -7,6 +7,7 @@ import Program from './Program';
 class Device extends Model {
   declare id: number;
   declare model: string;
+  declare appVersion: string | null;
   declare registeredAt: Date;
   declare programId: number;
   declare createdAt: Date;
@@ -23,6 +24,11 @@ Device.init(
     model: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+    appVersion: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      field: 'app_version',
     },
     registeredAt: {
       type: DataTypes.DATE,

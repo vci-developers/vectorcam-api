@@ -10,9 +10,10 @@ export const schema = {
     properties: {
       programId: { type: 'number', description: 'Filter by program ID' },
       model: { type: 'string', description: 'Filter by device model (partial match)' },
+      appVersion: { type: 'string', description: 'Filter by app version (partial match)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
       offset: { type: 'number', minimum: 0, default: 0, description: 'Number of items to skip' },
-      sortBy: { type: 'string', enum: ['id', 'model', 'registeredAt', 'programId'], default: 'id', description: 'Field to sort by' },
+      sortBy: { type: 'string', enum: ['id', 'model', 'appVersion', 'registeredAt', 'programId'], default: 'id', description: 'Field to sort by' },
       sortOrder: { type: 'string', enum: ['asc', 'desc'], default: 'asc', description: 'Sort order' }
     }
   },
@@ -27,6 +28,7 @@ export const schema = {
             properties: {
               deviceId: { type: 'number' },
               model: { type: 'string' },
+              appVersion: { type: ['string', 'null'] },
               registeredAt: { type: 'number' },
               programId: { type: 'number' },
               submittedAt: { type: 'number' }
@@ -45,9 +47,10 @@ export const schema = {
 interface QueryParams {
   programId?: number;
   model?: string;
+  appVersion?: string;
   limit?: number;
   offset?: number;
-  sortBy?: 'id' | 'model' | 'registeredAt' | 'programId';
+  sortBy?: 'id' | 'model' | 'appVersion' | 'registeredAt' | 'programId';
   sortOrder?: 'asc' | 'desc';
 }
 
@@ -59,6 +62,7 @@ export async function getDeviceList(
     const {
       programId,
       model,
+      appVersion,
       limit = 20,
       offset = 0,
       sortBy = 'id',
@@ -73,6 +77,11 @@ export async function getDeviceList(
     if (model) {
       whereClause.model = {
         [Op.like]: `%${model}%`
+      };
+    }
+    if (appVersion) {
+      whereClause.appVersion = {
+        [Op.like]: `%${appVersion}%`
       };
     }
 

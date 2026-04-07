@@ -17,6 +17,7 @@ export const schema = {
       properties: {
         deviceId: { type: 'number' },
         model: { type: 'string' },
+        appVersion: { type: ['string', 'null'] },
         registeredAt: { type: 'number' },
         programId: { type: 'number' },
         submittedAt: { type: 'number' },
