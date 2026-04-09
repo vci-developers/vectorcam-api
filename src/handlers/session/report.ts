@@ -18,6 +18,7 @@ interface ReportQuery {
   startDate?: string;
   endDate?: string;
   sessionType?: 'SURVEILLANCE';
+  programId?: string;
   districts?: string;
   siteIds?: string;
 }
@@ -79,6 +80,10 @@ export const schema = {
         type: 'string',
         enum: ['SURVEILLANCE'],
         description: 'Only SURVEILLANCE is supported',
+      },
+      programId: {
+        type: 'number',
+        description: 'Filter by program ID',
       },
       districts: {
         type: 'string',
@@ -203,7 +208,7 @@ export async function exportSessionReport(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { startDate, endDate, sessionType, districts, siteIds } = request.query;
+    const { startDate, endDate, sessionType, programId, districts, siteIds } = request.query;
 
     if (sessionType && sessionType !== 'SURVEILLANCE') {
       return reply.code(400).send({ error: 'Only SURVEILLANCE sessionType is supported' });
@@ -211,6 +216,11 @@ export async function exportSessionReport(
 
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
       return reply.code(400).send({ error: 'Start date must be before or equal to end date' });
+    }
+
+    const parsedProgramId = programId ? Number(programId) : undefined;
+    if (programId && (parsedProgramId === undefined || !Number.isInteger(parsedProgramId) || parsedProgramId <= 0)) {
+      return reply.code(400).send({ error: 'programId must be a positive integer' });
     }
 
     const siteAccess = request.siteAccess;
@@ -256,6 +266,9 @@ export async function exportSessionReport(
     const siteWhere: any = {};
     if (requestedDistricts.length > 0) {
       siteWhere.district = { [Op.in]: requestedDistricts };
+    }
+    if (parsedProgramId !== undefined) {
+      siteWhere.programId = parsedProgramId;
     }
 
     const sessions = await Session.findAll({
@@ -622,6 +635,7 @@ async function sendWorkbook(
   if (headerRanges) {
     styleReportHeaders(worksheet, headerRanges);
   }
+  styleDiscrepancyCells(worksheet);
 
   worksheet.columns.forEach((column) => {
     if (!column || typeof column.eachCell !== 'function') {
@@ -675,6 +689,29 @@ function styleReportHeaders(
     applyHeaderRangeStyle(row, headerRanges.session, palette.session);
     applyHeaderRangeStyle(row, headerRanges.form, palette.form);
     applyHeaderRangeStyle(row, headerRanges.specimen, palette.specimen);
+  });
+}
+
+function styleDiscrepancyCells(worksheet: ExcelJS.Worksheet): void {
+  worksheet.eachRow((row) => {
+    row.eachCell((cell) => {
+      if (cell.value === null || cell.value === undefined) return;
+      const text = String(cell.value).trim().toUpperCase();
+      if (text !== DISCREPANCY_VALUE && text !== 'DISCREPANCT') return;
+
+      cell.font = { bold: true, color: { argb: 'FF9C0006' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFFC7CE' },
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+        left: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+        bottom: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+        right: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+      };
+    });
   });
 }
 
