@@ -48,6 +48,13 @@ interface HeaderColorRanges {
   specimen: [number, number];
 }
 
+interface WorkbookSheetSpec {
+  name: string;
+  rows: Array<Array<string | number>>;
+  headerRanges?: HeaderColorRanges;
+  highlightDiscrepancy?: boolean;
+}
+
 const DISCREPANCY_VALUE = 'DISCREPANCY';
 
 const SESSION_FIELD_LABELS: Array<{ key: string; label: string }> = [
@@ -239,12 +246,41 @@ export async function exportSessionReport(
         : accessibleSiteIds;
     }
 
-    if (requestedSiteIds.length > 0 && filteredSiteIds.length === 0) {
-      return await sendWorkbook(reply, [['No matching sites found for provided filters.']]);
+    const siteWhere: any = {};
+    if (requestedDistricts.length > 0) {
+      siteWhere.district = { [Op.in]: requestedDistricts };
     }
+    if (parsedProgramId !== undefined) {
+      siteWhere.programId = parsedProgramId;
+    }
+
+    if (filteredSiteIds.length > 0) {
+      siteWhere.id = { [Op.in]: filteredSiteIds };
+    }
+
+    const filteredSites = await Site.findAll({
+      where: siteWhere,
+      order: [['id', 'ASC']],
+    });
+
+    if (filteredSites.length === 0) {
+      return await sendWorkbook(reply, [
+        {
+          name: 'Report',
+          rows: [['No report data found for provided filters.']],
+        },
+        {
+          name: 'Missing Data',
+          rows: [['No matching sites found for provided filters.']],
+        },
+      ]);
+    }
+
+    filteredSiteIds = filteredSites.map((site) => site.id);
 
     const sessionWhere: any = {
       type: 'SURVEILLANCE',
+      siteId: { [Op.in]: filteredSiteIds },
     };
 
     if (startDate || endDate) {
@@ -259,25 +295,12 @@ export async function exportSessionReport(
       }
     }
 
-    if (filteredSiteIds.length > 0) {
-      sessionWhere.siteId = { [Op.in]: filteredSiteIds };
-    }
-
-    const siteWhere: any = {};
-    if (requestedDistricts.length > 0) {
-      siteWhere.district = { [Op.in]: requestedDistricts };
-    }
-    if (parsedProgramId !== undefined) {
-      siteWhere.programId = parsedProgramId;
-    }
-
     const sessions = await Session.findAll({
       where: sessionWhere,
       include: [
         {
           model: Site,
           as: 'site',
-          where: Object.keys(siteWhere).length ? siteWhere : undefined,
           include: [
             {
               model: Program,
@@ -295,17 +318,9 @@ export async function exportSessionReport(
       order: [['collectionDate', 'ASC'], ['id', 'ASC']],
     });
 
-    if (sessions.length === 0) {
-      return await sendWorkbook(reply, [['No report data found for provided filters.']]);
-    }
-
     const sessionIds = sessions.map((session) => session.id);
     const involvedProgramIds = Array.from(
-      new Set(
-        sessions
-          .map((session) => (session.get('site') as Site | undefined)?.programId)
-          .filter((programId): programId is number => typeof programId === 'number')
-      )
+      new Set(filteredSites.map((site) => site.programId))
     );
 
     const locationTypes = involvedProgramIds.length > 0
@@ -325,9 +340,8 @@ export async function exportSessionReport(
       }
     }
 
-    for (const session of sessions) {
-      const site = session.get('site') as Site | undefined;
-      const hierarchy = site?.locationHierarchy ?? {};
+    for (const site of filteredSites) {
+      const hierarchy = site.locationHierarchy ?? {};
       Object.keys(hierarchy).forEach((key) => {
         if (!seenLocationColumns.has(key)) {
           locationHierarchyColumns.push(key);
@@ -490,11 +504,11 @@ export async function exportSessionReport(
       'Total Specimens',
     ];
 
-    const rows: Array<Array<string | number>> = [];
+    const reportRows: Array<Array<string | number>> = [];
     for (const monthKey of uniqueMonthKeys) {
       const periodLabel = getPeriodLabel(monthKey, hasMultipleMonths, startDateObj, endDateObj);
-      rows.push([`Period: ${periodLabel}`]);
-      rows.push(headerRow);
+      reportRows.push([`Period: ${periodLabel}`]);
+      reportRows.push(headerRow);
 
       const monthRows = orderedGroups.filter((group) => group.monthKey === monthKey);
       for (const group of monthRows) {
@@ -530,10 +544,141 @@ export async function exportSessionReport(
         }
 
         row.push(totalSpecimens);
-        rows.push(row);
+        reportRows.push(row);
       }
 
-      rows.push([]);
+      reportRows.push([]);
+    }
+
+    if (reportRows.length === 0) {
+      reportRows.push(['No report data found for provided filters.']);
+    }
+
+    const expectedBySiteMonth = new Map<string, number>();
+    const sessionCountBySiteMonth = new Map<string, number>();
+    const eligibleSessionCountBySiteMonth = new Map<string, number>();
+    const eligibleSessionIds = new Set<number>();
+    for (const session of sessions) {
+      const monthKey = toMonthKey(session.collectionDate);
+      const siteMonthKey = `${monthKey}|${session.siteId}`;
+      sessionCountBySiteMonth.set(
+        siteMonthKey,
+        (sessionCountBySiteMonth.get(siteMonthKey) ?? 0) + 1
+      );
+
+      const expectedSpecimens = session.expectedSpecimens ?? 0;
+      // Sessions with no expected specimens are treated as matched and excluded from mismatch math.
+      if (expectedSpecimens <= 0) {
+        continue;
+      }
+
+      eligibleSessionIds.add(session.id);
+      expectedBySiteMonth.set(
+        siteMonthKey,
+        (expectedBySiteMonth.get(siteMonthKey) ?? 0) + expectedSpecimens
+      );
+      eligibleSessionCountBySiteMonth.set(
+        siteMonthKey,
+        (eligibleSessionCountBySiteMonth.get(siteMonthKey) ?? 0) + 1
+      );
+    }
+
+    const actualBySession = await getSpecimenTotalsBySession(Array.from(eligibleSessionIds));
+    const actualBySiteMonth = new Map<string, number>();
+    for (const session of sessions) {
+      if (!eligibleSessionIds.has(session.id)) {
+        continue;
+      }
+      const monthKey = toMonthKey(session.collectionDate);
+      const siteMonthKey = `${monthKey}|${session.siteId}`;
+      const sessionActual = actualBySession.get(session.id) ?? 0;
+      actualBySiteMonth.set(
+        siteMonthKey,
+        (actualBySiteMonth.get(siteMonthKey) ?? 0) + sessionActual
+      );
+    }
+
+    const missingHeaderRow = [
+      'Site ID',
+      ...locationHierarchyColumns,
+      'District',
+      'Sub County',
+      'Parish',
+      'Village Name',
+      'House Number',
+      'Actual Specimens',
+      'Expected Specimens',
+      'Comments',
+    ];
+    const missingRows: Array<Array<string | number>> = [];
+    const missingMonthKeys = uniqueMonthKeys.length > 0 ? uniqueMonthKeys : ['NO_DATE'];
+
+    for (const monthKey of missingMonthKeys) {
+      const periodLabel = getPeriodLabel(monthKey, hasMultipleMonths, startDateObj, endDateObj);
+      missingRows.push([`Period: ${periodLabel}`]);
+      missingRows.push(missingHeaderRow);
+
+      let periodHasRows = false;
+      const periodRows: Array<{
+        row: Array<string | number>;
+        siteId: number;
+        noSessions: boolean;
+      }> = [];
+      for (const site of filteredSites) {
+        const siteMonthKey = `${monthKey}|${site.id}`;
+        const siteHasSessions = (sessionCountBySiteMonth.get(siteMonthKey) ?? 0) > 0;
+        const hasEligibleSessions = (eligibleSessionCountBySiteMonth.get(siteMonthKey) ?? 0) > 0;
+        const actual = actualBySiteMonth.get(siteMonthKey) ?? 0;
+        const expected = expectedBySiteMonth.get(siteMonthKey) ?? 0;
+        const mismatch = hasEligibleSessions && actual !== expected;
+        const noSessions = !siteHasSessions;
+
+        if (!mismatch && !noSessions) {
+          continue;
+        }
+
+        const hierarchy = site.locationHierarchy ?? {};
+        const missingRow: Array<string | number> = [site.id];
+        for (const hierarchyKey of locationHierarchyColumns) {
+          missingRow.push(normalizeValue(hierarchy[hierarchyKey] ?? ''));
+        }
+
+        missingRow.push(
+          normalizeValue(site.district),
+          normalizeValue(site.subCounty),
+          normalizeValue(site.parish),
+          normalizeValue(site.villageName),
+          normalizeValue(site.houseNumber)
+        );
+
+        if (noSessions) {
+          missingRow.push('N.A.', 'N.A.', 'No sessions were conducted for this site');
+        } else {
+          missingRow.push(actual, expected, '');
+        }
+
+        periodRows.push({
+          row: missingRow,
+          siteId: site.id,
+          noSessions,
+        });
+        periodHasRows = true;
+      }
+
+      if (!periodHasRows) {
+        missingRows.push(['No missing data rows for this period.']);
+      } else {
+        periodRows.sort((a, b) => {
+          if (a.noSessions !== b.noSessions) {
+            return a.noSessions ? 1 : -1;
+          }
+          return a.siteId - b.siteId;
+        });
+        for (const item of periodRows) {
+          missingRows.push(item.row);
+        }
+      }
+      missingRows.push([]);
     }
 
     const firstLocationColumn = 1;
@@ -544,13 +689,34 @@ export async function exportSessionReport(
     const lastFormColumn = firstFormColumn + formColumns.length - 1;
     const firstSpecimenColumn = lastFormColumn + 1;
     const lastSpecimenColumn = firstSpecimenColumn + finalSpecimenColumns.length;
+    const missingFirstLocationColumn = 1;
+    const missingLastLocationColumn = 1 + locationHierarchyColumns.length + 5;
+    const missingFirstSpecimenColumn = missingLastLocationColumn + 1;
+    const missingLastSpecimenColumn = missingFirstSpecimenColumn + 2;
 
-    return await sendWorkbook(reply, rows, {
-      location: [firstLocationColumn, lastLocationColumn],
-      session: [firstSessionColumn, lastSessionColumn],
-      form: [firstFormColumn, lastFormColumn],
-      specimen: [firstSpecimenColumn, lastSpecimenColumn],
-    });
+    return await sendWorkbook(reply, [
+      {
+        name: 'Report',
+        rows: reportRows,
+        headerRanges: {
+          location: [firstLocationColumn, lastLocationColumn],
+          session: [firstSessionColumn, lastSessionColumn],
+          form: [firstFormColumn, lastFormColumn],
+          specimen: [firstSpecimenColumn, lastSpecimenColumn],
+        },
+        highlightDiscrepancy: true,
+      },
+      {
+        name: 'Missing Data',
+        rows: missingRows,
+        headerRanges: {
+          location: [missingFirstLocationColumn, missingLastLocationColumn],
+          session: [0, -1],
+          form: [0, -1],
+          specimen: [missingFirstSpecimenColumn, missingLastSpecimenColumn],
+        },
+      },
+    ]);
   } catch (error) {
     return handleError(error, request, reply, 'Failed to export report');
   }
@@ -588,6 +754,31 @@ async function getSpecimenCountsByMonthSite(sessionIds: number[]): Promise<Speci
   return rows;
 }
 
+async function getSpecimenTotalsBySession(sessionIds: number[]): Promise<Map<number, number>> {
+  const totals = new Map<number, number>();
+  if (sessionIds.length === 0) return totals;
+
+  const query = `
+    SELECT
+      sp.session_id AS sessionId,
+      COUNT(sp.id) AS actualSpecimens
+    FROM specimens sp
+    WHERE sp.session_id IN (:sessionIds)
+    GROUP BY sp.session_id
+  `;
+
+  const rows = await sequelize.query(query, {
+    replacements: { sessionIds },
+    type: QueryTypes.SELECT,
+  }) as Array<{ sessionId: number; actualSpecimens: number }>;
+
+  for (const row of rows) {
+    totals.set(Number(row.sessionId), Number(row.actualSpecimens));
+  }
+
+  return totals;
+}
+
 function extractHouseholdValuesForSession(
   session: Session,
   formIdByProgram: Map<number, number>,
@@ -622,32 +813,38 @@ function extractHouseholdValuesForSession(
 
 async function sendWorkbook(
   reply: FastifyReply,
-  rows: Array<Array<string | number>>,
-  headerRanges?: HeaderColorRanges
+  sheets: WorkbookSheetSpec[]
 ): Promise<void> {
   const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Report');
 
-  for (const row of rows) {
-    worksheet.addRow(row);
-  }
-
-  if (headerRanges) {
-    styleReportHeaders(worksheet, headerRanges);
-  }
-  styleDiscrepancyCells(worksheet);
-
-  worksheet.columns.forEach((column) => {
-    if (!column || typeof column.eachCell !== 'function') {
-      return;
+  for (const sheetSpec of sheets) {
+    const worksheet = workbook.addWorksheet(sheetSpec.name);
+    for (const row of sheetSpec.rows) {
+      worksheet.addRow(row);
     }
-    let max = 12;
-    column.eachCell({ includeEmpty: true }, (cell) => {
-      const value = cell.value === null || cell.value === undefined ? '' : String(cell.value);
-      max = Math.max(max, Math.min(40, value.length + 2));
+
+    if (sheetSpec.headerRanges) {
+      styleReportHeaders(worksheet, sheetSpec.headerRanges);
+    } else {
+      styleSimpleHeaderRow(worksheet);
+    }
+
+    if (sheetSpec.highlightDiscrepancy) {
+      styleDiscrepancyCells(worksheet);
+    }
+
+    worksheet.columns.forEach((column) => {
+      if (!column || typeof column.eachCell !== 'function') {
+        return;
+      }
+      let max = 12;
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const value = cell.value === null || cell.value === undefined ? '' : String(cell.value);
+        max = Math.max(max, Math.min(40, value.length + 2));
+      });
+      column.width = max;
     });
-    column.width = max;
-  });
+  }
 
   const buffer = await workbook.xlsx.writeBuffer();
 
@@ -657,6 +854,30 @@ async function sendWorkbook(
   );
   reply.header('Content-Disposition', 'attachment; filename=session-report.xlsx');
   reply.send(buffer);
+}
+
+function styleSimpleHeaderRow(worksheet: ExcelJS.Worksheet): void {
+  worksheet.eachRow((row) => {
+    const firstCell = row.getCell(1);
+    const firstValue = firstCell.value === null || firstCell.value === undefined ? '' : String(firstCell.value);
+    if (firstValue !== 'Site ID') return;
+
+    row.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF2F2F2' },
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+        left: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+        bottom: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+        right: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+      };
+    });
+  });
 }
 
 function styleReportHeaders(
