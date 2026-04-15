@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getAnnotationTaskList, getAnnotationTask, updateAnnotationTask, deleteAnnotationTask, createAnnotationTasks } from '../handlers/annotation-task';
-import { getAnnotationList, getAnnotation, updateAnnotation, exportAnnotationsCSV } from '../handlers/annotation';
+import { getAnnotationList, getAnnotationSummary, getAnnotation, updateAnnotation, exportAnnotationsCSV } from '../handlers/annotation';
 
 // Import schemas from handler files
 import { schema as getAnnotationTaskListSchema } from '../handlers/annotation-task/getList';
@@ -9,6 +9,7 @@ import { schema as updateAnnotationTaskSchema } from '../handlers/annotation-tas
 import { schema as deleteAnnotationTaskSchema } from '../handlers/annotation-task/delete';
 import { schema as createAnnotationTasksSchema } from '../handlers/annotation-task/post';
 import { schema as getAnnotationListSchema } from '../handlers/annotation/getList';
+import { schema as getAnnotationSummarySchema } from '../handlers/annotation/getSummary';
 import { schema as getAnnotationSchema } from '../handlers/annotation/get';
 import { schema as updateAnnotationSchema } from '../handlers/annotation/put';
 import { schema as exportAnnotationsSchema } from '../handlers/annotation/export';
@@ -57,6 +58,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSuperAdmin],
     schema: getAnnotationListSchema
   }, getAnnotationList as any);
+
+  // Get annotation status summary (admin token and admin user)
+  fastify.get('/summary', {
+    preHandler: [requireSuperAdmin],
+    schema: getAnnotationSummarySchema
+  }, getAnnotationSummary as any);
 
   // Export annotations to CSV (admin token)
   fastify.get('/export', {
