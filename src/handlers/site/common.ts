@@ -7,10 +7,11 @@ export interface SiteResponse {
   programId: number;
   isActive: boolean;
   hasData: boolean;
+  // Always included; null when the site has no name set.
+  name: string | null;
   // Optional details, omitted if empty
   locationTypeId?: number;
   parentId?: number;
-  name?: string;
   district?: string;
   subCounty?: string;
   parish?: string;
@@ -172,16 +173,17 @@ async function rebuildLocationMap(site: Site): Promise<Record<string, string>> {
 
 // Helper to format site data consistently across endpoints with dynamic location map
 export async function formatSiteResponse(site: Site): Promise<SiteResponse> {
+  const trimmedName = site.name?.trim() ?? '';
   const base: SiteResponse = {
     siteId: site.id,
     programId: site.programId,
     isActive: site.isActive,
     hasData: site.hasData,
+    name: trimmedName !== '' ? trimmedName : null,
   };
 
   if (site.locationTypeId != null) base.locationTypeId = site.locationTypeId;
   if (site.parentId != null) base.parentId = site.parentId;
-  if (site.name && site.name.trim() !== '') base.name = site.name;
   if (site.district && site.district.trim() !== '') base.district = site.district.trim();
   if (site.subCounty && site.subCounty.trim() !== '') base.subCounty = site.subCounty.trim();
   if (site.parish && site.parish.trim() !== '') base.parish = site.parish.trim();

@@ -119,6 +119,7 @@ export const schema = {
                         properties: {
                           siteId: { type: 'number' },
                           programId: { type: 'number' },
+                          name: { type: ['string', 'null'] },
                           district: { type: ['string', 'null'] },
                           subCounty: { type: ['string', 'null'] },
                           parish: { type: ['string', 'null'] },

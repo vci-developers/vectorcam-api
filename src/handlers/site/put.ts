@@ -52,7 +52,7 @@ export const schema = {
             programId: { type: 'number' },
             locationTypeId: { type: ['number', 'null'] },
             parentId: { type: ['number', 'null'] },
-            name: { type: 'string' },
+            name: { type: ['string', 'null'] },
             district: { type: 'string' },
             subCounty: { type: 'string' },
             parish: { type: 'string' },

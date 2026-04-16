@@ -75,7 +75,7 @@ export const schema = {
                   programId: { type: 'number' },
                   locationTypeId: { type: ['number', 'null'] },
                   parentId: { type: ['number', 'null'] },
-                  name: { type: 'string' },
+                  name: { type: ['string', 'null'] },
                   district: { type: 'string', nullable: true },
                   subCounty: { type: 'string', nullable: true },
                   parish: { type: 'string', nullable: true },

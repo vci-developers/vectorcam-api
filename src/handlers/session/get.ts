@@ -44,6 +44,7 @@ export const schema = {
             id: { type: 'number' },
             siteId: { type: 'number' },
             programId: { type: 'number' },
+            name: { type: ['string', 'null'] },
             district: { type: 'string', nullable: true },
             subCounty: { type: 'string', nullable: true },
             parish: { type: 'string', nullable: true },
