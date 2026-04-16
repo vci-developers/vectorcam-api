@@ -9,6 +9,7 @@ interface QueryParams {
   endDate?: string;
   districts?: string;
   siteIds?: string;
+  sessionType?: string;
 }
 
 interface SummaryRow {
@@ -81,6 +82,11 @@ export const schema = {
       endDate: { type: 'string', format: 'date' },
       districts: { type: 'string', description: 'Comma-separated district names' },
       siteIds: { type: 'string', description: 'Comma-separated site IDs' },
+      sessionType: {
+        type: 'string',
+        enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'],
+        description: 'Filter by session type',
+      },
     },
   },
   response: {
@@ -122,7 +128,7 @@ export async function getSpecimenMonthlySummary(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { startDate, endDate, districts, siteIds } = request.query;
+    const { startDate, endDate, districts, siteIds, sessionType } = request.query;
 
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
       return reply.code(400).send({ error: 'Start date must be before or equal to end date' });
@@ -185,6 +191,10 @@ export async function getSpecimenMonthlySummary(
       endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
       replacements.endDate = endExclusive;
       whereClauses.push('sess.collection_date < :endDate');
+    }
+    if (sessionType) {
+      replacements.sessionType = sessionType;
+      whereClauses.push('sess.type = :sessionType');
     }
 
     const rows = await sequelize.query(
