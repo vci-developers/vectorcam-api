@@ -1,8 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { SessionConflictResolution } from '../../db/models';
+import { SessionConflictResolution, Site } from '../../db/models';
 import sequelize from '../../db/index';
 import { Op } from 'sequelize';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants, siteIdInSubtreeOfLiteral } from '../site/common';
 
 interface GetConflictLogsQuery {
   siteId?: string;
@@ -95,23 +95,33 @@ export async function getConflictLogs(
 
     // Check site access and filter by user's sites if necessary
     const siteAccess = request.siteAccess;
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
-      includeHasDataOnly: false,
-    });
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
 
     if (accessibleSiteIds.length > 0) {
       // User has limited site access - only show logs for their sites
       if (siteId) {
         const requestedSiteId = parseInt(siteId, 10);
-        const expandedSiteIds = await expandSiteIdsWithDescendants([requestedSiteId]);
-        const allowedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIds.includes(id));
+        // Verify the requested subtree overlaps with the user's accessible sites.
+        const subtreeWhere = buildSiteSubtreeWhere([requestedSiteId]);
+        const accessibleInSubtree = subtreeWhere
+          ? await Site.count({
+              where: {
+                [Op.and]: [{ id: { [Op.in]: accessibleSiteIds } }, subtreeWhere],
+              },
+            })
+          : 0;
 
-        if (allowedSiteIds.length === 0) {
+        if (accessibleInSubtree === 0) {
           return reply.code(403).send({
             error: 'Forbidden: You do not have access to logs for this site',
           });
         }
-        where.siteId = { [Op.in]: allowedSiteIds };
+
+        where[Op.and] = [
+          ...((where[Op.and] as any[]) ?? []),
+          { siteId: { [Op.in]: accessibleSiteIds } },
+          { siteId: { [Op.in]: siteIdInSubtreeOfLiteral(requestedSiteId) } },
+        ];
       } else {
         // No specific site requested - filter to only user's sites
         where.siteId = {
@@ -121,8 +131,7 @@ export async function getConflictLogs(
     } else {
       // User has access to all sites (admin/super admin)
       if (siteId) {
-        const expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
-        where.siteId = { [Op.in]: expandedSiteIds };
+        where.siteId = { [Op.in]: siteIdInSubtreeOfLiteral(parseInt(siteId, 10)) };
       }
     }
 

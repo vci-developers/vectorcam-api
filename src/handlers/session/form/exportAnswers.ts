@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { FormAnswer, Form, FormQuestion, Session, Site, Program } from '../../../db/models';
 import { handleError } from '../common';
-import { expandSiteIdsWithDescendants } from '../../site/common';
+import { buildSiteSubtreeWhere } from '../../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -88,8 +88,10 @@ export async function exportFormAnswersCSV(
 
     const siteWhere: any = {};
     if (siteId) {
-      const expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
-      siteWhere.id = expandedSiteIds.length > 0 ? { [Op.in]: expandedSiteIds } : -1;
+      const subtreeFragment = buildSiteSubtreeWhere([parseInt(siteId, 10)]);
+      if (subtreeFragment) {
+        siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), subtreeFragment];
+      }
     }
     if (district) {
       siteWhere.district = district;

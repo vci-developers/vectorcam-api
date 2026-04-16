@@ -1,7 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { QueryTypes } from 'sequelize';
 import sequelize from '../../db/index';
-import { expandSiteIdsWithDescendants } from '../site/common';
 
 interface GetAnnotationSummaryQuery {
   district?: string;
@@ -206,26 +205,11 @@ export default async function getAnnotationSummary(
       whereClauses.push('s.district = :district');
     }
     if (siteId) {
-      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
-
-      if (expandedSiteIds.length === 0) {
-        return reply.code(200).send({
-          total: 0,
-          statusCounts: {
-            PENDING: 0,
-            ANNOTATED: 0,
-            FLAGGED: 0,
-          },
-          confusionMatrices: {
-            species: { columns: [], data: [] },
-            sex: { columns: [], data: [] },
-            abdomenStatus: { columns: [], data: [] },
-          },
-        });
-      }
-
-      replacements.siteIds = expandedSiteIds;
-      whereClauses.push('s.id IN (:siteIds)');
+      // Filter against the subtree rooted at the requested siteId via the JSON siteIds field.
+      replacements.requestedSiteId = Number(siteId);
+      whereClauses.push(
+        "s.id IN (SELECT id FROM sites WHERE JSON_CONTAINS(JSON_EXTRACT(COALESCE(location_hierarchy, JSON_OBJECT()), '$.siteIds'), JSON_ARRAY(:requestedSiteId)))"
+      );
     }
 
     const whereSql = whereClauses.length > 0 ? `AND ${whereClauses.join(' AND ')}` : '';

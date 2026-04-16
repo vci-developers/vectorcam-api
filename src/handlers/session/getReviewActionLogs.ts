@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { ReviewActionLog } from '../../db/models';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { ReviewActionLog, Site } from '../../db/models';
+import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants, siteIdInSubtreeOfLiteral } from '../site/common';
 
 interface GetReviewActionLogsQuery {
   siteId?: number;
@@ -90,27 +90,34 @@ export async function getReviewActionLogs(
       size = 20,
     } = request.query;
 
-    const whereClause: Record<string, unknown> = {};
+    const whereClause: any = {};
     const siteAccess = request.siteAccess;
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
-      includeHasDataOnly: false,
-    });
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
 
     if (accessibleSiteIds.length > 0) {
       if (siteId !== undefined) {
-        const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
-        const allowedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIds.includes(id));
+        const subtreeWhere = buildSiteSubtreeWhere([siteId]);
+        const accessibleInSubtree = subtreeWhere
+          ? await Site.count({
+              where: {
+                [Op.and]: [{ id: { [Op.in]: accessibleSiteIds } }, subtreeWhere],
+              },
+            })
+          : 0;
 
-        if (allowedSiteIds.length === 0) {
+        if (accessibleInSubtree === 0) {
           return reply.code(403).send({ error: 'Forbidden: You do not have access to logs for this site' });
         }
-        whereClause.siteId = { [Op.in]: allowedSiteIds };
+
+        whereClause[Op.and] = [
+          { siteId: { [Op.in]: accessibleSiteIds } },
+          { siteId: { [Op.in]: siteIdInSubtreeOfLiteral(siteId) } },
+        ];
       } else {
         whereClause.siteId = { [Op.in]: accessibleSiteIds };
       }
     } else if (siteId !== undefined) {
-      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
-      whereClause.siteId = { [Op.in]: expandedSiteIds };
+      whereClause.siteId = { [Op.in]: siteIdInSubtreeOfLiteral(siteId) };
     }
 
     if (month !== undefined) {

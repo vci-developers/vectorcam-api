@@ -7,7 +7,9 @@ class Site extends Model {
   declare locationTypeId: number | null;
   declare parentId: number | null;
   declare name: string | null;
-  declare locationHierarchy: Record<string, string> | null;
+  declare locationHierarchy:
+    | { hierarchy: Array<{ locationType: string; value: string }>; siteIds: number[] }
+    | null;
   declare district: string | null;
   declare subCounty: string | null;
   declare parish: string | null;

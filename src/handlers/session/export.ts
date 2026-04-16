@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { handleError } from './common';
 import { Site, Device, Session, Program } from '../../db/models';
-import { formatSiteResponse, expandSiteIdsWithDescendants } from '../site/common';
+import { formatSiteResponse, siteIdInSubtreeOfLiteral } from '../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -92,10 +92,9 @@ export async function exportSessionsCSV(
       };
     }
 
-    // Add siteId filter if provided
+    // Add siteId filter if provided. Matches the full subtree via the JSON siteIds field.
     if (siteId) {
-      const expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
-      where.siteId = { [Op.in]: expandedSiteIds };
+      where.siteId = { [Op.in]: siteIdInSubtreeOfLiteral(parseInt(siteId, 10)) };
     }
 
     const siteWhere = {

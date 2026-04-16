@@ -15,6 +15,7 @@ jest.mock('../../db/models', () => ({
 
 jest.mock('../site/common', () => ({
   expandSiteIdsWithDescendants: jest.fn(),
+  siteIdInSubtreeOfLiteral: jest.fn(() => ({ __literal: true })),
 }));
 
 jest.mock('./common', () => ({
@@ -48,7 +49,7 @@ describe('getSessionList hierarchy filtering', () => {
 
     await getSessionList(request, reply as any);
 
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([10], { includeHasDataOnly: false });
+    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([10]);
     const countWhere = (Session.count as jest.Mock).mock.calls[0][0].where;
     expect(countWhere.siteId[Op.in]).toEqual([10, 11]);
   });

@@ -166,6 +166,24 @@ function normalizeFormAnswerValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function getLocationHierarchyMap(site: Site): Record<string, string> {
+  const rawHierarchy = site.locationHierarchy;
+  if (!rawHierarchy || typeof rawHierarchy !== 'object' || Array.isArray(rawHierarchy)) return {};
+
+  const hierarchy = (rawHierarchy as any).hierarchy;
+  if (!Array.isArray(hierarchy)) return {};
+
+  return hierarchy.reduce<Record<string, string>>((acc, entry) => {
+    if (!entry || typeof entry !== 'object') return acc;
+    const locationType = (entry as any).locationType;
+    const value = (entry as any).value;
+    if (typeof locationType === 'string' && typeof value === 'string' && locationType && value) {
+      acc[locationType] = value;
+    }
+    return acc;
+  }, {});
+}
+
 function createSpecimenColumnName(
   species: string | null,
   sex: string | null,
@@ -341,7 +359,7 @@ export async function exportSessionReport(
     }
 
     for (const site of filteredSites) {
-      const hierarchy = site.locationHierarchy ?? {};
+      const hierarchy = getLocationHierarchyMap(site);
       Object.keys(hierarchy).forEach((key) => {
         if (!seenLocationColumns.has(key)) {
           locationHierarchyColumns.push(key);
@@ -513,7 +531,7 @@ export async function exportSessionReport(
       const monthRows = orderedGroups.filter((group) => group.monthKey === monthKey);
       for (const group of monthRows) {
         const site = group.site;
-        const hierarchy = site.locationHierarchy ?? {};
+        const hierarchy = getLocationHierarchyMap(site);
         const row: Array<string | number> = [group.siteId];
 
         for (const hierarchyKey of locationHierarchyColumns) {
@@ -637,7 +655,7 @@ export async function exportSessionReport(
           continue;
         }
 
-        const hierarchy = site.locationHierarchy ?? {};
+        const hierarchy = getLocationHierarchyMap(site);
         const missingRow: Array<string | number> = [site.id];
         for (const hierarchyKey of locationHierarchyColumns) {
           missingRow.push(normalizeValue(hierarchy[hierarchyKey] ?? ''));

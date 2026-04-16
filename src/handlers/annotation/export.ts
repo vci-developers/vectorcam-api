@@ -12,7 +12,7 @@ import {
   Program
 } from '../../db/models';
 import { config } from '../../config/environment';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere } from '../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -132,16 +132,14 @@ export async function exportAnnotationsCSV(
       where.status = status;
     }
 
-    let expandedSiteIds: number[] = [];
-    if (siteId) {
-      expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
-    }
-
-    const siteWhere = {
-      ...(siteId && { id: expandedSiteIds.length > 0 ? { [Op.in]: expandedSiteIds } : -1 }),
+    const siteSubtreeWhere = siteId ? buildSiteSubtreeWhere([parseInt(siteId, 10)]) : null;
+    const siteWhere: any = {
       ...(district && { district }),
       hasData: true,
     };
+    if (siteSubtreeWhere) {
+      siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), siteSubtreeWhere];
+    }
     const requiresSessionSiteJoin = !!(programId || siteId || district);
 
     // Fetch annotations with all related data

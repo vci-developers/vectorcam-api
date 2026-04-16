@@ -176,13 +176,19 @@ export async function getSpecimenCount(
 
     // Add dynamic location type filter if provided
     if (locationTypeKey && locationTypeValue) {
-      const escapedKey = locationTypeKey.replace(/["\\]/g, '\\$&');
-      const jsonPath = literal(`'$."${escapedKey}"'`);
       siteWhere[Op.and] = [
         ...(siteWhere[Op.and] || []),
         where(
-          fn('JSON_EXTRACT', fn('COALESCE', col('location_hierarchy'), '{}'), jsonPath),
-          locationTypeValue
+          fn(
+            'JSON_CONTAINS',
+            fn(
+              'JSON_EXTRACT',
+              fn('COALESCE', col('location_hierarchy'), literal('JSON_OBJECT()')),
+              literal("'$.hierarchy'")
+            ),
+            fn('JSON_OBJECT', 'locationType', locationTypeKey, 'value', locationTypeValue)
+          ),
+          1
         ),
       ];
       hasSiteFilter = true;

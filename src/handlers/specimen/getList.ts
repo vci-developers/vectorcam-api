@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session, Site, SpecimenImage } from '../../db/models';
 import { formatSpecimenResponse } from './common';
 import { Op, Order } from 'sequelize';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
 
 export const schema = {
   tags: ['Specimens'],
@@ -213,9 +213,7 @@ export async function getSpecimenList(
 
     // Build site restrictions based on user access
     const siteWhere: any = {};
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
-      includeHasDataOnly: false,
-    });
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
     
     // If district filter is provided, find sites in that district
     if (district) {
@@ -245,21 +243,14 @@ export async function getSpecimenList(
       siteWhere.id = { [Op.in]: accessibleSiteIds };
     }
 
-    // Add user-provided filters
+    // Add user-provided filters. siteWhere is applied to the Site table, so we can restrict
+    // against the JSON siteIds field directly without pre-expanding.
     if (siteId) {
-      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
-
-      if (accessibleSiteIds.length > 0) {
-        const accessibleSiteIdSet = new Set(accessibleSiteIds);
-        const allowedExpandedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIdSet.has(id));
-
-        if (allowedExpandedSiteIds.length > 0) {
-          siteWhere.id = { [Op.in]: allowedExpandedSiteIds };
-        } else {
-          siteWhere.id = -1;
-        }
-      } else {
-        siteWhere.id = { [Op.in]: expandedSiteIds };
+      const subtreeFragment = buildSiteSubtreeWhere([siteId]);
+      if (subtreeFragment) {
+        const andClauses = (siteWhere[Op.and] as any[]) ?? [];
+        andClauses.push(subtreeFragment);
+        siteWhere[Op.and] = andClauses;
       }
     }
 

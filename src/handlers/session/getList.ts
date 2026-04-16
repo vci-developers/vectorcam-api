@@ -3,7 +3,7 @@ import { Session, Site } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { expandSiteIdsWithDescendants, siteIdInSubtreeOfLiteral } from '../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -120,9 +120,7 @@ export async function getSessionList(
     
     // Apply site access restrictions first
     const siteAccess = request.siteAccess;
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
-      includeHasDataOnly: false,
-    });
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
     
     // If programId or district filter is provided, find matching sites
     if (programId || district) {
@@ -160,21 +158,19 @@ export async function getSessionList(
       whereClause.siteId = { [Op.in]: accessibleSiteIds };
     }
     
-    // If user provides a specific siteId filter, apply it (but only if they have access)
+    // If user provides a specific siteId filter, apply it using the JSON siteIds field directly.
+    // When the user has limited access, AND with their accessible sites so the SQL enforces both.
     if (siteId) {
-      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
-
+      const subtreeLiteral = siteIdInSubtreeOfLiteral(siteId);
       if (accessibleSiteIds.length > 0) {
-        const accessibleSiteIdSet = new Set(accessibleSiteIds);
-        const allowedExpandedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIdSet.has(id));
-
-        if (allowedExpandedSiteIds.length > 0) {
-          whereClause.siteId = { [Op.in]: allowedExpandedSiteIds };
-        } else {
-          whereClause.siteId = -1;
-        }
+        whereClause[Op.and] = [
+          ...((whereClause[Op.and] as any[]) ?? []),
+          { siteId: { [Op.in]: accessibleSiteIds } },
+          { siteId: { [Op.in]: subtreeLiteral } },
+        ];
+        delete whereClause.siteId;
       } else {
-        whereClause.siteId = { [Op.in]: expandedSiteIds };
+        whereClause.siteId = { [Op.in]: subtreeLiteral };
       }
     }
     if (deviceId) {

@@ -3,7 +3,7 @@ import { Op } from 'sequelize';
 import { handleError } from './common';
 import { Specimen, Session, Site, Device, Program, InferenceResult, SpecimenImage } from '../../db/models';
 import { config } from '../../config/environment';
-import { formatSiteResponse, expandSiteIdsWithDescendants } from '../site/common';
+import { formatSiteResponse, buildSiteSubtreeWhere } from '../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -111,16 +111,14 @@ export async function exportSpecimensCSV(
       };
     }
 
-    let expandedSiteIds: number[] = [];
-    if (siteId) {
-      expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
-    }
-
-    const siteWhere = {
-      ...(siteId && { id: expandedSiteIds.length > 0 ? { [Op.in]: expandedSiteIds } : -1 }),
+    const siteSubtreeWhere = siteId ? buildSiteSubtreeWhere([parseInt(siteId, 10)]) : null;
+    const siteWhere: any = {
       ...(district && { district }),
       hasData: true,
     };
+    if (siteSubtreeWhere) {
+      siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), siteSubtreeWhere];
+    }
 
     // Build include conditions with nested filtering
     const includeConditions = [

@@ -17,6 +17,7 @@ jest.mock('../../db/models', () => ({
 
 jest.mock('../site/common', () => ({
   expandSiteIdsWithDescendants: jest.fn(),
+  buildSiteSubtreeWhere: jest.fn(() => ({ __subtree: true })),
 }));
 
 jest.mock('./common', () => ({
@@ -49,7 +50,7 @@ describe('getSpecimenList hierarchy filtering', () => {
 
     await getSpecimenList(request, reply as any);
 
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([1], { includeHasDataOnly: false });
+    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([1]);
     const countInclude = (Specimen.count as jest.Mock).mock.calls[0][0].include;
     const siteWhere = countInclude[0].include[0].where;
     expect(siteWhere.id[Op.in]).toEqual([1, 2]);

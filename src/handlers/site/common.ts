@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Op } from 'sequelize';
+import { Op, fn, col, where, literal, WhereOptions } from 'sequelize';
 import { Site, Program, Session, LocationType } from '../../db/models';
 // Site response format interface
 export interface SiteResponse {
@@ -21,9 +21,14 @@ export interface SiteResponse {
   locationHierarchy?: Record<string, string>;
 }
 
-interface ExpandSiteIdsOptions {
-  includeHasDataOnly?: boolean;
-  preserveRootSiteIds?: boolean;
+export interface LocationHierarchyEntry {
+  locationType: string;
+  value: string;
+}
+
+interface StoredLocationHierarchy {
+  hierarchy: LocationHierarchyEntry[];
+  siteIds: number[];
 }
 
 const locationTypeNameCache = new Map<number, string>();
@@ -60,20 +65,74 @@ async function ensureSiteWithRelations(site: Site): Promise<Site> {
   return reloaded ?? site;
 }
 
-async function rebuildLocationMap(site: Site): Promise<Record<string, string>> {
+function entriesToHierarchyMap(entries: LocationHierarchyEntry[]): Record<string, string> {
   const map: Record<string, string> = {};
+  for (const entry of entries) {
+    map[entry.locationType] = entry.value;
+  }
+  return map;
+}
+
+function normalizeSiteIdArray(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((id): id is number => Number.isInteger(id) && id > 0);
+}
+
+function normalizeHierarchyEntries(raw: unknown): LocationHierarchyEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((entry): entry is LocationHierarchyEntry => {
+      if (!entry || typeof entry !== 'object') return false;
+      const candidate = entry as Record<string, unknown>;
+      return typeof candidate.locationType === 'string' && typeof candidate.value === 'string';
+    })
+    .map((entry) => ({
+      locationType: entry.locationType.trim(),
+      value: entry.value.trim(),
+    }))
+    .filter((entry) => entry.locationType !== '' && entry.value !== '');
+}
+
+function normalizeStoredLocationHierarchy(raw: unknown): StoredLocationHierarchy {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const candidate = raw as Record<string, unknown>;
+    return {
+      hierarchy: normalizeHierarchyEntries(candidate.hierarchy),
+      siteIds: normalizeSiteIdArray(candidate.siteIds),
+    };
+  }
+
+  return {
+    hierarchy: [],
+    siteIds: [],
+  };
+}
+
+interface RebuiltLocationData {
+  hierarchyEntries: LocationHierarchyEntry[];
+  siteIds: number[];
+}
+
+async function rebuildLocationData(site: Site): Promise<RebuiltLocationData> {
+  const traversedNodes: Array<{ siteId: number; locationType: string; value: string }> = [];
+  const traversedSiteIds: number[] = [];
   const visited = new Set<number>();
   let current: Site | null = await ensureSiteWithRelations(site);
 
   while (current && !visited.has(current.id)) {
     visited.add(current.id);
+    traversedSiteIds.push(current.id);
 
     const siteName = current.name?.trim();
     const includedLocationType = current.get('locationType') as LocationType | undefined;
     const locationTypeName = includedLocationType?.name ?? (await getLocationTypeName(current.locationTypeId));
 
     if (locationTypeName && siteName) {
-      map[locationTypeName] = siteName;
+      traversedNodes.push({
+        siteId: current.id,
+        locationType: locationTypeName,
+        value: siteName,
+      });
     }
 
     if (!current.parentId) break;
@@ -95,7 +154,20 @@ async function rebuildLocationMap(site: Site): Promise<Record<string, string>> {
     }
   }
 
-  return map;
+  const orderedNodes = traversedNodes.reverse();
+  const siteIds = traversedSiteIds.reverse();
+  return {
+    hierarchyEntries: orderedNodes.map((node) => ({
+      locationType: node.locationType,
+      value: node.value,
+    })),
+    siteIds,
+  };
+}
+
+async function rebuildLocationMap(site: Site): Promise<Record<string, string>> {
+  const locationData = await rebuildLocationData(site);
+  return entriesToHierarchyMap(locationData.hierarchyEntries);
 }
 
 // Helper to format site data consistently across endpoints with dynamic location map
@@ -117,7 +189,10 @@ export async function formatSiteResponse(site: Site): Promise<SiteResponse> {
   if (site.houseNumber && site.houseNumber.trim() !== '') base.houseNumber = site.houseNumber.trim();
   if (site.healthCenter && site.healthCenter.trim() !== '') base.healthCenter = site.healthCenter.trim();
 
-  const locationMap = site.locationHierarchy ?? (await rebuildLocationMap(site));
+  const storedEntries = normalizeStoredLocationHierarchy(site.locationHierarchy).hierarchy;
+  const locationMap = storedEntries.length > 0
+    ? entriesToHierarchyMap(storedEntries)
+    : (await rebuildLocationMap(site));
 
   return {
     ...base,
@@ -127,13 +202,29 @@ export async function formatSiteResponse(site: Site): Promise<SiteResponse> {
 
 // Rebuild and persist location hierarchy for a site and all its descendants
 export async function rebuildLocationHierarchy(rootSite: Site): Promise<Site> {
-  const hierarchyById = new Map<number, Record<string, string>>();
+  const hierarchyById = new Map<number, RebuiltLocationData>();
+  const hydratedRootSite =
+    (await Site.findByPk(rootSite.id, {
+      include: [
+        { model: LocationType, as: 'locationType', attributes: ['id', 'name'] },
+        {
+          model: Site,
+          as: 'parent',
+          include: [{ model: LocationType, as: 'locationType', attributes: ['id', 'name'] }],
+        },
+      ],
+    })) ?? rootSite;
 
-  const rootMap = await rebuildLocationMap(rootSite);
-  hierarchyById.set(rootSite.id, rootMap);
-  await rootSite.update({ locationHierarchy: rootMap });
+  const rootData = await rebuildLocationData(hydratedRootSite);
+  hierarchyById.set(hydratedRootSite.id, rootData);
+  await hydratedRootSite.update({
+    locationHierarchy: {
+      hierarchy: rootData.hierarchyEntries,
+      siteIds: rootData.siteIds,
+    },
+  });
 
-  let frontierIds = [rootSite.id];
+  let frontierIds = [hydratedRootSite.id];
 
   while (frontierIds.length > 0) {
     const children = await Site.findAll({
@@ -147,21 +238,32 @@ export async function rebuildLocationHierarchy(rootSite: Site): Promise<Site> {
     frontierIds = [];
 
     for (const child of children) {
-      const parentMap = hierarchyById.get(child.parentId!) || {};
-      const map: Record<string, string> = { ...parentMap };
+      const parentData = hierarchyById.get(child.parentId!);
+      const hierarchyEntries: LocationHierarchyEntry[] = parentData
+        ? [...parentData.hierarchyEntries]
+        : [];
+      const siteIds: number[] = parentData ? [...parentData.siteIds] : [];
       const typeName = await getLocationTypeName(child.locationTypeId);
       const childName = child.name?.trim();
-      if (typeName && childName) {
-        map[typeName] = childName;
+      if (!siteIds.includes(child.id)) {
+        siteIds.push(child.id);
       }
-      hierarchyById.set(child.id, map);
-      await child.update({ locationHierarchy: map });
+      if (typeName && childName) {
+        hierarchyEntries.push({ locationType: typeName, value: childName });
+      }
+      hierarchyById.set(child.id, { hierarchyEntries, siteIds });
+      await child.update({
+        locationHierarchy: {
+          hierarchy: hierarchyEntries,
+          siteIds,
+        },
+      });
       frontierIds.push(child.id);
     }
   }
 
-  const refreshed = await Site.findByPk(rootSite.id);
-  return refreshed ?? rootSite;
+  const refreshed = await Site.findByPk(hydratedRootSite.id);
+  return refreshed ?? hydratedRootSite;
 }
 
 export async function rebuildLocationHierarchyForLocationType(locationTypeId: number): Promise<void> {
@@ -179,60 +281,58 @@ function normalizeSiteIds(siteIds: number[]): number[] {
   );
 }
 
-export async function expandSiteIdsWithDescendants(
-  siteIds: number[],
-  options: ExpandSiteIdsOptions = {}
-): Promise<number[]> {
-  const { includeHasDataOnly = true, preserveRootSiteIds = true } = options;
-  const normalizedRootSiteIds = normalizeSiteIds(siteIds);
+// Where fragment that matches Site rows in the subtree rooted at any of rootSiteIds,
+// using the JSON-encoded location_hierarchy.siteIds field. Intended to be merged into
+// an existing siteWhere when the endpoint already queries the Site table directly.
+export function buildSiteSubtreeWhere(rootSiteIds: number[]): WhereOptions | null {
+  const normalized = normalizeSiteIds(rootSiteIds);
+  if (normalized.length === 0) return null;
 
-  if (normalizedRootSiteIds.length === 0) {
-    return [];
-  }
+  return {
+    [Op.or]: normalized.map((rootSiteId) => where(
+      fn(
+        'JSON_CONTAINS',
+        fn(
+          'JSON_EXTRACT',
+          fn('COALESCE', col('location_hierarchy'), literal('JSON_OBJECT()')),
+          literal("'$.siteIds'")
+        ),
+        fn('JSON_ARRAY', rootSiteId)
+      ),
+      1
+    )),
+  } as WhereOptions;
+}
 
-  const expandedSiteIds = new Set<number>(normalizedRootSiteIds);
-  let frontier = [...normalizedRootSiteIds];
+// Literal subquery that yields the id set of the subtree rooted at rootSiteId.
+// Use with `{ [Op.in]: siteIdInSubtreeOfLiteral(siteId) }` on non-Site tables
+// (Session, SessionConflictResolution, ReviewActionLog, etc.) to avoid pre-expanding.
+export function siteIdInSubtreeOfLiteral(rootSiteId: number) {
+  const id = Number(rootSiteId);
+  return literal(
+    `(SELECT id FROM sites WHERE JSON_CONTAINS(JSON_EXTRACT(COALESCE(location_hierarchy, JSON_OBJECT()), '$.siteIds'), JSON_ARRAY(${id})))`
+  );
+}
 
-  while (frontier.length > 0) {
-    const childSites = await Site.findAll({
-      where: { parentId: { [Op.in]: frontier } },
-      attributes: ['id'],
-    });
-    const childSiteIds = childSites.map((site) => site.id);
-    const nextFrontier: number[] = [];
+// Expand an array of accessible root site ids into the flat list of every site in their
+// subtrees, using the JSON-encoded location_hierarchy.siteIds field. Use ONLY for the
+// caller's site-access list; requested siteId/siteIds filters should use
+// buildSiteSubtreeWhere or siteIdInSubtreeOfLiteral directly in the query.
+export async function expandSiteIdsWithDescendants(accessibleSiteIds: number[]): Promise<number[]> {
+  const normalizedRootSiteIds = normalizeSiteIds(accessibleSiteIds);
+  if (normalizedRootSiteIds.length === 0) return [];
 
-    for (const childSiteId of childSiteIds) {
-      if (!expandedSiteIds.has(childSiteId)) {
-        expandedSiteIds.add(childSiteId);
-        nextFrontier.push(childSiteId);
-      }
-    }
+  const subtreeWhere = buildSiteSubtreeWhere(normalizedRootSiteIds);
+  if (!subtreeWhere) return [];
 
-    frontier = nextFrontier;
-  }
-
-  if (!includeHasDataOnly) {
-    return Array.from(expandedSiteIds);
-  }
-
-  const expandedSites = await Site.findAll({
-    where: { id: { [Op.in]: Array.from(expandedSiteIds) } },
-    attributes: ['id', 'hasData'],
+  const matchingSites = await Site.findAll({
+    where: subtreeWhere,
+    attributes: ['id'],
   });
 
-  const idsWithData = new Set(
-    expandedSites
-      .filter((site) => site.hasData)
-      .map((site) => site.id)
-  );
-
-  if (preserveRootSiteIds) {
-    for (const rootSiteId of normalizedRootSiteIds) {
-      idsWithData.add(rootSiteId);
-    }
-  }
-
-  return Array.from(idsWithData);
+  const expanded = new Set<number>(normalizedRootSiteIds);
+  for (const site of matchingSites) expanded.add(site.id);
+  return Array.from(expanded);
 }
 
 // Check if site exists by ID

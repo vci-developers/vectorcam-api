@@ -2,7 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { Op, QueryTypes } from 'sequelize';
 import sequelize from '../../db/index';
 import { Site } from '../../db/models';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
 
 interface QueryParams {
   startDate?: string;
@@ -57,11 +57,6 @@ function monthBoundsFromKey(monthStartKey: string): { from: Date; to: Date } {
   const from = new Date(`${monthStartKey}T00:00:00.000Z`);
   const to = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + 1, 0, 23, 59, 59, 999));
   return { from, to };
-}
-
-function intersectIds(first: number[], second: number[]): number[] {
-  const secondSet = new Set(second);
-  return first.filter((id) => secondSet.has(id));
 }
 
 function getMonthKeysBetween(startDate: Date, endDate: Date): string[] {
@@ -140,16 +135,7 @@ export async function getSpecimenMonthlySummary(
 
     const requestedDistricts = parseCommaSeparated(districts);
     const requestedSiteIds = parseSiteIds(siteIds);
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? [], {
-      includeHasDataOnly: false,
-    });
-
-    let expandedRequestedSiteIds = requestedSiteIds;
-    if (requestedSiteIds.length > 0) {
-      expandedRequestedSiteIds = await expandSiteIdsWithDescendants(requestedSiteIds, {
-        includeHasDataOnly: false,
-      });
-    }
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
 
     const siteWhere: any = {
       hasData: true,
@@ -159,16 +145,17 @@ export async function getSpecimenMonthlySummary(
       siteWhere.district = { [Op.in]: requestedDistricts };
     }
 
-    if (expandedRequestedSiteIds.length > 0) {
-      siteWhere.id = { [Op.in]: expandedRequestedSiteIds };
+    // Requested siteIds: match any Site whose subtree covers one of the requested ids via
+    // the JSON siteIds field, without pre-expanding.
+    if (requestedSiteIds.length > 0) {
+      const subtreeFragment = buildSiteSubtreeWhere(requestedSiteIds);
+      if (subtreeFragment) {
+        siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), subtreeFragment];
+      }
     }
 
     if (accessibleSiteIds.length > 0) {
-      if (siteWhere.id?.[Op.in]) {
-        siteWhere.id = { [Op.in]: intersectIds(siteWhere.id[Op.in], accessibleSiteIds) };
-      } else {
-        siteWhere.id = { [Op.in]: accessibleSiteIds };
-      }
+      siteWhere.id = { [Op.in]: accessibleSiteIds };
     }
 
     const sites = await Site.findAll({
