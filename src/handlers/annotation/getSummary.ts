@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { QueryTypes } from 'sequelize';
 import sequelize from '../../db/index';
+import { expandSiteIdsWithDescendants } from '../site/common';
 
 interface GetAnnotationSummaryQuery {
   district?: string;
@@ -186,7 +187,7 @@ export default async function getAnnotationSummary(
     }
 
     const whereClauses: string[] = [];
-    const replacements: Record<string, string | number | Date> = {};
+    const replacements: Record<string, string | number | Date | number[]> = {};
 
     if (startDate) {
       replacements.startDate = new Date(startDate);
@@ -198,13 +199,33 @@ export default async function getAnnotationSummary(
       replacements.endDate = endDateTime;
       whereClauses.push('a.created_at <= :endDate');
     }
+    whereClauses.push('s.has_data = 1');
+
     if (district) {
       replacements.district = district;
       whereClauses.push('s.district = :district');
     }
     if (siteId) {
-      replacements.siteId = siteId;
-      whereClauses.push('s.id = :siteId');
+      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
+
+      if (expandedSiteIds.length === 0) {
+        return reply.code(200).send({
+          total: 0,
+          statusCounts: {
+            PENDING: 0,
+            ANNOTATED: 0,
+            FLAGGED: 0,
+          },
+          confusionMatrices: {
+            species: { columns: [], data: [] },
+            sex: { columns: [], data: [] },
+            abdomenStatus: { columns: [], data: [] },
+          },
+        });
+      }
+
+      replacements.siteIds = expandedSiteIds;
+      whereClauses.push('s.id IN (:siteIds)');
     }
 
     const whereSql = whereClauses.length > 0 ? `AND ${whereClauses.join(' AND ')}` : '';

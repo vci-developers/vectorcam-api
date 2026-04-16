@@ -3,6 +3,7 @@ import { Session, Site } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
+import { expandSiteIdsWithDescendants } from '../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -119,12 +120,9 @@ export async function getSessionList(
     
     // Apply site access restrictions first
     const siteAccess = request.siteAccess;
-    let accessibleSiteIds: number[] = [];
-    
-    if (siteAccess && siteAccess.userSites.length > 0) {
-      // User has limited site access
-      accessibleSiteIds = siteAccess.userSites;
-    }
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
+      includeHasDataOnly: false,
+    });
     
     // If programId or district filter is provided, find matching sites
     if (programId || district) {
@@ -137,6 +135,7 @@ export async function getSessionList(
       if (district) {
         siteWhere.district = district;
       }
+      siteWhere.hasData = true;
       
       // If user has limited access, intersect with their accessible sites
       if (accessibleSiteIds.length > 0) {
@@ -163,17 +162,19 @@ export async function getSessionList(
     
     // If user provides a specific siteId filter, apply it (but only if they have access)
     if (siteId) {
+      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
+
       if (accessibleSiteIds.length > 0) {
-        // User has limited access - only allow if they have access to this site
-        if (accessibleSiteIds.includes(siteId)) {
-          whereClause.siteId = siteId;
+        const accessibleSiteIdSet = new Set(accessibleSiteIds);
+        const allowedExpandedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIdSet.has(id));
+
+        if (allowedExpandedSiteIds.length > 0) {
+          whereClause.siteId = { [Op.in]: allowedExpandedSiteIds };
         } else {
-          // User doesn't have access to this site - return empty result
-          whereClause.siteId = -1; // This will return no results
+          whereClause.siteId = -1;
         }
       } else {
-        // User has full access or admin/mobile token
-        whereClause.siteId = siteId;
+        whereClause.siteId = { [Op.in]: expandedSiteIds };
       }
     }
     if (deviceId) {

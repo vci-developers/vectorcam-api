@@ -8,7 +8,7 @@
     "start": "NODE_ENV=production node dist/server.js",
     "dev": "NODE_ENV=development ts-node-dev --respawn src/server.ts",
     "dev:test": "NODE_ENV=test ts-node-dev --respawn src/server.ts",
-    "test": "NODE_ENV=test jest",
+    "test": "NODE_OPTIONS=--require=./src/test/polyfills.cjs NODE_ENV=test jest",
     "lint": "eslint src/**/*.ts",
     "start:dev": "NODE_ENV=development node dist/server.js",
     "start:test": "NODE_ENV=test node dist/server.js",
@@ -48,6 +48,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250620.0",
+    "@types/jest": "^30.0.0",
     "@types/mysql": "^2.15.24",
     "@types/node": "^20.10.0",
     "@types/uuid": "^10.0.0",

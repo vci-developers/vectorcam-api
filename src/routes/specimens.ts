@@ -3,6 +3,7 @@ import {
   createSpecimen,
   getSpecimenList,
   getSpecimenCount,
+  getSpecimenMonthlySummary,
   getSpecimenDetails,
   updateSpecimen,
   deleteSpecimen,
@@ -25,6 +26,7 @@ import { schema as completeUploadSchema } from '../handlers/specimen/upload/comp
 import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get'
 import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getCountSchema } from '../handlers/specimen/getCount'
+import { schema as getMonthlySummarySchema } from '../handlers/specimen/getMonthlySummary'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
 import { schema as putImageSchema } from '../handlers/specimen/images/putImage';
@@ -65,6 +67,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSiteReadAccess],
     schema: getCountSchema
   }, getSpecimenCount as any);
+
+  // Get monthly specimen summary grouped by species/sex/abdomen status (requires read access)
+  fastify.get('/count/monthly', {
+    preHandler: [requireSiteReadAccess],
+    schema: getMonthlySummarySchema,
+  }, getSpecimenMonthlySummary as any);
 
   // Create a new specimen (requires write access, session validation in handler)
   fastify.post('/', {

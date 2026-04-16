@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { FormAnswer, Form, FormQuestion, Session, Site, Program } from '../../../db/models';
 import { handleError } from '../common';
+import { expandSiteIdsWithDescendants } from '../../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -87,11 +88,13 @@ export async function exportFormAnswersCSV(
 
     const siteWhere: any = {};
     if (siteId) {
-      siteWhere.id = parseInt(siteId, 10);
+      const expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
+      siteWhere.id = expandedSiteIds.length > 0 ? { [Op.in]: expandedSiteIds } : -1;
     }
     if (district) {
       siteWhere.district = district;
     }
+    siteWhere.hasData = true;
 
     const answers = await FormAnswer.findAll({
       where,

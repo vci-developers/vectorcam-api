@@ -21,6 +21,11 @@ export interface SiteResponse {
   locationHierarchy?: Record<string, string>;
 }
 
+interface ExpandSiteIdsOptions {
+  includeHasDataOnly?: boolean;
+  preserveRootSiteIds?: boolean;
+}
+
 const locationTypeNameCache = new Map<number, string>();
 
 async function getLocationTypeName(locationTypeId?: number | null): Promise<string | null> {
@@ -164,6 +169,70 @@ export async function rebuildLocationHierarchyForLocationType(locationTypeId: nu
   for (const site of sites) {
     await rebuildLocationHierarchy(site);
   }
+}
+
+function normalizeSiteIds(siteIds: number[]): number[] {
+  return Array.from(
+    new Set(
+      siteIds.filter((siteId) => Number.isInteger(siteId) && siteId > 0)
+    )
+  );
+}
+
+export async function expandSiteIdsWithDescendants(
+  siteIds: number[],
+  options: ExpandSiteIdsOptions = {}
+): Promise<number[]> {
+  const { includeHasDataOnly = true, preserveRootSiteIds = true } = options;
+  const normalizedRootSiteIds = normalizeSiteIds(siteIds);
+
+  if (normalizedRootSiteIds.length === 0) {
+    return [];
+  }
+
+  const expandedSiteIds = new Set<number>(normalizedRootSiteIds);
+  let frontier = [...normalizedRootSiteIds];
+
+  while (frontier.length > 0) {
+    const childSites = await Site.findAll({
+      where: { parentId: { [Op.in]: frontier } },
+      attributes: ['id'],
+    });
+    const childSiteIds = childSites.map((site) => site.id);
+    const nextFrontier: number[] = [];
+
+    for (const childSiteId of childSiteIds) {
+      if (!expandedSiteIds.has(childSiteId)) {
+        expandedSiteIds.add(childSiteId);
+        nextFrontier.push(childSiteId);
+      }
+    }
+
+    frontier = nextFrontier;
+  }
+
+  if (!includeHasDataOnly) {
+    return Array.from(expandedSiteIds);
+  }
+
+  const expandedSites = await Site.findAll({
+    where: { id: { [Op.in]: Array.from(expandedSiteIds) } },
+    attributes: ['id', 'hasData'],
+  });
+
+  const idsWithData = new Set(
+    expandedSites
+      .filter((site) => site.hasData)
+      .map((site) => site.id)
+  );
+
+  if (preserveRootSiteIds) {
+    for (const rootSiteId of normalizedRootSiteIds) {
+      idsWithData.add(rootSiteId);
+    }
+  }
+
+  return Array.from(idsWithData);
 }
 
 // Check if site exists by ID

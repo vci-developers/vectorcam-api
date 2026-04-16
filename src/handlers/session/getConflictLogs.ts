@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { SessionConflictResolution } from '../../db/models';
 import sequelize from '../../db/index';
 import { Op } from 'sequelize';
+import { expandSiteIdsWithDescendants } from '../site/common';
 
 interface GetConflictLogsQuery {
   siteId?: string;
@@ -94,27 +95,34 @@ export async function getConflictLogs(
 
     // Check site access and filter by user's sites if necessary
     const siteAccess = request.siteAccess;
-    if (siteAccess && siteAccess.userSites.length > 0) {
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
+      includeHasDataOnly: false,
+    });
+
+    if (accessibleSiteIds.length > 0) {
       // User has limited site access - only show logs for their sites
       if (siteId) {
         const requestedSiteId = parseInt(siteId, 10);
-        // Verify user has access to the requested site
-        if (!siteAccess.userSites.includes(requestedSiteId)) {
+        const expandedSiteIds = await expandSiteIdsWithDescendants([requestedSiteId]);
+        const allowedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIds.includes(id));
+
+        if (allowedSiteIds.length === 0) {
           return reply.code(403).send({
             error: 'Forbidden: You do not have access to logs for this site',
           });
         }
-        where.siteId = requestedSiteId;
+        where.siteId = { [Op.in]: allowedSiteIds };
       } else {
         // No specific site requested - filter to only user's sites
         where.siteId = {
-          [Op.in]: siteAccess.userSites,
+          [Op.in]: accessibleSiteIds,
         };
       }
     } else {
       // User has access to all sites (admin/super admin)
       if (siteId) {
-        where.siteId = parseInt(siteId, 10);
+        const expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
+        where.siteId = { [Op.in]: expandedSiteIds };
       }
     }
 

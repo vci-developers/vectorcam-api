@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { ReviewActionLog } from '../../db/models';
+import { expandSiteIdsWithDescendants } from '../site/common';
 
 interface GetReviewActionLogsQuery {
   siteId?: number;
@@ -91,18 +92,25 @@ export async function getReviewActionLogs(
 
     const whereClause: Record<string, unknown> = {};
     const siteAccess = request.siteAccess;
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
+      includeHasDataOnly: false,
+    });
 
-    if (siteAccess && siteAccess.userSites.length > 0) {
+    if (accessibleSiteIds.length > 0) {
       if (siteId !== undefined) {
-        if (!siteAccess.userSites.includes(siteId)) {
+        const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
+        const allowedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIds.includes(id));
+
+        if (allowedSiteIds.length === 0) {
           return reply.code(403).send({ error: 'Forbidden: You do not have access to logs for this site' });
         }
-        whereClause.siteId = siteId;
+        whereClause.siteId = { [Op.in]: allowedSiteIds };
       } else {
-        whereClause.siteId = { [Op.in]: siteAccess.userSites };
+        whereClause.siteId = { [Op.in]: accessibleSiteIds };
       }
     } else if (siteId !== undefined) {
-      whereClause.siteId = siteId;
+      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
+      whereClause.siteId = { [Op.in]: expandedSiteIds };
     }
 
     if (month !== undefined) {

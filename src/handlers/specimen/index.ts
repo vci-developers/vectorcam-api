@@ -3,6 +3,7 @@ import { getSpecimenDetails } from './get';
 import { updateSpecimen } from './put';
 import { getSpecimenList } from './getList';
 import { getSpecimenCount } from './getCount';
+import { getSpecimenMonthlySummary } from './getMonthlySummary';
 import { deleteSpecimen } from './delete';
 import { exportSpecimensCSV } from './export';
 
@@ -15,6 +16,7 @@ export {
   updateSpecimen,
   getSpecimenList,
   getSpecimenCount,
+  getSpecimenMonthlySummary,
   deleteSpecimen,
   exportSpecimensCSV,
 

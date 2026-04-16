@@ -12,6 +12,7 @@ import {
   Program
 } from '../../db/models';
 import { config } from '../../config/environment';
+import { expandSiteIdsWithDescendants } from '../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -131,10 +132,16 @@ export async function exportAnnotationsCSV(
       where.status = status;
     }
 
-    const siteWhere = siteId || district ? {
-      ...(siteId && { id: parseInt(siteId, 10) }),
-      ...(district && { district })
-    } : undefined;
+    let expandedSiteIds: number[] = [];
+    if (siteId) {
+      expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
+    }
+
+    const siteWhere = {
+      ...(siteId && { id: expandedSiteIds.length > 0 ? { [Op.in]: expandedSiteIds } : -1 }),
+      ...(district && { district }),
+      hasData: true,
+    };
     const requiresSessionSiteJoin = !!(programId || siteId || district);
 
     // Fetch annotations with all related data
@@ -178,7 +185,7 @@ export async function exportAnnotationsCSV(
                   model: Site,
                   as: 'site',
                   required: requiresSessionSiteJoin,
-                  where: siteWhere,
+                  where: requiresSessionSiteJoin ? siteWhere : undefined,
                   include: [
                     {
                       model: Program,

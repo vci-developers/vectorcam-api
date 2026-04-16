@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session, Site, SpecimenImage } from '../../db/models';
 import { formatSpecimenResponse } from './common';
 import { Op, Order } from 'sequelize';
+import { expandSiteIdsWithDescendants } from '../site/common';
 
 export const schema = {
   tags: ['Specimens'],
@@ -212,16 +213,14 @@ export async function getSpecimenList(
 
     // Build site restrictions based on user access
     const siteWhere: any = {};
-    let accessibleSiteIds: number[] = [];
-    
-    if (siteAccess && siteAccess.userSites.length > 0) {
-      // User has limited site access
-      accessibleSiteIds = siteAccess.userSites;
-    }
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? [], {
+      includeHasDataOnly: false,
+    });
     
     // If district filter is provided, find sites in that district
     if (district) {
       const districtSiteWhere: any = { district };
+      districtSiteWhere.hasData = true;
       
       // If user has limited access, intersect with their accessible sites
       if (accessibleSiteIds.length > 0) {
@@ -248,17 +247,19 @@ export async function getSpecimenList(
 
     // Add user-provided filters
     if (siteId) {
+      const expandedSiteIds = await expandSiteIdsWithDescendants([siteId]);
+
       if (accessibleSiteIds.length > 0) {
-        // User has limited access - only allow if they have access to this site
-        if (accessibleSiteIds.includes(siteId)) {
-          siteWhere.id = siteId;
+        const accessibleSiteIdSet = new Set(accessibleSiteIds);
+        const allowedExpandedSiteIds = expandedSiteIds.filter((id) => accessibleSiteIdSet.has(id));
+
+        if (allowedExpandedSiteIds.length > 0) {
+          siteWhere.id = { [Op.in]: allowedExpandedSiteIds };
         } else {
-          // User doesn't have access to this site - return empty result
-          siteWhere.id = -1; // This will return no results
+          siteWhere.id = -1;
         }
       } else {
-        // User has full access or admin/mobile token
-        siteWhere.id = siteId;
+        siteWhere.id = { [Op.in]: expandedSiteIds };
       }
     }
 

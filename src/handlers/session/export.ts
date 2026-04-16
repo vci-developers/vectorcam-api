@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { handleError } from './common';
 import { Site, Device, Session, Program } from '../../db/models';
-import { formatSiteResponse } from '../site/common';
+import { formatSiteResponse, expandSiteIdsWithDescendants } from '../site/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -94,17 +94,21 @@ export async function exportSessionsCSV(
 
     // Add siteId filter if provided
     if (siteId) {
-      where.siteId = parseInt(siteId);
+      const expandedSiteIds = await expandSiteIdsWithDescendants([parseInt(siteId, 10)]);
+      where.siteId = { [Op.in]: expandedSiteIds };
     }
 
-    const siteWhere = district ? { district } : undefined;
+    const siteWhere = {
+      ...(district && { district }),
+      hasData: true,
+    };
 
     // Build include conditions with nested filtering
     const includeConditions = [
       { 
         model: Site, 
         as: 'site',
-        where: siteWhere,
+        where: Object.keys(siteWhere).length > 0 ? siteWhere : undefined,
         include: [
           {
             model: Program,
