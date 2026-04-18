@@ -81,6 +81,51 @@ describe('getSpecimenMonthlySummary', () => {
     }));
   });
 
+  it('excludes non-mosquitoes from sex counts and males from abdomen status counts', async () => {
+    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([]);
+    (Site.findAll as jest.Mock).mockResolvedValue([{ id: 1 }]);
+    (sequelize.query as jest.Mock).mockResolvedValue([
+      // Non-mosquito: species counted, sex/abdomen N/A and excluded
+      { monthStart: '2026-01-01', species: 'Non-Mosquito', sex: null, abdomenStatus: null, count: 4 },
+      // Male mosquito: species + sex counted, abdomen N/A and excluded
+      { monthStart: '2026-01-01', species: 'Culex', sex: 'Male', abdomenStatus: null, count: 3 },
+      // Female mosquito: all three counted
+      { monthStart: '2026-01-01', species: 'Anopheles gambiae', sex: 'Female', abdomenStatus: 'Unfed', count: 2 },
+      // Mosquito with missing predictions: counted as UNKNOWN across the board
+      { monthStart: '2026-01-01', species: null, sex: null, abdomenStatus: null, count: 1 },
+    ]);
+
+    const request: any = {
+      query: { startDate: '2026-01-01', endDate: '2026-01-31' },
+      siteAccess: { canRead: true, userSites: [] },
+      log: { error: jest.fn() },
+    };
+    const reply = createReply();
+
+    await getSpecimenMonthlySummary(request, reply as any);
+
+    const payload = (reply.send as jest.Mock).mock.calls[0][0];
+    expect(payload.data).toHaveLength(1);
+    const bucket = payload.data[0];
+
+    expect(bucket.totalSpecimens).toBe(10);
+    expect(bucket.species).toEqual({
+      'Non-Mosquito': 4,
+      Culex: 3,
+      'Anopheles gambiae': 2,
+      UNKNOWN: 1,
+    });
+    expect(bucket.sex).toEqual({
+      Male: 3,
+      Female: 2,
+      UNKNOWN: 1,
+    });
+    expect(bucket.abdomenStatus).toEqual({
+      Unfed: 2,
+      UNKNOWN: 1,
+    });
+  });
+
   it('filters by accessibleSiteIds and the requested subtree via JSON siteIds', async () => {
     (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([10, 11]); // accessible user sites expansion
     (Site.findAll as jest.Mock).mockResolvedValue([{ id: 11 }]);

@@ -50,6 +50,13 @@ function normalizeLabel(value: string | null): string {
   return trimmed ? trimmed : 'UNKNOWN';
 }
 
+// Species/sex labels used to decide which fields are applicable for a specimen.
+// Non-mosquito specimens have no sex or abdomen status, and male mosquitoes
+// have no abdomen status. Their labels would otherwise pollute the
+// distributions as "UNKNOWN" even though those fields are N/A by definition.
+const NON_MOSQUITO_SPECIES = 'Non-Mosquito';
+const MALE_SEX = 'Male';
+
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -244,9 +251,16 @@ export async function getSpecimenMonthlySummary(
       const sexLabel = normalizeLabel(row.sex);
       const abdomenLabel = normalizeLabel(row.abdomenStatus);
 
+      const isNonMosquito = speciesLabel === NON_MOSQUITO_SPECIES;
+      const isMale = sexLabel === MALE_SEX;
+
       bucket.species[speciesLabel] = (bucket.species[speciesLabel] ?? 0) + count;
-      bucket.sex[sexLabel] = (bucket.sex[sexLabel] ?? 0) + count;
-      bucket.abdomenStatus[abdomenLabel] = (bucket.abdomenStatus[abdomenLabel] ?? 0) + count;
+      if (!isNonMosquito) {
+        bucket.sex[sexLabel] = (bucket.sex[sexLabel] ?? 0) + count;
+      }
+      if (!isNonMosquito && !isMale) {
+        bucket.abdomenStatus[abdomenLabel] = (bucket.abdomenStatus[abdomenLabel] ?? 0) + count;
+      }
       bucket.totalSpecimens += count;
     }
 
