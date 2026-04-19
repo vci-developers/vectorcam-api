@@ -47,12 +47,16 @@ export const getPermissionsSchema: any = {
                     properties: {
                       siteId: { type: 'number' },
                       programId: { type: 'number' },
+                      name: { type: 'string', nullable: true },
+                      locationTypeId: { type: 'number' },
+                      parentId: { type: 'number' },
                       district: { type: 'string', nullable: true },
                       subCounty: { type: 'string', nullable: true },
                       parish: { type: 'string', nullable: true },
                       villageName: { type: 'string', nullable: true },
                       houseNumber: { type: 'string' },
                       isActive: { type: 'boolean' },
+                      hasData: { type: 'boolean' },
                       healthCenter: { type: 'string', nullable: true },
                       locationHierarchy: {
                         type: 'object',
