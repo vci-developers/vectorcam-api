@@ -13,6 +13,7 @@ import {
   SurveillanceForm,
 } from '../../db/models';
 import { handleError } from './common';
+import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
 
 interface ReportQuery {
   startDate?: string;
@@ -255,14 +256,7 @@ export async function exportSessionReport(
 
     const requestedDistricts = parseCommaSeparated(districts);
     const requestedSiteIds = parseSiteIds(siteIds);
-    const accessibleSiteIds = siteAccess.userSites.length > 0 ? siteAccess.userSites : null;
-
-    let filteredSiteIds = requestedSiteIds;
-    if (accessibleSiteIds) {
-      filteredSiteIds = filteredSiteIds.length > 0
-        ? filteredSiteIds.filter((id) => accessibleSiteIds.includes(id))
-        : accessibleSiteIds;
-    }
+    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
 
     const siteWhere: any = {};
     if (requestedDistricts.length > 0) {
@@ -272,8 +266,18 @@ export async function exportSessionReport(
       siteWhere.programId = parsedProgramId;
     }
 
-    if (filteredSiteIds.length > 0) {
-      siteWhere.id = { [Op.in]: filteredSiteIds };
+    if (accessibleSiteIds.length > 0) {
+      siteWhere.id = { [Op.in]: accessibleSiteIds };
+    }
+
+    if (requestedSiteIds.length > 0) {
+      const subtreeWhere = buildSiteSubtreeWhere(requestedSiteIds);
+      if (subtreeWhere) {
+        siteWhere[Op.and] = [
+          ...(siteWhere[Op.and] ?? []),
+          subtreeWhere,
+        ];
+      }
     }
 
     const filteredSites = await Site.findAll({
@@ -294,7 +298,7 @@ export async function exportSessionReport(
       ]);
     }
 
-    filteredSiteIds = filteredSites.map((site) => site.id);
+    const filteredSiteIds = filteredSites.map((site) => site.id);
 
     const sessionWhere: any = {
       type: 'SURVEILLANCE',
