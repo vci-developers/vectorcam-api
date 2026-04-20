@@ -426,14 +426,31 @@ export async function exportSessionReport(
           version: { [Op.ne]: '' },
         },
         attributes: ['id', 'programId', 'version'],
+        order: [['programId', 'ASC'], ['createdAt', 'DESC'], ['id', 'DESC']],
       })
       : [];
 
     const formIdByProgram = new Map<number, number>();
+    const latestFormIdByProgram = new Map<number, number>();
+    for (const form of forms) {
+      if (!latestFormIdByProgram.has(form.programId)) {
+        latestFormIdByProgram.set(form.programId, form.id);
+      }
+    }
+
     for (const form of forms) {
       const targetVersion = programVersionMap.get(form.programId);
       if (targetVersion && form.version === targetVersion) {
         formIdByProgram.set(form.programId, form.id);
+      }
+    }
+
+    // If a program has no selected version, fall back to the latest published form.
+    for (const programId of involvedProgramIds) {
+      if (formIdByProgram.has(programId)) continue;
+      const latestFormId = latestFormIdByProgram.get(programId);
+      if (latestFormId) {
+        formIdByProgram.set(programId, latestFormId);
       }
     }
 
@@ -498,9 +515,15 @@ export async function exportSessionReport(
     }
 
     const sessionColumns = SESSION_FIELD_LABELS.map((item) => item.label);
+    const includeSurveillanceColumns = sessions.some((session) => {
+      const site = session.get('site') as Site | undefined;
+      const program = site?.get('program') as Program | undefined;
+      if (!program) return true;
+      return !formIdByProgram.has(program.id);
+    });
     const formColumns = Array.from(
       new Set([
-        ...SURVEILLANCE_FIELD_LABELS.map((item) => item.label),
+        ...(includeSurveillanceColumns ? SURVEILLANCE_FIELD_LABELS.map((item) => item.label) : []),
         ...dynamicQuestionLabels,
       ])
     );
