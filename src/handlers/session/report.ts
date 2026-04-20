@@ -167,6 +167,17 @@ function normalizeFormAnswerValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function hasLegacyLocationDetails(site: Site): boolean {
+  const values = [
+    site.district,
+    site.subCounty,
+    site.parish,
+    site.villageName,
+    site.houseNumber,
+  ];
+  return values.some((value) => typeof value === 'string' && value.trim().length > 0);
+}
+
 function getLocationHierarchyMap(site: Site): Record<string, string> {
   const rawHierarchy = site.locationHierarchy;
   if (!rawHierarchy || typeof rawHierarchy !== 'object' || Array.isArray(rawHierarchy)) return {};
@@ -299,10 +310,37 @@ export async function exportSessionReport(
     }
 
     const filteredSiteIds = filteredSites.map((site) => site.id);
+    const childSiteRows = await Site.findAll({
+      where: { parentId: { [Op.in]: filteredSiteIds } },
+      attributes: ['parentId'],
+      raw: true,
+    }) as Array<{ parentId: number | null }>;
+    const parentIdsWithChildren = new Set(
+      childSiteRows
+        .map((row) => row.parentId)
+        .filter((parentId): parentId is number => typeof parentId === 'number')
+    );
+    const leafSites = filteredSites.filter((site) => !parentIdsWithChildren.has(site.id));
+
+    if (leafSites.length === 0) {
+      return await sendWorkbook(reply, [
+        {
+          name: 'Report',
+          rows: [['No report data found for provided filters.']],
+        },
+        {
+          name: 'Missing Data',
+          rows: [['No leaf sites found for provided filters.']],
+        },
+      ]);
+    }
+
+    const leafSiteIds = leafSites.map((site) => site.id);
+    const includeLegacyLocationColumns = leafSites.some((site) => hasLegacyLocationDetails(site));
 
     const sessionWhere: any = {
       type: 'SURVEILLANCE',
-      siteId: { [Op.in]: filteredSiteIds },
+      siteId: { [Op.in]: leafSiteIds },
     };
 
     if (startDate || endDate) {
@@ -342,7 +380,7 @@ export async function exportSessionReport(
 
     const sessionIds = sessions.map((session) => session.id);
     const involvedProgramIds = Array.from(
-      new Set(filteredSites.map((site) => site.programId))
+      new Set(leafSites.map((site) => site.programId))
     );
 
     const locationTypes = involvedProgramIds.length > 0
@@ -362,7 +400,7 @@ export async function exportSessionReport(
       }
     }
 
-    for (const site of filteredSites) {
+    for (const site of leafSites) {
       const hierarchy = getLocationHierarchyMap(site);
       Object.keys(hierarchy).forEach((key) => {
         if (!seenLocationColumns.has(key)) {
@@ -516,11 +554,9 @@ export async function exportSessionReport(
     const headerRow = [
       'Site ID',
       ...locationHierarchyColumns,
-      'District',
-      'Sub County',
-      'Parish',
-      'Village Name',
-      'House Number',
+      ...(includeLegacyLocationColumns
+        ? ['District', 'Sub County', 'Parish', 'Village Name', 'House Number']
+        : []),
       ...householdColumns,
       ...finalSpecimenColumns,
       'Total Specimens',
@@ -542,13 +578,15 @@ export async function exportSessionReport(
           row.push(normalizeValue(hierarchy[hierarchyKey] ?? ''));
         }
 
-        row.push(
-          normalizeValue(site.district),
-          normalizeValue(site.subCounty),
-          normalizeValue(site.parish),
-          normalizeValue(site.villageName),
-          normalizeValue(site.houseNumber)
-        );
+        if (includeLegacyLocationColumns) {
+          row.push(
+            normalizeValue(site.district),
+            normalizeValue(site.subCounty),
+            normalizeValue(site.parish),
+            normalizeValue(site.villageName),
+            normalizeValue(site.houseNumber)
+          );
+        }
 
         for (const householdColumn of householdColumns) {
           const values = group.householdFieldValues.get(householdColumn) ?? new Set<string>();
@@ -623,11 +661,9 @@ export async function exportSessionReport(
     const missingHeaderRow = [
       'Site ID',
       ...locationHierarchyColumns,
-      'District',
-      'Sub County',
-      'Parish',
-      'Village Name',
-      'House Number',
+      ...(includeLegacyLocationColumns
+        ? ['District', 'Sub County', 'Parish', 'Village Name', 'House Number']
+        : []),
       'Actual Specimens',
       'Expected Specimens',
       'Comments',
@@ -646,7 +682,7 @@ export async function exportSessionReport(
         siteId: number;
         noSessions: boolean;
       }> = [];
-      for (const site of filteredSites) {
+      for (const site of leafSites) {
         const siteMonthKey = `${monthKey}|${site.id}`;
         const siteHasSessions = (sessionCountBySiteMonth.get(siteMonthKey) ?? 0) > 0;
         const hasEligibleSessions = (eligibleSessionCountBySiteMonth.get(siteMonthKey) ?? 0) > 0;
@@ -665,13 +701,15 @@ export async function exportSessionReport(
           missingRow.push(normalizeValue(hierarchy[hierarchyKey] ?? ''));
         }
 
-        missingRow.push(
-          normalizeValue(site.district),
-          normalizeValue(site.subCounty),
-          normalizeValue(site.parish),
-          normalizeValue(site.villageName),
-          normalizeValue(site.houseNumber)
-        );
+        if (includeLegacyLocationColumns) {
+          missingRow.push(
+            normalizeValue(site.district),
+            normalizeValue(site.subCounty),
+            normalizeValue(site.parish),
+            normalizeValue(site.villageName),
+            normalizeValue(site.houseNumber)
+          );
+        }
 
         if (noSessions) {
           missingRow.push('N.A.', 'N.A.', 'No sessions were conducted for this site');
@@ -704,7 +742,8 @@ export async function exportSessionReport(
     }
 
     const firstLocationColumn = 1;
-    const lastLocationColumn = 1 + locationHierarchyColumns.length + 5;
+    const locationDetailColumnCount = includeLegacyLocationColumns ? 5 : 0;
+    const lastLocationColumn = 1 + locationHierarchyColumns.length + locationDetailColumnCount;
     const firstSessionColumn = lastLocationColumn + 1;
     const lastSessionColumn = firstSessionColumn + sessionColumns.length - 1;
     const firstFormColumn = lastSessionColumn + 1;
@@ -712,7 +751,7 @@ export async function exportSessionReport(
     const firstSpecimenColumn = lastFormColumn + 1;
     const lastSpecimenColumn = firstSpecimenColumn + finalSpecimenColumns.length;
     const missingFirstLocationColumn = 1;
-    const missingLastLocationColumn = 1 + locationHierarchyColumns.length + 5;
+    const missingLastLocationColumn = 1 + locationHierarchyColumns.length + locationDetailColumnCount;
     const missingFirstSpecimenColumn = missingLastLocationColumn + 1;
     const missingLastSpecimenColumn = missingFirstSpecimenColumn + 2;
 
