@@ -40,6 +40,8 @@ interface GroupAccumulator {
   siteId: number;
   site: Site;
   householdFieldValues: Map<string, Set<string>>;
+  firstCollectionDate: Date | null;
+  lastSubmittedAt: Date | null;
 }
 
 interface HeaderColorRanges {
@@ -150,6 +152,11 @@ function monthKeyToDate(monthKey: string): Date | null {
 
 function formatDate(value: Date): string {
   return value.toISOString().slice(0, 10);
+}
+
+function formatTimestamp(value: Date | null | undefined): string {
+  if (!value) return '';
+  return value.toISOString().replace('T', ' ').slice(0, 19);
 }
 
 function normalizeValue(value: unknown): string {
@@ -543,10 +550,24 @@ export async function exportSessionReport(
           siteId: site.id,
           site,
           householdFieldValues: new Map<string, Set<string>>(),
+          firstCollectionDate: null,
+          lastSubmittedAt: null,
         });
       }
 
       const group = groupedByMonthAndSite.get(groupKey)!;
+
+      if (session.collectionDate) {
+        if (!group.firstCollectionDate || session.collectionDate < group.firstCollectionDate) {
+          group.firstCollectionDate = session.collectionDate;
+        }
+      }
+      if (session.submittedAt) {
+        if (!group.lastSubmittedAt || session.submittedAt > group.lastSubmittedAt) {
+          group.lastSubmittedAt = session.submittedAt;
+        }
+      }
+
       const householdValues = extractHouseholdValuesForSession(
         session,
         formIdByProgram,
@@ -580,6 +601,8 @@ export async function exportSessionReport(
       ...(includeLegacyLocationColumns
         ? ['District', 'Sub County', 'Parish', 'Village Name', 'House Number']
         : []),
+      'Collection Date',
+      'Submitted At',
       ...householdColumns,
       ...finalSpecimenColumns,
       'Total Specimens',
@@ -610,6 +633,11 @@ export async function exportSessionReport(
             normalizeValue(site.houseNumber)
           );
         }
+
+        row.push(
+          formatTimestamp(group.firstCollectionDate),
+          formatTimestamp(group.lastSubmittedAt)
+        );
 
         for (const householdColumn of householdColumns) {
           const values = group.householdFieldValues.get(householdColumn) ?? new Set<string>();
@@ -766,7 +794,8 @@ export async function exportSessionReport(
 
     const firstLocationColumn = 1;
     const locationDetailColumnCount = includeLegacyLocationColumns ? 5 : 0;
-    const lastLocationColumn = 1 + locationHierarchyColumns.length + locationDetailColumnCount;
+    const timestampColumnCount = 2;
+    const lastLocationColumn = 1 + locationHierarchyColumns.length + locationDetailColumnCount + timestampColumnCount;
     const firstSessionColumn = lastLocationColumn + 1;
     const lastSessionColumn = firstSessionColumn + sessionColumns.length - 1;
     const firstFormColumn = lastSessionColumn + 1;
