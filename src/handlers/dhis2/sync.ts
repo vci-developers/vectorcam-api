@@ -1,10 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { Op } from 'sequelize';
 import { dhis2Service } from '../../services/dhis2.service';
 import { dhis2AggregationService } from '../../services/dhis2-aggregation.service';
 import { dhis2MappingService } from '../../services/dhis2-mapping.service';
 import { config } from '../../config/environment';
 import { Dhis2SyncEvent, Site, Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
+import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
 
 export const schema = {
   tags: ['DHIS2'],
@@ -28,6 +30,10 @@ export const schema = {
       district: {
         type: 'string',
         description: 'District name to filter sites for sync (required)',
+      },
+      siteIds: {
+        type: 'string',
+        description: 'Optional comma-separated site IDs to further limit the sync scope. Each ID is expanded to include its descendant sites.',
       },
       dryRun: {
         type: 'boolean',
@@ -121,7 +127,20 @@ interface QueryParams {
     year: number;
     month: number;
     district: string;
+    siteIds?: string;
     dryRun?: boolean;
+}
+
+function parseSiteIdsParam(value?: string): number[] {
+    if (!value) return [];
+    return Array.from(new Set(
+        value
+            .split(',')
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0)
+            .map((entry) => Number(entry))
+            .filter((id) => Number.isInteger(id) && id > 0)
+    ));
 }
 
 interface IrsData {
@@ -183,8 +202,9 @@ export async function syncToDHIS2(
   reply: FastifyReply
 ) {
     try {
-        const { year, month, district, dryRun = false } = request.query;
+        const { year, month, district, siteIds: siteIdsParam, dryRun = false } = request.query;
         const { irsData = [] } = request.body || {};
+        const requestedSiteIds = parseSiteIdsParam(siteIdsParam);
 
         request.log.info(`Starting DHIS2 sync for ${year}-${month}${dryRun ? ' (dry run)' : ''}`);
 
@@ -219,21 +239,37 @@ export async function syncToDHIS2(
         // Determine allowed site IDs based on user role and district filter
         // - Admin token: unrestricted, sync all sites in the district
         // - User JWT (privilege >= 2): scoped to their program's sites within the district
+        // Optionally further narrowed to the subtree(s) rooted at requested siteIds.
         let allowedSiteIds: number[];
 
+        const siteWhere: any = { district };
+        if (requestedSiteIds.length > 0) {
+            const subtreeWhere = buildSiteSubtreeWhere(requestedSiteIds);
+            if (subtreeWhere) {
+                siteWhere[Op.and] = [subtreeWhere];
+            }
+        }
+
         const sitesInDistrict = await Site.findAll({
-            where: { district },
+            where: siteWhere,
             attributes: ['id'],
         });
 
         const districtSiteIds = sitesInDistrict.map(site => site.id);
 
+        if (requestedSiteIds.length > 0 && districtSiteIds.length === 0) {
+            return reply.code(400).send({
+                error: `No sites in district "${district}" match the provided siteIds filter.`,
+            });
+        }
+
         if (request.isAdminToken) {
             allowedSiteIds = districtSiteIds;
             request.log.info(`Admin token syncing ${allowedSiteIds.length} sites in district "${district}"`);
         } else {
-            // User JWT: intersect district sites with their program-scoped sites
-            allowedSiteIds = siteAccess.userSites.filter(siteId => districtSiteIds.includes(siteId));
+            // User JWT: intersect district sites with their program-scoped sites (expanded to subtrees)
+            const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
+            allowedSiteIds = districtSiteIds.filter((siteId) => accessibleSiteIds.includes(siteId));
 
             if (allowedSiteIds.length === 0) {
                 return reply.code(403).send({ 
