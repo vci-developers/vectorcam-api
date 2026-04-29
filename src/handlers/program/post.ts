@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import sequelize from '../../db/index';
 import { Program } from '../../db/models';
-import { formatProgramResponse } from './common';
+import { formatProgramResponse, generateUniqueProgramAccessCode } from './common';
 import { createDefaultFormForProgram } from './form/defaultForm';
 
 interface CreateProgramRequest {
@@ -30,6 +30,7 @@ export const schema = {
             programId: { type: 'number' },
             name: { type: 'string' },
             country: { type: 'string' },
+            accessCode: { type: 'string' },
           },
         },
       },
@@ -50,6 +51,7 @@ export async function createProgram(
       {
         name,
         country,
+        accessCode: await generateUniqueProgramAccessCode(transaction),
       },
       { transaction }
     );
@@ -60,7 +62,7 @@ export async function createProgram(
 
     return reply.code(200).send({
       message: 'Program created successfully',
-      program: formatProgramResponse(program),
+      program: formatProgramResponse(program, { includeAccessCode: true }),
     });
   } catch (error) {
     await transaction.rollback();

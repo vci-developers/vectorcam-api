@@ -3,3 +3,4 @@ export { getProgramDetails } from './get';
 export { updateProgram } from './put';
 export { deleteProgram } from './delete';
 export { getProgramList } from './getList'; 
+export { verifyProgramAccessCode } from './verifyAccessCode';

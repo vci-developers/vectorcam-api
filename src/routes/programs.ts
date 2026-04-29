@@ -3,7 +3,8 @@ import {
   createProgram,
   getProgramDetails,
   updateProgram,
-  deleteProgram
+  deleteProgram,
+  verifyProgramAccessCode
 } from '../handlers/program';
 import {
   getProgramForm,
@@ -23,6 +24,7 @@ import { schema as createSchema } from '../handlers/program/post';
 import { schema as getSchema } from '../handlers/program/get';
 import { schema as updateSchema } from '../handlers/program/put';
 import { schema as deleteSchema } from '../handlers/program/delete';
+import { schema as verifyAccessCodeSchema } from '../handlers/program/verifyAccessCode';
 import { schema as getListSchema } from '../handlers/program/getList';
 import { schema as getProgramFormListSchema } from '../handlers/program/form/getList';
 import { schema as getProgramFormSchema } from '../handlers/program/form/get';
@@ -50,6 +52,10 @@ export default async function programRoutes(fastify: FastifyInstance) {
   fastify.get('/', {
     schema: getListSchema,
   }, getProgramList as any);
+
+  fastify.post('/:program_id/verify-access-code', {
+    schema: verifyAccessCodeSchema,
+  }, verifyProgramAccessCode as any);
 
   fastify.post('/', {
     preHandler: [requireAdminAuth],

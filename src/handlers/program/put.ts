@@ -36,6 +36,7 @@ export const schema = {
             programId: { type: 'number' },
             name: { type: 'string' },
             country: { type: 'string' },
+            accessCode: { type: 'string' },
             formVersion: { type: ['string', 'null'] },
           },
         },
@@ -83,7 +84,7 @@ export async function updateProgram(
 
     return reply.code(200).send({
       message: 'Program updated successfully',
-      program: { ...formatProgramResponse(program), formVersion: program.formVersion },
+      program: { ...formatProgramResponse(program, { includeAccessCode: true }), formVersion: program.formVersion },
     });
   } catch (error) {
     request.log.error(error);

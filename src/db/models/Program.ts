@@ -8,6 +8,7 @@ class Program extends Model {
   declare id: number;
   declare name: string;
   declare country: string;
+  declare accessCode: string;
   declare formVersion: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -27,6 +28,12 @@ Program.init(
     country: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+    accessCode: {
+      type: DataTypes.STRING(8),
+      allowNull: false,
+      unique: true,
+      field: 'access_code',
     },
     formVersion: {
       type: DataTypes.STRING(64),
