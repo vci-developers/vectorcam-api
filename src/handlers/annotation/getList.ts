@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op, WhereOptions } from 'sequelize';
 import { Annotation, AnnotationTask, User, Specimen, Session, Site, SpecimenImage } from '../../db/models';
 import { formatAnnotationResponse } from './common';
+import { buildSiteSubtreeWhere } from '../site/common';
 
 interface GetAnnotationListQuery {
   page?: number;
@@ -9,6 +10,10 @@ interface GetAnnotationListQuery {
   taskId?: number;
   annotatorId?: number;
   status?: 'PENDING' | 'ANNOTATED' | 'FLAGGED';
+  startDate?: string;
+  endDate?: string;
+  district?: string;
+  siteId?: number;
 }
 
 interface GetAnnotationListRequest extends FastifyRequest {
@@ -26,7 +31,11 @@ export const schema = {
       limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
       taskId: { type: 'integer' },
       annotatorId: { type: 'integer' },
-      status: { type: 'string', enum: ['PENDING', 'ANNOTATED', 'FLAGGED'] }
+      status: { type: 'string', enum: ['PENDING', 'ANNOTATED', 'FLAGGED'] },
+      startDate: { type: 'string', format: 'date', description: 'Filter annotations created from this date (YYYY-MM-DD)' },
+      endDate: { type: 'string', format: 'date', description: 'Filter annotations created to this date (YYYY-MM-DD)' },
+      district: { type: 'string', description: 'Filter annotations by site district' },
+      siteId: { type: 'number', description: 'Filter annotations by site ID' }
     }
   },
   response: {
@@ -145,6 +154,10 @@ export const schema = {
         offset: { type: 'number' },
         hasMore: { type: 'boolean' }
       }
+    },
+    400: {
+      type: 'object',
+      properties: { error: { type: 'string' } }
     }
   }
 };
@@ -154,11 +167,12 @@ export default async function getAnnotationList(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { page = 1, limit = 20, taskId, annotatorId, status } = request.query;
+    const { page = 1, limit = 20, taskId, annotatorId, status, startDate, endDate, district, siteId } = request.query;
     const offset = (page - 1) * limit;
 
     // Build where conditions
-    const whereConditions: WhereOptions = {};
+    const whereConditions: any = {};
+    const siteWhere: any = { hasData: true };
 
     // If admin token: show all annotations
     // If superadmin user: only show annotations for their own tasks
@@ -210,8 +224,70 @@ export default async function getAnnotationList(
       whereConditions.status = status;
     }
 
+    if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      return reply.code(400).send({ error: 'Start date must be before or equal to end date' });
+    }
+
+    // Match the summary endpoint: date filters apply to annotation creation time.
+    if (startDate || endDate) {
+      whereConditions.createdAt = {};
+      if (startDate) {
+        whereConditions.createdAt[Op.gte] = new Date(startDate);
+      }
+      if (endDate) {
+        whereConditions.createdAt[Op.lte] = new Date(endDate + 'T23:59:59.999Z');
+      }
+    }
+
+    if (district) {
+      siteWhere.district = district;
+    }
+
+    if (siteId) {
+      const subtreeFragment = buildSiteSubtreeWhere([siteId]);
+      if (subtreeFragment) {
+        siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), subtreeFragment];
+      }
+    }
+
+    const annotationIncludes = [
+      {
+        model: AnnotationTask,
+        as: 'annotationTask'
+      },
+      {
+        model: User,
+        as: 'annotator'
+      },
+      {
+        model: Specimen,
+        as: 'specimen',
+        required: true,
+        include: [
+          {
+            model: SpecimenImage,
+            as: 'thumbnailImage',
+          },
+          {
+            model: Session,
+            as: 'session',
+            required: true,
+            include: [
+              {
+                model: Site,
+                as: 'site',
+                required: true,
+                where: siteWhere
+              }
+            ]
+          }
+        ]
+      }
+    ];
+
     const total = await Annotation.count({
       where: whereConditions,
+      include: annotationIncludes,
       distinct: true,
       col: 'id'
     });
@@ -219,36 +295,7 @@ export default async function getAnnotationList(
     // Fetch annotations with related data
     const annotations = await Annotation.findAll({
       where: whereConditions,
-      include: [
-        {
-          model: AnnotationTask,
-          as: 'annotationTask'
-        },
-        {
-          model: User,
-          as: 'annotator'
-        },
-        {
-          model: Specimen,
-          as: 'specimen',
-          include: [
-            {
-              model: SpecimenImage,
-              as: 'thumbnailImage',
-            },
-            {
-              model: Session,
-              as: 'session',
-              include: [
-                {
-                  model: Site,
-                  as: 'site'
-                }
-              ]
-            }
-          ]
-        }
-      ],
+      include: annotationIncludes,
       limit,
       offset,
       order: [['id', 'DESC']]
