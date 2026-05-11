@@ -20,14 +20,19 @@ interface SummaryRow {
   count: number | string;
 }
 
+type CountMap = Record<string, number>;
+type CountMapBySpecies = Record<string, CountMap>;
+
 interface MonthlyBucket {
   fromTimestamp: number;
   toTimestamp: number;
   from: string;
   to: string;
-  species: Record<string, number>;
-  sex: Record<string, number>;
-  abdomenStatus: Record<string, number>;
+  species: CountMap;
+  sex: CountMap;
+  abdomenStatus: CountMap;
+  sexBySpecies: CountMapBySpecies;
+  abdomenStatusBySpecies: CountMapBySpecies;
   totalSpecimens: number;
 }
 
@@ -48,6 +53,15 @@ function parseSiteIds(value?: string): number[] {
 function normalizeLabel(value: string | null): string {
   const trimmed = value?.trim();
   return trimmed ? trimmed : 'UNKNOWN';
+}
+
+function addCount(target: CountMap, label: string, count: number): void {
+  target[label] = (target[label] ?? 0) + count;
+}
+
+function addCountBySpecies(target: CountMapBySpecies, species: string, label: string, count: number): void {
+  target[species] = target[species] ?? {};
+  addCount(target[species], label, count);
 }
 
 // Species/sex labels used to decide which fields are applicable for a specimen.
@@ -113,6 +127,20 @@ export const schema = {
               species: { type: 'object', additionalProperties: { type: 'number' } },
               sex: { type: 'object', additionalProperties: { type: 'number' } },
               abdomenStatus: { type: 'object', additionalProperties: { type: 'number' } },
+              sexBySpecies: {
+                type: 'object',
+                additionalProperties: {
+                  type: 'object',
+                  additionalProperties: { type: 'number' },
+                },
+              },
+              abdomenStatusBySpecies: {
+                type: 'object',
+                additionalProperties: {
+                  type: 'object',
+                  additionalProperties: { type: 'number' },
+                },
+              },
               totalSpecimens: { type: 'number' },
             },
           },
@@ -241,6 +269,8 @@ export async function getSpecimenMonthlySummary(
           species: {},
           sex: {},
           abdomenStatus: {},
+          sexBySpecies: {},
+          abdomenStatusBySpecies: {},
           totalSpecimens: 0,
         });
       }
@@ -254,12 +284,14 @@ export async function getSpecimenMonthlySummary(
       const isNonMosquito = speciesLabel === NON_MOSQUITO_SPECIES;
       const isMale = sexLabel === MALE_SEX;
 
-      bucket.species[speciesLabel] = (bucket.species[speciesLabel] ?? 0) + count;
+      addCount(bucket.species, speciesLabel, count);
       if (!isNonMosquito) {
-        bucket.sex[sexLabel] = (bucket.sex[sexLabel] ?? 0) + count;
+        addCount(bucket.sex, sexLabel, count);
+        addCountBySpecies(bucket.sexBySpecies, speciesLabel, sexLabel, count);
       }
       if (!isNonMosquito && !isMale) {
-        bucket.abdomenStatus[abdomenLabel] = (bucket.abdomenStatus[abdomenLabel] ?? 0) + count;
+        addCount(bucket.abdomenStatus, abdomenLabel, count);
+        addCountBySpecies(bucket.abdomenStatusBySpecies, speciesLabel, abdomenLabel, count);
       }
       bucket.totalSpecimens += count;
     }
@@ -280,6 +312,8 @@ export async function getSpecimenMonthlySummary(
             species: {},
             sex: {},
             abdomenStatus: {},
+            sexBySpecies: {},
+            abdomenStatusBySpecies: {},
             totalSpecimens: 0,
           });
         }

@@ -73,11 +73,15 @@ describe('getSpecimenMonthlySummary', () => {
       to: '2026-01-31',
       totalSpecimens: 5,
       species: { 'Anopheles gambiae': 5 },
+      sexBySpecies: { 'Anopheles gambiae': { Female: 5 } },
+      abdomenStatusBySpecies: { 'Anopheles gambiae': { 'Fully Fed': 5 } },
     }));
     expect(payload.data[1]).toEqual(expect.objectContaining({
       from: '2026-02-01',
       to: '2026-02-28',
       totalSpecimens: 0,
+      sexBySpecies: {},
+      abdomenStatusBySpecies: {},
     }));
   });
 
@@ -123,6 +127,15 @@ describe('getSpecimenMonthlySummary', () => {
     expect(bucket.abdomenStatus).toEqual({
       Unfed: 2,
       UNKNOWN: 1,
+    });
+    expect(bucket.sexBySpecies).toEqual({
+      Culex: { Male: 3 },
+      'Anopheles gambiae': { Female: 2 },
+      UNKNOWN: { UNKNOWN: 1 },
+    });
+    expect(bucket.abdomenStatusBySpecies).toEqual({
+      'Anopheles gambiae': { Unfed: 2 },
+      UNKNOWN: { UNKNOWN: 1 },
     });
   });
 
