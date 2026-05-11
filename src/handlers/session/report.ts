@@ -25,6 +25,17 @@ interface ReportQuery {
 }
 
 type HouseholdValueMap = Map<string, string>;
+type HouseholdValueSetMap = Map<string, Set<string>>;
+
+interface HouseholdValues {
+  sessionValues: HouseholdValueMap;
+  formValues: HouseholdValueMap;
+}
+
+interface HouseholdValueSetGroups {
+  session: HouseholdValueSetMap;
+  form: HouseholdValueSetMap;
+}
 
 interface SpecimenCountRow {
   sessionId: number;
@@ -40,11 +51,12 @@ interface GroupAccumulator {
   monthKey: string;
   siteId: number;
   site: Site;
-  householdFieldValues: Map<string, Set<string>>;
+  sessionFieldValues: HouseholdValueSetMap;
+  formFieldValues: HouseholdValueSetMap;
   firstCollectionDate: Date | null;
   lastSubmittedAt: Date | null;
   specimenGroupKey: string;
-  hlcDiscrepancyGroupKey: string | null;
+  discrepancyGroupKey: string;
   sortDate: Date | null;
   sortId: number;
 }
@@ -250,6 +262,30 @@ function isHlcCollectionMethod(collectionMethod: string | null | undefined): boo
 function isAllowedHlcDifferenceColumn(column: string): boolean {
   const normalizedColumn = column.toLowerCase();
   return ALLOWED_HLC_DIFFERENCE_LABEL_PARTS.some((labelPart) => normalizedColumn.includes(labelPart));
+}
+
+function createHouseholdValueSetGroups(): HouseholdValueSetGroups {
+  return {
+    session: new Map<string, Set<string>>(),
+    form: new Map<string, Set<string>>(),
+  };
+}
+
+function getOrCreateHouseholdValueSetGroups(
+  groupsByKey: Map<string, HouseholdValueSetGroups>,
+  key: string
+): HouseholdValueSetGroups {
+  if (!groupsByKey.has(key)) {
+    groupsByKey.set(key, createHouseholdValueSetGroups());
+  }
+  return groupsByKey.get(key)!;
+}
+
+function addHouseholdValue(valuesByColumn: HouseholdValueSetMap, column: string, value: string): void {
+  if (!valuesByColumn.has(column)) {
+    valuesByColumn.set(column, new Set<string>());
+  }
+  valuesByColumn.get(column)!.add(value);
 }
 
 function getPeriodLabel(
@@ -571,18 +607,29 @@ export async function exportSessionReport(
         ...dynamicQuestionLabels,
       ])
     );
-    const householdColumns = [...sessionColumns, ...formColumns];
 
     const finalSpecimenColumns = Array.from(specimenColumns).sort((a, b) => a.localeCompare(b));
 
+    const methodTypesByHouseMonth = new Map<string, Set<'HLC' | 'OTHER'>>();
+    for (const session of sessions) {
+      const monthKey = toMonthKey(session.collectionDate);
+      const houseMonthGroupKey = getReportGroupKey(monthKey, session.siteId);
+      const isHlc = isHlcCollectionMethod(session.collectionMethod);
+      if (!methodTypesByHouseMonth.has(houseMonthGroupKey)) {
+        methodTypesByHouseMonth.set(houseMonthGroupKey, new Set<'HLC' | 'OTHER'>());
+      }
+      methodTypesByHouseMonth.get(houseMonthGroupKey)!.add(isHlc ? 'HLC' : 'OTHER');
+    }
+
     const groupedByMonthAndSite = new Map<string, GroupAccumulator>();
-    const hlcComparisonValuesByHouseMonth = new Map<string, Map<string, Set<string>>>();
+    const comparisonValuesByHouseMonth = new Map<string, HouseholdValueSetGroups>();
     for (const session of sessions) {
       const monthKey = toMonthKey(session.collectionDate);
       const site = session.get('site') as Site;
       const houseMonthGroupKey = getReportGroupKey(monthKey, site.id);
-      const isHlc = isHlcCollectionMethod(session.collectionMethod);
-      const reportGroupKey = isHlc
+      const methodTypes = methodTypesByHouseMonth.get(houseMonthGroupKey) ?? new Set<'HLC' | 'OTHER'>();
+      const isPureHlcHouseMonth = methodTypes.size === 1 && methodTypes.has('HLC');
+      const reportGroupKey = isPureHlcHouseMonth
         ? getHlcReportGroupKey(monthKey, site.id, session.id)
         : houseMonthGroupKey;
 
@@ -591,11 +638,12 @@ export async function exportSessionReport(
           monthKey,
           siteId: site.id,
           site,
-          householdFieldValues: new Map<string, Set<string>>(),
+          sessionFieldValues: new Map<string, Set<string>>(),
+          formFieldValues: new Map<string, Set<string>>(),
           firstCollectionDate: null,
           lastSubmittedAt: null,
           specimenGroupKey: reportGroupKey,
-          hlcDiscrepancyGroupKey: isHlc ? houseMonthGroupKey : null,
+          discrepancyGroupKey: houseMonthGroupKey,
           sortDate: session.collectionDate,
           sortId: session.id,
         });
@@ -620,35 +668,45 @@ export async function exportSessionReport(
         answerMapBySession
       );
 
-      for (const column of householdColumns) {
-        const value = householdValues.get(column) ?? '';
-        if (!group.householdFieldValues.has(column)) {
-          group.householdFieldValues.set(column, new Set<string>());
-        }
-        group.householdFieldValues.get(column)!.add(value);
+      const houseMonthValues = getOrCreateHouseholdValueSetGroups(
+        comparisonValuesByHouseMonth,
+        houseMonthGroupKey
+      );
 
-        if (isHlc) {
-          if (!hlcComparisonValuesByHouseMonth.has(houseMonthGroupKey)) {
-            hlcComparisonValuesByHouseMonth.set(houseMonthGroupKey, new Map<string, Set<string>>());
-          }
-          const houseMonthValues = hlcComparisonValuesByHouseMonth.get(houseMonthGroupKey)!;
-          if (!houseMonthValues.has(column)) {
-            houseMonthValues.set(column, new Set<string>());
-          }
-          houseMonthValues.get(column)!.add(value);
-        }
+      for (const column of sessionColumns) {
+        const value = householdValues.sessionValues.get(column) ?? '';
+        addHouseholdValue(group.sessionFieldValues, column, value);
+        addHouseholdValue(houseMonthValues.session, column, value);
+      }
+
+      for (const column of formColumns) {
+        const value = householdValues.formValues.get(column) ?? '';
+        addHouseholdValue(group.formFieldValues, column, value);
+        addHouseholdValue(houseMonthValues.form, column, value);
       }
     }
 
-    const hlcDiscrepancyColumnsByHouseMonth = new Map<string, Set<string>>();
-    for (const [houseMonthGroupKey, valuesByColumn] of hlcComparisonValuesByHouseMonth.entries()) {
-      const discrepantColumns = new Set<string>();
-      for (const [column, values] of valuesByColumn.entries()) {
-        if (!isAllowedHlcDifferenceColumn(column) && resolveDiscrepancy(values) === DISCREPANCY_VALUE) {
-          discrepantColumns.add(column);
+    const discrepancyColumnsByHouseMonth = new Map<string, HouseholdValueSetGroups>();
+    for (const [houseMonthGroupKey, valuesBySection] of comparisonValuesByHouseMonth.entries()) {
+      const methodTypes = methodTypesByHouseMonth.get(houseMonthGroupKey) ?? new Set<'HLC' | 'OTHER'>();
+      const allowHlcDifferences = methodTypes.size === 1 && methodTypes.has('HLC');
+      const discrepantColumns = createHouseholdValueSetGroups();
+
+      for (const [column, values] of valuesBySection.session.entries()) {
+        if (resolveDiscrepancy(values) === DISCREPANCY_VALUE) {
+          discrepantColumns.session.set(column, values);
         }
       }
-      hlcDiscrepancyColumnsByHouseMonth.set(houseMonthGroupKey, discrepantColumns);
+
+      for (const [column, values] of valuesBySection.form.entries()) {
+        if (
+          !(allowHlcDifferences && isAllowedHlcDifferenceColumn(column))
+          && resolveDiscrepancy(values) === DISCREPANCY_VALUE
+        ) {
+          discrepantColumns.form.set(column, values);
+        }
+      }
+      discrepancyColumnsByHouseMonth.set(houseMonthGroupKey, discrepantColumns);
     }
 
     const orderedGroups = Array.from(groupedByMonthAndSite.values()).sort((a, b) => {
@@ -677,7 +735,8 @@ export async function exportSessionReport(
         : []),
       'Collection Date',
       'Submitted At',
-      ...householdColumns,
+      ...sessionColumns,
+      ...formColumns,
       ...finalSpecimenColumns,
       'Total Specimens',
     ];
@@ -713,12 +772,16 @@ export async function exportSessionReport(
           formatTimestamp(group.lastSubmittedAt)
         );
 
-        for (const householdColumn of householdColumns) {
-          const values = group.householdFieldValues.get(householdColumn) ?? new Set<string>();
-          const hlcDiscrepancies = group.hlcDiscrepancyGroupKey
-            ? hlcDiscrepancyColumnsByHouseMonth.get(group.hlcDiscrepancyGroupKey)
-            : undefined;
-          row.push(hlcDiscrepancies?.has(householdColumn) ? DISCREPANCY_VALUE : resolveDiscrepancy(values));
+        for (const sessionColumn of sessionColumns) {
+          const values = group.sessionFieldValues.get(sessionColumn) ?? new Set<string>();
+          const discrepancies = discrepancyColumnsByHouseMonth.get(group.discrepancyGroupKey);
+          row.push(discrepancies?.session.has(sessionColumn) ? DISCREPANCY_VALUE : resolveDiscrepancy(values));
+        }
+
+        for (const formColumn of formColumns) {
+          const values = group.formFieldValues.get(formColumn) ?? new Set<string>();
+          const discrepancies = discrepancyColumnsByHouseMonth.get(group.discrepancyGroupKey);
+          row.push(discrepancies?.form.has(formColumn) ? DISCREPANCY_VALUE : resolveDiscrepancy(values));
         }
 
         const specimenCounts = specimenCountByReportGroup.get(group.specimenGroupKey) ?? new Map<string, number>();
@@ -974,12 +1037,13 @@ function extractHouseholdValuesForSession(
   session: Session,
   formIdByProgram: Map<number, number>,
   answerMapBySession: Map<number, HouseholdValueMap>
-): HouseholdValueMap {
-  const values = new Map<string, string>();
+): HouseholdValues {
+  const sessionValues = new Map<string, string>();
+  const formValues = new Map<string, string>();
 
   for (const field of SESSION_FIELD_LABELS) {
     const sessionValue = (session as any)[field.key];
-    values.set(field.label, normalizeValue(sessionValue));
+    sessionValues.set(field.label, normalizeValue(sessionValue));
   }
 
   const site = session.get('site') as Site | undefined;
@@ -989,17 +1053,17 @@ function extractHouseholdValuesForSession(
   if (selectedFormId) {
     const answerValues = answerMapBySession.get(session.id) ?? new Map<string, string>();
     for (const [label, value] of answerValues.entries()) {
-      values.set(label, normalizeValue(value));
+      formValues.set(label, normalizeValue(value));
     }
-    return values;
+    return { sessionValues, formValues };
   }
 
   const surveillanceForm = session.get('surveillanceForm') as SurveillanceForm | undefined;
   for (const field of SURVEILLANCE_FIELD_LABELS) {
     const formValue = surveillanceForm ? (surveillanceForm as any)[field.key] : '';
-    values.set(field.label, normalizeValue(formValue));
+    formValues.set(field.label, normalizeValue(formValue));
   }
-  return values;
+  return { sessionValues, formValues };
 }
 
 async function sendWorkbook(
