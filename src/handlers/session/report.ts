@@ -71,6 +71,7 @@ const ALLOWED_HLC_DIFFERENCE_LABEL_PARTS = [
   'wind',
   'rain',
   'relative humidity',
+  'temperature',
 ];
 
 const SESSION_FIELD_LABELS: Array<{ key: string; label: string }> = [
