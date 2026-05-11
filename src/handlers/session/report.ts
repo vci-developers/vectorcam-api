@@ -27,6 +27,7 @@ interface ReportQuery {
 type HouseholdValueMap = Map<string, string>;
 
 interface SpecimenCountRow {
+  sessionId: number;
   siteId: number;
   monthKey: string | null;
   species: string | null;
@@ -42,6 +43,10 @@ interface GroupAccumulator {
   householdFieldValues: Map<string, Set<string>>;
   firstCollectionDate: Date | null;
   lastSubmittedAt: Date | null;
+  specimenGroupKey: string;
+  hlcDiscrepancyGroupKey: string | null;
+  sortDate: Date | null;
+  sortId: number;
 }
 
 interface HeaderColorRanges {
@@ -59,6 +64,14 @@ interface WorkbookSheetSpec {
 }
 
 const DISCREPANCY_VALUE = 'DISCREPANCY';
+const ALLOWED_HLC_DIFFERENCE_LABEL_PARTS = [
+  'collection place',
+  'collection time',
+  'number of collectors',
+  'wind',
+  'rain',
+  'relative humidity',
+];
 
 const SESSION_FIELD_LABELS: Array<{ key: string; label: string }> = [
   { key: 'collectorName', label: 'Collector Name' },
@@ -219,6 +232,24 @@ function resolveDiscrepancy(values: Set<string>): string {
   if (values.size === 0) return '';
   if (values.size === 1) return values.values().next().value as string;
   return DISCREPANCY_VALUE;
+}
+
+function getReportGroupKey(monthKey: string, siteId: number): string {
+  return `${monthKey}|${siteId}`;
+}
+
+function getHlcReportGroupKey(monthKey: string, siteId: number, sessionId: number): string {
+  return `${getReportGroupKey(monthKey, siteId)}|session:${sessionId}`;
+}
+
+function isHlcHouse(site: Site): boolean {
+  const possibleHouseNames = [site.name, site.houseNumber];
+  return possibleHouseNames.some((value) => normalizeValue(value).toUpperCase().includes('HLC'));
+}
+
+function isAllowedHlcDifferenceColumn(column: string): boolean {
+  const normalizedColumn = column.toLowerCase();
+  return ALLOWED_HLC_DIFFERENCE_LABEL_PARTS.some((labelPart) => normalizedColumn.includes(labelPart));
 }
 
 function getPeriodLabel(
@@ -505,20 +536,26 @@ export async function exportSessionReport(
       values.set(question.label, normalizeFormAnswerValue(answer.value));
     }
 
-    const specimenCountRows = await getSpecimenCountsByMonthSite(sessionIds);
+    const specimenCountRows = await getSpecimenCountsBySession(sessionIds);
     const specimenColumns = new Set<string>();
-    const specimenCountByGroup = new Map<string, Map<string, number>>();
+    const specimenCountByReportGroup = new Map<string, Map<string, number>>();
     for (const row of specimenCountRows) {
       const monthKey = row.monthKey ?? 'NO_DATE';
-      const groupKey = `${monthKey}|${row.siteId}`;
       const columnName = createSpecimenColumnName(row.species, row.sex, row.abdomenStatus);
       specimenColumns.add(columnName);
 
-      if (!specimenCountByGroup.has(groupKey)) {
-        specimenCountByGroup.set(groupKey, new Map<string, number>());
+      const reportGroupKeys = [
+        getReportGroupKey(monthKey, row.siteId),
+        getHlcReportGroupKey(monthKey, row.siteId, row.sessionId),
+      ];
+
+      for (const groupKey of reportGroupKeys) {
+        if (!specimenCountByReportGroup.has(groupKey)) {
+          specimenCountByReportGroup.set(groupKey, new Map<string, number>());
+        }
+        const groupCounts = specimenCountByReportGroup.get(groupKey)!;
+        groupCounts.set(columnName, (groupCounts.get(columnName) ?? 0) + Number(row.count));
       }
-      const groupCounts = specimenCountByGroup.get(groupKey)!;
-      groupCounts.set(columnName, (groupCounts.get(columnName) ?? 0) + Number(row.count));
     }
 
     const sessionColumns = SESSION_FIELD_LABELS.map((item) => item.label);
@@ -539,23 +576,32 @@ export async function exportSessionReport(
     const finalSpecimenColumns = Array.from(specimenColumns).sort((a, b) => a.localeCompare(b));
 
     const groupedByMonthAndSite = new Map<string, GroupAccumulator>();
+    const hlcComparisonValuesByHouseMonth = new Map<string, Map<string, Set<string>>>();
     for (const session of sessions) {
       const monthKey = toMonthKey(session.collectionDate);
       const site = session.get('site') as Site;
-      const groupKey = `${monthKey}|${site.id}`;
+      const houseMonthGroupKey = getReportGroupKey(monthKey, site.id);
+      const isHlc = isHlcHouse(site);
+      const reportGroupKey = isHlc
+        ? getHlcReportGroupKey(monthKey, site.id, session.id)
+        : houseMonthGroupKey;
 
-      if (!groupedByMonthAndSite.has(groupKey)) {
-        groupedByMonthAndSite.set(groupKey, {
+      if (!groupedByMonthAndSite.has(reportGroupKey)) {
+        groupedByMonthAndSite.set(reportGroupKey, {
           monthKey,
           siteId: site.id,
           site,
           householdFieldValues: new Map<string, Set<string>>(),
           firstCollectionDate: null,
           lastSubmittedAt: null,
+          specimenGroupKey: reportGroupKey,
+          hlcDiscrepancyGroupKey: isHlc ? houseMonthGroupKey : null,
+          sortDate: session.collectionDate,
+          sortId: session.id,
         });
       }
 
-      const group = groupedByMonthAndSite.get(groupKey)!;
+      const group = groupedByMonthAndSite.get(reportGroupKey)!;
 
       if (session.collectionDate) {
         if (!group.firstCollectionDate || session.collectionDate < group.firstCollectionDate) {
@@ -580,11 +626,39 @@ export async function exportSessionReport(
           group.householdFieldValues.set(column, new Set<string>());
         }
         group.householdFieldValues.get(column)!.add(value);
+
+        if (isHlc) {
+          if (!hlcComparisonValuesByHouseMonth.has(houseMonthGroupKey)) {
+            hlcComparisonValuesByHouseMonth.set(houseMonthGroupKey, new Map<string, Set<string>>());
+          }
+          const houseMonthValues = hlcComparisonValuesByHouseMonth.get(houseMonthGroupKey)!;
+          if (!houseMonthValues.has(column)) {
+            houseMonthValues.set(column, new Set<string>());
+          }
+          houseMonthValues.get(column)!.add(value);
+        }
       }
     }
 
+    const hlcDiscrepancyColumnsByHouseMonth = new Map<string, Set<string>>();
+    for (const [houseMonthGroupKey, valuesByColumn] of hlcComparisonValuesByHouseMonth.entries()) {
+      const discrepantColumns = new Set<string>();
+      for (const [column, values] of valuesByColumn.entries()) {
+        if (!isAllowedHlcDifferenceColumn(column) && resolveDiscrepancy(values) === DISCREPANCY_VALUE) {
+          discrepantColumns.add(column);
+        }
+      }
+      hlcDiscrepancyColumnsByHouseMonth.set(houseMonthGroupKey, discrepantColumns);
+    }
+
     const orderedGroups = Array.from(groupedByMonthAndSite.values()).sort((a, b) => {
-      if (a.monthKey === b.monthKey) return a.siteId - b.siteId;
+      if (a.monthKey === b.monthKey) {
+        if (a.siteId !== b.siteId) return a.siteId - b.siteId;
+        const aTime = a.sortDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const bTime = b.sortDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        if (aTime !== bTime) return aTime - bTime;
+        return a.sortId - b.sortId;
+      }
       if (a.monthKey === 'NO_DATE') return 1;
       if (b.monthKey === 'NO_DATE') return -1;
       return a.monthKey.localeCompare(b.monthKey);
@@ -641,11 +715,13 @@ export async function exportSessionReport(
 
         for (const householdColumn of householdColumns) {
           const values = group.householdFieldValues.get(householdColumn) ?? new Set<string>();
-          row.push(resolveDiscrepancy(values));
+          const hlcDiscrepancies = group.hlcDiscrepancyGroupKey
+            ? hlcDiscrepancyColumnsByHouseMonth.get(group.hlcDiscrepancyGroupKey)
+            : undefined;
+          row.push(hlcDiscrepancies?.has(householdColumn) ? DISCREPANCY_VALUE : resolveDiscrepancy(values));
         }
 
-        const groupKey = `${group.monthKey}|${group.siteId}`;
-        const specimenCounts = specimenCountByGroup.get(groupKey) ?? new Map<string, number>();
+        const specimenCounts = specimenCountByReportGroup.get(group.specimenGroupKey) ?? new Map<string, number>();
         let totalSpecimens = 0;
 
         for (const specimenColumn of finalSpecimenColumns) {
@@ -835,11 +911,12 @@ export async function exportSessionReport(
   }
 }
 
-async function getSpecimenCountsByMonthSite(sessionIds: number[]): Promise<SpecimenCountRow[]> {
+async function getSpecimenCountsBySession(sessionIds: number[]): Promise<SpecimenCountRow[]> {
   if (sessionIds.length === 0) return [];
 
   const query = `
     SELECT
+      sess.id AS sessionId,
       s.id AS siteId,
       DATE_FORMAT(sess.collection_date, '%Y-%m') AS monthKey,
       si.species AS species,
@@ -852,6 +929,7 @@ async function getSpecimenCountsByMonthSite(sessionIds: number[]): Promise<Speci
     LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
     WHERE sess.id IN (:sessionIds)
     GROUP BY
+      sess.id,
       s.id,
       DATE_FORMAT(sess.collection_date, '%Y-%m'),
       si.species,
