@@ -243,9 +243,8 @@ function getHlcReportGroupKey(monthKey: string, siteId: number, sessionId: numbe
   return `${getReportGroupKey(monthKey, siteId)}|session:${sessionId}`;
 }
 
-function isHlcHouse(site: Site): boolean {
-  const possibleHouseNames = [site.name, site.houseNumber];
-  return possibleHouseNames.some((value) => normalizeValue(value).toUpperCase().includes('HLC'));
+function isHlcCollectionMethod(collectionMethod: string | null | undefined): boolean {
+  return normalizeValue(collectionMethod).toUpperCase().includes('HLC');
 }
 
 function isAllowedHlcDifferenceColumn(column: string): boolean {
@@ -582,7 +581,7 @@ export async function exportSessionReport(
       const monthKey = toMonthKey(session.collectionDate);
       const site = session.get('site') as Site;
       const houseMonthGroupKey = getReportGroupKey(monthKey, site.id);
-      const isHlc = isHlcHouse(site);
+      const isHlc = isHlcCollectionMethod(session.collectionMethod);
       const reportGroupKey = isHlc
         ? getHlcReportGroupKey(monthKey, site.id, session.id)
         : houseMonthGroupKey;
