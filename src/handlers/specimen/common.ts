@@ -54,6 +54,54 @@ export function parseProbabilityString(str: string | null): number[] {
   }
 }
 
+export function formatImageResponse(specimenId: number, img: SpecimenImage): ImageResponse {
+  const inferenceResult = (img as any).inferenceResult;
+
+  return {
+    id: img.id,
+    url: `/specimens/${specimenId}/images/${img.id}`,
+    metadata: img.metadata ?? null,
+    species: img.species,
+    sex: img.sex,
+    abdomenStatus: img.abdomenStatus,
+    capturedAt: img.capturedAt ? img.capturedAt.getTime() : null,
+    submittedAt: img.createdAt.getTime(),
+    inferenceResult: inferenceResult ? {
+      id: inferenceResult.id,
+      bboxTopLeftX: inferenceResult.bboxTopLeftX,
+      bboxTopLeftY: inferenceResult.bboxTopLeftY,
+      bboxWidth: inferenceResult.bboxWidth,
+      bboxHeight: inferenceResult.bboxHeight,
+      bboxConfidence: inferenceResult.bboxConfidence,
+      bboxClassId: inferenceResult.bboxClassId,
+      speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
+      sexLogits: parseProbabilityString(inferenceResult.sexLogits),
+      abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
+      speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
+      sexInferenceDuration: inferenceResult.sexInferenceDuration,
+      abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
+      bboxDetectionDuration: inferenceResult.bboxDetectionDuration
+    } : null
+  };
+}
+
+export function formatSpecimenResponseFromImages(specimen: Specimen, images: SpecimenImage[]): SpecimenResponse {
+  const imagesToReturn = images.map(img => formatImageResponse(specimen.id, img));
+  const thumbnailImageObj = imagesToReturn.find(img => img.id === specimen.thumbnailImageId) ?? null;
+
+  return {
+    id: specimen.id,
+    specimenId: specimen.specimenId,
+    sessionId: specimen.sessionId,
+    thumbnailUrl: specimen.thumbnailImageId && thumbnailImageObj ? thumbnailImageObj.url : null,
+    thumbnailImageId: specimen.thumbnailImageId,
+    shouldProcessFurther: specimen.shouldProcessFurther,
+    expectedImages: specimen.expectedImages,
+    images: imagesToReturn,
+    thumbnailImage: thumbnailImageObj,
+  };
+}
+
 // Helper to format specimen data consistently across endpoints
 export async function formatSpecimenResponse(specimen: Specimen, allImages: boolean = true): Promise<SpecimenResponse> {
   let thumbnailImageObj = null;
@@ -71,35 +119,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     });
     
     // Transform the results
-    const imagesResponses = images.map((img: any) => {
-      const inferenceResult = img.inferenceResult;
-      return {
-        id: img.id,
-        url: `/specimens/${specimen.id}/images/${img.id}`,
-        metadata: img.metadata ?? null,
-        species: img.species,
-        sex: img.sex,
-        abdomenStatus: img.abdomenStatus,
-        capturedAt: img.capturedAt ? img.capturedAt.getTime() : null,
-        submittedAt: img.createdAt.getTime(),
-        inferenceResult: inferenceResult ? {
-          id: inferenceResult.id,
-          bboxTopLeftX: inferenceResult.bboxTopLeftX,
-          bboxTopLeftY: inferenceResult.bboxTopLeftY,
-          bboxWidth: inferenceResult.bboxWidth,
-          bboxHeight: inferenceResult.bboxHeight,
-          bboxConfidence: inferenceResult.bboxConfidence,
-          bboxClassId: inferenceResult.bboxClassId,
-          speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
-          sexLogits: parseProbabilityString(inferenceResult.sexLogits),
-          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
-          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
-          sexInferenceDuration: inferenceResult.sexInferenceDuration,
-          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
-          bboxDetectionDuration: inferenceResult.bboxDetectionDuration
-        } : null
-      };
-    });
+    const imagesResponses = images.map(img => formatImageResponse(specimen.id, img));
     imagesToReturn = imagesResponses;
     thumbnailImageObj = imagesResponses.find(img => img.id === specimen.thumbnailImageId) ?? null;
   } else {
@@ -115,33 +135,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
       : null;
       
     if (thumbnailImage) {
-      const inferenceResult = (thumbnailImage as any).inferenceResult;
-      const thumbDetail = {
-        id: thumbnailImage.id,
-        url: `/specimens/${specimen.id}/images/${thumbnailImage.id}`,
-        metadata: thumbnailImage.metadata ?? null,
-        species: thumbnailImage.species,
-        sex: thumbnailImage.sex,
-        abdomenStatus: thumbnailImage.abdomenStatus,
-        capturedAt: thumbnailImage.capturedAt ? thumbnailImage.capturedAt.getTime() : null,
-        submittedAt: thumbnailImage.createdAt.getTime(),
-        inferenceResult: inferenceResult ? {
-          id: inferenceResult.id,
-          bboxTopLeftX: inferenceResult.bboxTopLeftX,
-          bboxTopLeftY: inferenceResult.bboxTopLeftY,
-          bboxWidth: inferenceResult.bboxWidth,
-          bboxHeight: inferenceResult.bboxHeight,
-          bboxConfidence: inferenceResult.bboxConfidence,
-          bboxClassId: inferenceResult.bboxClassId,
-          speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
-          sexLogits: parseProbabilityString(inferenceResult.sexLogits),
-          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
-          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
-          sexInferenceDuration: inferenceResult.sexInferenceDuration,
-          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
-          bboxDetectionDuration: inferenceResult.bboxDetectionDuration
-        } : null
-      };
+      const thumbDetail = formatImageResponse(specimen.id, thumbnailImage);
       imagesToReturn = [thumbDetail];
       thumbnailImageObj = thumbDetail;
     }

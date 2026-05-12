@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, Site, SpecimenImage } from '../../db/models';
-import { formatSpecimenResponse } from './common';
+import { Specimen, Session, Site, SpecimenImage, InferenceResult } from '../../db/models';
+import { formatSpecimenResponseFromImages } from './common';
 import { Op, Order } from 'sequelize';
 import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
 
@@ -335,12 +335,42 @@ export async function getSpecimenList(
       offset
     });
 
-    // Format response
-    const formattedSpecimens = await Promise.all(
-      specimens.map(async (specimen) => {
-        return await formatSpecimenResponse(specimen, includeAllImages || false);
-      })
-    );
+    const specimenImagesBySpecimenId = new Map<number, SpecimenImage[]>();
+
+    if (specimens.length > 0) {
+      const specimenIds = specimens.map(specimen => specimen.id);
+      const thumbnailImageIds = specimens
+        .map(specimen => specimen.thumbnailImageId)
+        .filter((id): id is number => id !== null);
+
+      if (includeAllImages || thumbnailImageIds.length > 0) {
+        const images = await SpecimenImage.findAll({
+          where: includeAllImages
+            ? { specimenId: { [Op.in]: specimenIds } }
+            : { id: { [Op.in]: thumbnailImageIds } },
+          include: [{
+            model: InferenceResult,
+            as: 'inferenceResult',
+            required: false
+          }],
+          order: [['createdAt', 'ASC']]
+        });
+
+        for (const image of images) {
+          const specimenImages = specimenImagesBySpecimenId.get(image.specimenId) ?? [];
+          specimenImages.push(image);
+          specimenImagesBySpecimenId.set(image.specimenId, specimenImages);
+        }
+      }
+    }
+
+    // Format response using the page-level image query above.
+    const formattedSpecimens = specimens.map((specimen) => {
+      return formatSpecimenResponseFromImages(
+        specimen,
+        specimenImagesBySpecimenId.get(specimen.id) ?? []
+      );
+    });
 
     return reply.code(200).send({
       specimens: formattedSpecimens,
