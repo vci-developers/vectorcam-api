@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Session, Site } from '../../db/models';
+import { CollectionCycle, Session, Site } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
@@ -21,6 +21,15 @@ export const schema = {
       status: { type: 'string', enum: ['pending', 'completed', 'submitted'], description: 'Filter by session status' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'], description: 'Filter by session type' },
       state: { type: 'string', enum: Object.values(SessionState), description: 'Filter by session state' },
+      collectionCycleId: {
+        anyOf: [
+          { type: 'number' },
+          { type: 'string', enum: ['null'] },
+        ],
+        description: 'Filter by assigned collection cycle ID, or use null for unassigned sessions',
+      },
+      cycleStartDate: { type: 'string', format: 'date', description: 'Filter sessions by assigned collection cycle start date from this date (YYYY-MM-DD)' },
+      cycleEndDate: { type: 'string', format: 'date', description: 'Filter sessions by assigned collection cycle end date to this date (YYYY-MM-DD)' },
       startDate: { type: 'string', format: 'date', description: 'Filter sessions from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter sessions to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -51,6 +60,7 @@ export const schema = {
               notes: { type: 'string', nullable: true },
               siteId: { type: 'number' },
               deviceId: { type: 'number' },
+              collectionCycleId: { type: ['number', 'null'] },
               latitude: { type: ['number', 'null'] },
               longitude: { type: ['number', 'null'] },
               type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE', ''] },
@@ -82,6 +92,9 @@ interface QueryParams {
   status?: 'pending' | 'completed' | 'submitted';
   type?: 'SURVEILLANCE' | 'DATA_COLLECTION' | 'CALIBRATION' | 'PRACTICE';
   state?: 'NEEDS_REVIEW' | 'IN_REVIEW' | 'CERTIFIED' | 'SUBMITTED';
+  collectionCycleId?: number | 'null';
+  cycleStartDate?: string;
+  cycleEndDate?: string;
   startDate?: string;
   endDate?: string;
   limit?: number;
@@ -107,6 +120,9 @@ export async function getSessionList(
       status,
       type,
       state,
+      collectionCycleId,
+      cycleStartDate,
+      cycleEndDate,
       startDate,
       endDate,
       limit = 20,
@@ -117,6 +133,7 @@ export async function getSessionList(
 
     // Build where clause
     const whereClause: any = {};
+    const include: any[] = [];
     
     // Apply site access restrictions first
     const siteAccess = request.siteAccess;
@@ -200,6 +217,26 @@ export async function getSessionList(
     if (state) {
       whereClause.state = state;
     }
+    if (collectionCycleId !== undefined) {
+      whereClause.collectionCycleId = collectionCycleId === 'null' ? null : collectionCycleId;
+    }
+
+    if (cycleStartDate || cycleEndDate) {
+      const collectionCycleWhere: any = {};
+      if (cycleStartDate) {
+        collectionCycleWhere.startDate = { [Op.gte]: new Date(cycleStartDate) };
+      }
+      if (cycleEndDate) {
+        collectionCycleWhere.endDate = { [Op.lte]: new Date(cycleEndDate + 'T23:59:59.999Z') };
+      }
+
+      include.push({
+        model: CollectionCycle,
+        as: 'collectionCycle',
+        required: true,
+        where: collectionCycleWhere,
+      });
+    }
 
     // Handle status filtering
     if (status) {
@@ -232,6 +269,7 @@ export async function getSessionList(
 
     const total = await Session.count({
       where: whereClause,
+      include,
       distinct: true,
       col: 'id'
     });
@@ -239,6 +277,7 @@ export async function getSessionList(
     // Get sessions with pagination
     const sessions = await Session.findAll({
       where: whereClause,
+      include,
       order: orderClause,
       limit,
       offset

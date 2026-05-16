@@ -21,6 +21,8 @@ import SessionConflictResolution from './SessionConflictResolution';
 import LocationType from './LocationType';
 import TusUploadLog from './TusUploadLog';
 import ReviewActionLog from './ReviewActionLog';
+import CollectionSchedule from './CollectionSchedule';
+import CollectionCycle from './CollectionCycle';
 
 export {
   Program,
@@ -46,4 +48,6 @@ export {
   LocationType,
   TusUploadLog,
   ReviewActionLog,
+  CollectionSchedule,
+  CollectionCycle,
 };

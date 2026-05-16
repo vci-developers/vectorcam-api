@@ -6,6 +6,7 @@ import Site from './Site';
 import Specimen from './Specimen';
 import SurveillanceForm from './SurveillanceForm';
 import Device from './Device';
+import CollectionCycle from './CollectionCycle';
 
 export enum SessionState {
   NEEDS_REVIEW = 'NEEDS_REVIEW',
@@ -39,6 +40,7 @@ class Session extends Model {
   declare hardwareId: string | null;
   declare expectedSpecimens: number;
   declare state: SessionState;
+  declare collectionCycleId: number | null;
 }
 
 Session.init(
@@ -153,6 +155,15 @@ Session.init(
       allowNull: false,
       defaultValue: SessionState.NEEDS_REVIEW,
     },
+    collectionCycleId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'collection_cycles',
+        key: 'id',
+      },
+      field: 'collection_cycle_id',
+    },
   },
   {
     sequelize,
@@ -169,6 +180,9 @@ Site.hasMany(Session, { foreignKey: 'site_id', as: 'sessions' });
 
 Session.belongsTo(Device, { foreignKey: 'device_id', as: 'device' });
 Device.hasMany(Session, { foreignKey: 'device_id', as: 'sessions' });
+
+Session.belongsTo(CollectionCycle, { foreignKey: 'collection_cycle_id', as: 'collectionCycle' });
+CollectionCycle.hasMany(Session, { foreignKey: 'collection_cycle_id', as: 'sessions' });
 
 Session.hasMany(Specimen, { foreignKey: 'session_id', as: 'specimens' });
 Specimen.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });

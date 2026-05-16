@@ -120,6 +120,7 @@ export const schema = {
                       notes: { type: ['string', 'null'] },
                       siteId: { type: 'number' },
                       deviceId: { type: 'number' },
+                      collectionCycleId: { type: ['number', 'null'] },
                       latitude: { type: ['number', 'null'] },
                       longitude: { type: ['number', 'null'] },
                       type: { type: 'string' },

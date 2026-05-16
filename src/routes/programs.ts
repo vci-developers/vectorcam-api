@@ -19,6 +19,15 @@ import {
 } from '../handlers/program/form';
 import { getProgramList } from '../handlers/program/getList';
 import { requireAdminAuth, requireAnyAuth, requireSuperAdmin, requireAdminOrMobileAuth } from '../middleware/auth.middleware';
+import {
+  createCollectionSchedule,
+  changeProgramCollectionSchedule,
+} from '../handlers/program/collectionSchedule';
+import {
+  createCollectionCycle,
+  getCollectionCycleList,
+} from '../handlers/program/collectionCycle';
+import { getUnassignedProgramSessions } from '../handlers/program/sessions';
 
 import { schema as createSchema } from '../handlers/program/post';
 import { schema as getSchema } from '../handlers/program/get';
@@ -26,6 +35,11 @@ import { schema as updateSchema } from '../handlers/program/put';
 import { schema as deleteSchema } from '../handlers/program/delete';
 import { schema as verifyAccessCodeSchema } from '../handlers/program/verifyAccessCode';
 import { schema as getListSchema } from '../handlers/program/getList';
+import { schema as createCollectionScheduleSchema } from '../handlers/program/collectionSchedule/post';
+import { schema as changeCollectionScheduleSchema } from '../handlers/program/collectionSchedule/change';
+import { schema as createCollectionCycleSchema } from '../handlers/program/collectionCycle/post';
+import { schema as getCollectionCycleListSchema } from '../handlers/program/collectionCycle/getList';
+import { schema as getUnassignedProgramSessionsSchema } from '../handlers/program/sessions/getUnassigned';
 import { schema as getProgramFormListSchema } from '../handlers/program/form/getList';
 import { schema as getProgramFormSchema } from '../handlers/program/form/get';
 import { schema as getProgramFormCurrentSchema } from '../handlers/program/form/getCurrent';
@@ -61,6 +75,31 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireAdminAuth],
     schema: createSchema,
   }, createProgram as any);
+
+  fastify.post('/:program_id/collection-schedules', {
+    preHandler: [requireAdminAuth],
+    schema: createCollectionScheduleSchema,
+  }, createCollectionSchedule as any);
+
+  fastify.post('/:program_id/collection-schedules/change', {
+    preHandler: [requireAdminAuth],
+    schema: changeCollectionScheduleSchema,
+  }, changeProgramCollectionSchedule as any);
+
+  fastify.get('/:program_id/collection-cycles', {
+    preHandler: [requireAdminOrMobileAuth],
+    schema: getCollectionCycleListSchema,
+  }, getCollectionCycleList as any);
+
+  fastify.post('/:program_id/collection-cycles', {
+    preHandler: [requireAdminAuth],
+    schema: createCollectionCycleSchema,
+  }, createCollectionCycle as any);
+
+  fastify.get('/:program_id/sessions/unassigned', {
+    preHandler: [requireAdminOrMobileAuth],
+    schema: getUnassignedProgramSessionsSchema,
+  }, getUnassignedProgramSessions as any);
 
   fastify.get('/:program_id', {
     preHandler: [requireAdminAuth],

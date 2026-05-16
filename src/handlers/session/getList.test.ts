@@ -4,6 +4,7 @@ import { Session, Site } from '../../db/models';
 import { expandSiteIdsWithDescendants } from '../site/common';
 
 jest.mock('../../db/models', () => ({
+  CollectionCycle: {},
   Session: {
     count: jest.fn(),
     findAll: jest.fn(),
@@ -76,5 +77,72 @@ describe('getSessionList hierarchy filtering', () => {
         }),
       })
     );
+  });
+
+  it('filters sessions by collection cycle id', async () => {
+    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
+
+    const request: any = {
+      query: { collectionCycleId: 123 },
+      siteAccess: { userSites: [] },
+      log: { error: jest.fn() },
+    };
+    const reply = createReply();
+
+    await getSessionList(request, reply as any);
+
+    const countArgs = (Session.count as jest.Mock).mock.calls[0][0];
+    const findArgs = (Session.findAll as jest.Mock).mock.calls[0][0];
+    expect(countArgs.where.collectionCycleId).toBe(123);
+    expect(findArgs.where.collectionCycleId).toBe(123);
+    expect(countArgs.include).toEqual([]);
+    expect(findArgs.include).toEqual([]);
+  });
+
+  it('filters unassigned sessions when collectionCycleId is null', async () => {
+    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
+
+    const request: any = {
+      query: { collectionCycleId: 'null' },
+      siteAccess: { userSites: [] },
+      log: { error: jest.fn() },
+    };
+    const reply = createReply();
+
+    await getSessionList(request, reply as any);
+
+    const countWhere = (Session.count as jest.Mock).mock.calls[0][0].where;
+    const findWhere = (Session.findAll as jest.Mock).mock.calls[0][0].where;
+    expect(countWhere.collectionCycleId).toBeNull();
+    expect(findWhere.collectionCycleId).toBeNull();
+  });
+
+  it('filters sessions by assigned collection cycle date range', async () => {
+    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
+
+    const request: any = {
+      query: {
+        cycleStartDate: '2026-04-01',
+        cycleEndDate: '2026-04-30',
+      },
+      siteAccess: { userSites: [] },
+      log: { error: jest.fn() },
+    };
+    const reply = createReply();
+
+    await getSessionList(request, reply as any);
+
+    const countInclude = (Session.count as jest.Mock).mock.calls[0][0].include;
+    const findInclude = (Session.findAll as jest.Mock).mock.calls[0][0].include;
+    expect(countInclude).toHaveLength(1);
+    expect(findInclude).toEqual(countInclude);
+    expect(countInclude[0]).toEqual(expect.objectContaining({
+      as: 'collectionCycle',
+      required: true,
+      where: {
+        startDate: { [Op.gte]: new Date('2026-04-01') },
+        endDate: { [Op.lte]: new Date('2026-04-30T23:59:59.999Z') },
+      },
+    }));
   });
 });

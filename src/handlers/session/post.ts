@@ -7,6 +7,7 @@ import {
 } from './common';
 import { Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
+import { assignCollectionCycleOnSessionUpload } from '../program/collectionCycle/common';
 
 interface SubmitSessionRequest {
   frontendId: string;
@@ -75,6 +76,7 @@ export const schema = {
             notes: { type: ['string', 'null'] },
             siteId: { type: 'number' },
             deviceId: { type: 'number' },
+            collectionCycleId: { type: ['number', 'null'] },
             latitude: { type: ['number', 'null'] },
             longitude: { type: ['number', 'null'] },
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE', ''] },
@@ -185,6 +187,9 @@ export async function submitSession(
       hardwareId,
       expectedSpecimens
     });
+
+    await assignCollectionCycleOnSessionUpload(session.id);
+    await session.reload();
 
     // Mark site as having data
     if (!site.hasData) {

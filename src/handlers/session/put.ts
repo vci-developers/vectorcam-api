@@ -3,6 +3,7 @@ import { findSessionById, findSiteById, findDeviceById, formatSessionResponse, h
 import { Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { getChangedFields, logReviewAction } from '../../services/reviewActionLog.service';
+import { reassignSessionCollectionCycle } from '../program/collectionCycle/common';
 
 interface UpdateSessionRequest {
   frontendId?: string;
@@ -16,6 +17,7 @@ interface UpdateSessionRequest {
   notes?: string;
   siteId?: number;
   deviceId?: number;
+  collectionCycleId?: number | null;
   latitude?: number;
   longitude?: number;
   type: string;
@@ -48,6 +50,7 @@ export const schema = {
       notes: { type: 'string' },
       siteId: { type: 'number' },
       deviceId: { type: 'number' },
+      collectionCycleId: { type: ['number', 'null'] },
       latitude: { type: 'number' },
       longitude: { type: 'number' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'] },
@@ -78,6 +81,7 @@ export const schema = {
             notes: { type: ['string', 'null'] },
             siteId: { type: 'number' },
             deviceId: { type: 'number' },
+            collectionCycleId: { type: ['number', 'null'] },
             latitude: { type: ['number', 'null'] },
             longitude: { type: ['number', 'null'] },
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE', ''] },
@@ -128,6 +132,7 @@ export async function updateSession(
       notes,
       siteId,
       deviceId,
+      collectionCycleId,
       latitude,
       longitude,
       type,
@@ -180,6 +185,7 @@ export async function updateSession(
       'notes',
       'siteId',
       'deviceId',
+      'collectionCycleId',
       'latitude',
       'longitude',
       'type',
@@ -200,6 +206,7 @@ export async function updateSession(
       notes: session.notes,
       siteId: session.siteId,
       deviceId: session.deviceId,
+      collectionCycleId: session.collectionCycleId,
       latitude: session.latitude,
       longitude: session.longitude,
       type: session.type,
@@ -231,6 +238,19 @@ export async function updateSession(
       state: state !== undefined ? state : session.state
     });
 
+    if (Object.prototype.hasOwnProperty.call(request.body, 'collectionCycleId')) {
+      try {
+        await reassignSessionCollectionCycle(session_id, collectionCycleId ?? null);
+        await session.reload();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to reassign collection cycle';
+        if (message.includes('not found')) {
+          return reply.code(404).send({ error: message });
+        }
+        return reply.code(400).send({ error: message });
+      }
+    }
+
     const afterState: Record<string, unknown> = {
       frontendId: session.frontendId,
       collectorTitle: session.collectorTitle,
@@ -243,6 +263,7 @@ export async function updateSession(
       notes: session.notes,
       siteId: session.siteId,
       deviceId: session.deviceId,
+      collectionCycleId: session.collectionCycleId,
       latitude: session.latitude,
       longitude: session.longitude,
       type: session.type,

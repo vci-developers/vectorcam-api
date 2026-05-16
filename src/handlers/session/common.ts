@@ -17,6 +17,7 @@ export interface SessionResponse {
   notes: string | null;
   siteId: number;
   deviceId: number;
+  collectionCycleId: number | null;
   // Add new fields
   latitude: number | null;
   longitude: number | null;
@@ -43,6 +44,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     notes: session.notes,
     siteId: session.siteId,
     deviceId: session.deviceId,
+    collectionCycleId: session.collectionCycleId,
     latitude: session.latitude,
     longitude: session.longitude,
     type: session.type,
