@@ -110,12 +110,12 @@ export async function authMiddleware(
  * Middleware to require any form of authentication
  * Use this when you need to ensure the request is authenticated but don't care about the type
  */
-export function requireAnyAuth(
+export function requireAnyWhitelistedAuth(
   request: FastifyRequest,
   reply: FastifyReply,
   done: HookHandlerDoneFunction
 ): void {
-  if (request.authType === 'none') {
+  if (request.authType === 'none' || (request.authType === 'user' && !request.user?.isWhitelisted)) {
     reply.code(401).send({ error: 'Unauthorized: Authentication required' });
     return done(new Error('Unauthorized'));
   }

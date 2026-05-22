@@ -10,6 +10,7 @@ import registerRoutes from './routes';
 import { sentryService } from './services/sentry.service';
 import { sentryMiddleware, sentryErrorHandler } from './middleware/sentry.middleware';
 import { SentryLogger } from './utils/sentry-logger';
+import { questionDefinitionSchema } from './handlers/program/form/common';
 
 // Create Fastify instance with built-in logger options
 const baseLogger = {
@@ -65,6 +66,9 @@ async function setupServer(): Promise<void> {
         schemes: ['http'],
         consumes: ['application/json'],
         produces: ['application/json'],
+        definitions: {
+          question: questionDefinitionSchema,
+        },
         tags: [
           { name: 'Authentication', description: 'User authentication endpoints (signup, login, refresh)' },
           { name: 'Users', description: 'User profile and management endpoints' },

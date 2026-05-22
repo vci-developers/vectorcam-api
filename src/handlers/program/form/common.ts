@@ -13,7 +13,7 @@ export interface FormQuestionInput {
   children?: FormQuestionInput[];
 }
 
-const questionDefinitionSchema = {
+export const questionDefinitionSchema = {
   type: 'object',
   properties: {
     id: { type: 'number' },
