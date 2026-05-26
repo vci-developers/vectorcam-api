@@ -10,6 +10,8 @@ export interface FormQuestionInput {
   order?: number | null;
   parentId?: number | null;
   prerequisite?: unknown | null;
+  answerScope?: 'SESSION' | 'SESSION_UNIT';
+  isUnitIdentityComponent?: boolean;
   children?: FormQuestionInput[];
 }
 
@@ -25,6 +27,8 @@ export const questionDefinitionSchema = {
     required: { type: 'boolean' },
     options: { type: ['array', 'null'] },
     order: { type: ['number', 'null'] },
+    answerScope: { type: 'string', enum: ['SESSION', 'SESSION_UNIT'] },
+    isUnitIdentityComponent: { type: 'boolean' },
     createdAt: { type: ['number', 'null'] },
     updatedAt: { type: ['number', 'null'] },
     subQuestions: {
@@ -55,6 +59,27 @@ export const programFormResponseSchema = {
   },
 };
 
+export function validateQuestionScopeConfig(input: {
+  answerScope?: 'SESSION' | 'SESSION_UNIT';
+  isUnitIdentityComponent?: boolean;
+  required?: boolean;
+}): string | null {
+  const answerScope = input.answerScope ?? 'SESSION';
+  if (answerScope !== 'SESSION' && answerScope !== 'SESSION_UNIT') {
+    return 'answerScope must be SESSION or SESSION_UNIT';
+  }
+
+  if (input.isUnitIdentityComponent && answerScope !== 'SESSION_UNIT') {
+    return 'isUnitIdentityComponent can only be true for SESSION_UNIT questions';
+  }
+
+  if (input.isUnitIdentityComponent && input.required !== true) {
+    return 'Identity component questions must be required';
+  }
+
+  return null;
+}
+
 export function serializeQuestion(question: FormQuestion): any {
   return {
     id: question.id,
@@ -66,6 +91,8 @@ export function serializeQuestion(question: FormQuestion): any {
     required: question.required,
     options: question.options,
     order: question.order,
+    answerScope: question.answerScope,
+    isUnitIdentityComponent: question.isUnitIdentityComponent,
     createdAt: question.createdAt?.getTime?.() ?? null,
     updatedAt: question.updatedAt?.getTime?.() ?? null,
   };
@@ -128,6 +155,8 @@ export async function createQuestionTree(
         required: input.required ?? false,
         options: input.options ?? null,
         order: input.order ?? index,
+        answerScope: input.answerScope ?? 'SESSION',
+        isUnitIdentityComponent: input.isUnitIdentityComponent ?? false,
       },
       { transaction }
     );
@@ -219,6 +248,8 @@ export async function cloneQuestionsToForm(
           required: q.required,
           options: q.options,
           order: q.order,
+          answerScope: q.answerScope,
+          isUnitIdentityComponent: q.isUnitIdentityComponent,
         },
         { transaction }
       );

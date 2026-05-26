@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Form, FormQuestion } from '../../../../db/models';
 import sequelize from '../../../../db/index';
-import { serializeQuestion } from '../common';
+import { serializeQuestion, validateQuestionScopeConfig } from '../common';
 
 interface UpdateQuestionBody {
   label?: string;
@@ -11,6 +11,8 @@ interface UpdateQuestionBody {
   order?: number | null;
   parentId?: number | null;
   prerequisite?: unknown | null;
+  answerScope?: 'SESSION' | 'SESSION_UNIT';
+  isUnitIdentityComponent?: boolean;
 }
 
 export const schema = {
@@ -34,6 +36,8 @@ export const schema = {
       order: { type: ['number', 'null'] },
       parentId: { type: ['number', 'null'] },
       prerequisite: {},
+      answerScope: { type: 'string', enum: ['SESSION', 'SESSION_UNIT'] },
+      isUnitIdentityComponent: { type: 'boolean' },
     },
   },
   response: {
@@ -53,6 +57,8 @@ export const schema = {
             required: { type: 'boolean' },
             options: { type: ['array', 'null'] },
             order: { type: ['number', 'null'] },
+            answerScope: { type: 'string' },
+            isUnitIdentityComponent: { type: 'boolean' },
             createdAt: { type: ['number', 'null'] },
             updatedAt: { type: ['number', 'null'] },
           },
@@ -103,6 +109,19 @@ export async function updateProgramFormQuestion(
       }
     }
 
+    const nextAnswerScope = request.body.answerScope ?? question.answerScope;
+    const nextIsIdentity = request.body.isUnitIdentityComponent ?? question.isUnitIdentityComponent;
+    const nextRequired = request.body.required ?? question.required;
+    const scopeError = validateQuestionScopeConfig({
+      answerScope: nextAnswerScope,
+      isUnitIdentityComponent: nextIsIdentity,
+      required: nextRequired,
+    });
+    if (scopeError) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: scopeError });
+    }
+
     await question.update(
       {
         label: request.body.label ?? question.label,
@@ -112,6 +131,8 @@ export async function updateProgramFormQuestion(
         order: request.body.order ?? question.order,
         parentId,
         prerequisite: request.body.prerequisite !== undefined ? request.body.prerequisite : (question.prerequisite ?? null),
+        answerScope: nextAnswerScope,
+        isUnitIdentityComponent: nextIsIdentity,
       },
       { transaction }
     );

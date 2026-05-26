@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, InferenceResult, SpecimenImage } from '../../db/models';
+import { Specimen, Session, InferenceResult, SpecimenImage, SessionUnit } from '../../db/models';
 
 export interface ImageResponse {
   id: number;
@@ -28,11 +28,22 @@ export interface ImageResponse {
   } | null;
 }
 
+export interface SessionUnitResponse {
+  id: number;
+  frontendId: string | null;
+  sessionId: number;
+  unitOrder: number;
+  createdAt: number | null;
+  updatedAt: number | null;
+}
+
 // Specimen response format interface
 export interface SpecimenResponse {
   id: number;
   specimenId: string;
   sessionId: number;
+  sessionUnitId: number | null;
+  sessionUnit: SessionUnitResponse | null;
   thumbnailUrl: string | null;
   thumbnailImageId: number | null;
   shouldProcessFurther: boolean;
@@ -85,14 +96,37 @@ export function formatImageResponse(specimenId: number, img: SpecimenImage): Ima
   };
 }
 
+export function formatSessionUnitResponse(unit: SessionUnit | null | undefined): SessionUnitResponse | null {
+  if (!unit) return null;
+
+  return {
+    id: unit.id,
+    frontendId: unit.frontendId ?? null,
+    sessionId: unit.sessionId,
+    unitOrder: unit.unitOrder,
+    createdAt: unit.createdAt?.getTime?.() ?? null,
+    updatedAt: unit.updatedAt?.getTime?.() ?? null,
+  };
+}
+
+async function resolveSpecimenSessionUnit(specimen: Specimen): Promise<SessionUnit | null> {
+  const included = specimen.get('sessionUnit') as SessionUnit | undefined;
+  if (included) return included;
+  if (specimen.sessionUnitId === null || specimen.sessionUnitId === undefined) return null;
+  return SessionUnit.findByPk(specimen.sessionUnitId);
+}
+
 export function formatSpecimenResponseFromImages(specimen: Specimen, images: SpecimenImage[]): SpecimenResponse {
   const imagesToReturn = images.map(img => formatImageResponse(specimen.id, img));
   const thumbnailImageObj = imagesToReturn.find(img => img.id === specimen.thumbnailImageId) ?? null;
+  const sessionUnit = specimen.get('sessionUnit') as SessionUnit | undefined;
 
   return {
     id: specimen.id,
     specimenId: specimen.specimenId,
     sessionId: specimen.sessionId,
+    sessionUnitId: specimen.sessionUnitId ?? null,
+    sessionUnit: formatSessionUnitResponse(sessionUnit),
     thumbnailUrl: specimen.thumbnailImageId && thumbnailImageObj ? thumbnailImageObj.url : null,
     thumbnailImageId: specimen.thumbnailImageId,
     shouldProcessFurther: specimen.shouldProcessFurther,
@@ -106,6 +140,7 @@ export function formatSpecimenResponseFromImages(specimen: Specimen, images: Spe
 export async function formatSpecimenResponse(specimen: Specimen, allImages: boolean = true): Promise<SpecimenResponse> {
   let thumbnailImageObj = null;
   let imagesToReturn: ImageResponse[] = [];
+  const sessionUnit = await resolveSpecimenSessionUnit(specimen);
 
   if (allImages) {
     // Get all images with their inference results in a single query using eager loading
@@ -145,6 +180,8 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     id: specimen.id,
     specimenId: specimen.specimenId,
     sessionId: specimen.sessionId,
+    sessionUnitId: specimen.sessionUnitId ?? null,
+    sessionUnit: formatSessionUnitResponse(sessionUnit),
     thumbnailUrl: specimen.thumbnailImageId && thumbnailImageObj ? thumbnailImageObj.url : null,
     thumbnailImageId: specimen.thumbnailImageId,
     shouldProcessFurther: specimen.shouldProcessFurther,
@@ -162,6 +199,27 @@ export function isValidId(id: string): boolean {
 // Check if session exists by ID
 export async function findSessionById(id: number): Promise<Session | null> {
   return Session.findByPk(id);
+}
+
+export async function validateSpecimenSessionUnit(
+  session: Session,
+  sessionUnitId?: number | null
+): Promise<string | null> {
+  const collectionMethod = (session.collectionMethod ?? '').toUpperCase();
+  if (collectionMethod.includes('HLC') && (sessionUnitId === null || sessionUnitId === undefined)) {
+    return 'HLC specimens require sessionUnitId';
+  }
+
+  if (sessionUnitId === null || sessionUnitId === undefined) {
+    return null;
+  }
+
+  const unit = await SessionUnit.findOne({ where: { id: sessionUnitId, sessionId: session.id } });
+  if (!unit) {
+    return 'sessionUnitId does not belong to this session';
+  }
+
+  return null;
 }
 
 // Check if inference result exists by specimen ID

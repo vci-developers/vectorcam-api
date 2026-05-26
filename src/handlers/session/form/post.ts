@@ -1,7 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import sequelize from '../../../db/index';
 import { FormAnswer } from '../../../db/models';
-import { fetchQuestionsMap, FormAnswerInput, loadSessionAndForm } from './common';
+import {
+  fetchQuestionsMap,
+  FormAnswerInput,
+  loadSessionAndForm,
+  validateFormAnswerScopes,
+  validateUniqueUnitsWithinSession,
+} from './common';
 
 interface CreateAnswersBody {
   answers: FormAnswerInput[];
@@ -32,6 +38,7 @@ export const schema = {
           required: ['questionId', 'value'],
           properties: {
             frontendId: { type: 'string' },
+            sessionUnitId: { type: ['number', 'null'] },
             questionId: { type: 'number' },
             value: {},
             dataType: { type: 'string' },
@@ -53,6 +60,7 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               frontendId: { type: ['string', 'null'] },
+              sessionUnitId: { type: ['number', 'null'] },
               questionId: { type: 'number' },
               value: {},
               dataType: { type: 'string' },
@@ -85,16 +93,6 @@ export async function createSessionFormAnswers(
       return reply.code(400).send({ error: 'At least one answer is required' });
     }
 
-    const existingCount = await FormAnswer.count({
-      where: { sessionId: context.session.id, formId: context.form.id },
-      transaction,
-    });
-
-    if (existingCount > 0) {
-      await transaction.rollback();
-      return reply.code(409).send({ error: 'Answers already exist for this session and form' });
-    }
-
     const questionsMap = await fetchQuestionsMap(context.form.id);
 
     for (const answer of request.body.answers) {
@@ -102,6 +100,37 @@ export async function createSessionFormAnswers(
         await transaction.rollback();
         return reply.code(400).send({ error: `Question ${answer.questionId} does not belong to this form` });
       }
+
+      const existing = await FormAnswer.findOne({
+        where: {
+          sessionId: context.session.id,
+          formId: context.form.id,
+          questionId: answer.questionId,
+          sessionUnitId: answer.sessionUnitId ?? null,
+        },
+        transaction,
+      });
+      if (existing) {
+        await transaction.rollback();
+        return reply.code(409).send({ error: 'One or more answers already exist for this session/form scope' });
+      }
+    }
+
+    const scopeError = await validateFormAnswerScopes(context.session.id, request.body.answers, questionsMap);
+    if (scopeError) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: scopeError });
+    }
+
+    const identityError = await validateUniqueUnitsWithinSession(
+      context.session.id,
+      context.form.id,
+      request.body.answers,
+      questionsMap
+    );
+    if (identityError) {
+      await transaction.rollback();
+      return reply.code(409).send({ error: identityError });
     }
 
     const submittedAt = request.body.submittedAt ? new Date(request.body.submittedAt) : new Date();
@@ -110,6 +139,7 @@ export async function createSessionFormAnswers(
       request.body.answers.map(answer => ({
         frontendId: answer.frontendId ?? null,
         sessionId: context.session.id,
+        sessionUnitId: answer.sessionUnitId ?? null,
         formId: context.form.id,
         questionId: answer.questionId,
         value: answer.value,
@@ -127,6 +157,7 @@ export async function createSessionFormAnswers(
       answers: created.map(a => ({
         id: a.id,
         frontendId: a.frontendId ?? null,
+        sessionUnitId: a.sessionUnitId ?? null,
         questionId: a.questionId,
         value: a.value,
         dataType: a.dataType,

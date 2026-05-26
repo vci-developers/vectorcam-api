@@ -27,6 +27,7 @@ import {
 import { getSessionList } from '../handlers/session/getList';
 import { getSessionReviewTask } from '../handlers/session/getReviewTask';
 import * as sessionSpecimenHandlers from '../handlers/session/specimens';
+import * as sessionUnitHandlers from '../handlers/session/units';
 
 // Import schemas from handler files
 import { schema as submitSchema } from '../handlers/session/post';
@@ -53,6 +54,10 @@ import { schema as getSessionSpecimenSchema } from '../handlers/session/specimen
 import { schema as createSessionSpecimenSchema } from '../handlers/session/specimens/post';
 import { schema as updateSessionSpecimenSchema } from '../handlers/session/specimens/put';
 import { schema as deleteSessionSpecimenSchema } from '../handlers/session/specimens/delete';
+import { schema as createSessionUnitSchema } from '../handlers/session/units/post';
+import { schema as getSessionUnitsSchema } from '../handlers/session/units/getList';
+import { schema as updateSessionUnitSchema } from '../handlers/session/units/put';
+import { schema as deleteSessionUnitSchema } from '../handlers/session/units/delete';
 import { schema as resolveConflictSchema } from '../handlers/session/resolveConflict';
 import { schema as getConflictLogsSchema } from '../handlers/session/getConflictLogs';
 import { schema as getReviewActionLogsSchema } from '../handlers/session/getReviewActionLogs';
@@ -195,6 +200,26 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSpecificSessionWriteAccess],
     schema: updateSessionFormAnswersSchema
   }, updateSessionFormAnswers as any);
+
+  fastify.post('/:session_id/units', {
+    preHandler: [requireSpecificSessionWriteAccess],
+    schema: createSessionUnitSchema,
+  }, sessionUnitHandlers.createSessionUnit as any);
+
+  fastify.get('/:session_id/units', {
+    preHandler: [requireSpecificSessionReadAccess],
+    schema: getSessionUnitsSchema,
+  }, sessionUnitHandlers.getSessionUnits as any);
+
+  fastify.put('/:session_id/units/:session_unit_id', {
+    preHandler: [requireSpecificSessionWriteAccess],
+    schema: updateSessionUnitSchema,
+  }, sessionUnitHandlers.updateSessionUnit as any);
+
+  fastify.delete('/:session_id/units/:session_unit_id', {
+    preHandler: [requireSpecificSessionWriteAccess],
+    schema: deleteSessionUnitSchema,
+  }, sessionUnitHandlers.deleteSessionUnit as any);
 
   // Export sessions as CSV
   fastify.get<ExportSessionsCSVRequest>('/export/csv', {

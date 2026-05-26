@@ -5,11 +5,13 @@ import sequelize from '../index';
 import Session from './Session';
 import Form from './Form';
 import FormQuestion from './FormQuestion';
+import SessionUnit from './SessionUnit';
 
 class FormAnswer extends Model {
   declare id: number;
   declare frontendId: string | null;
   declare sessionId: number;
+  declare sessionUnitId: number | null;
   declare formId: number;
   declare questionId: number;
   declare value: unknown;
@@ -39,6 +41,16 @@ FormAnswer.init(
         key: 'id',
       },
       field: 'session_id',
+      onDelete: 'CASCADE',
+    },
+    sessionUnitId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'session_units',
+        key: 'id',
+      },
+      field: 'session_unit_id',
       onDelete: 'CASCADE',
     },
     formId: {
@@ -86,7 +98,7 @@ FormAnswer.init(
     indexes: [
       {
         unique: true,
-        fields: ['session_id', 'form_id', 'question_id'],
+        fields: ['session_id', 'session_unit_id', 'form_id', 'question_id'],
       },
       {
         fields: ['submitted_at'],
@@ -98,6 +110,9 @@ FormAnswer.init(
 // Setup associations
 FormAnswer.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });
 Session.hasMany(FormAnswer, { foreignKey: 'session_id', as: 'formAnswers' });
+
+FormAnswer.belongsTo(SessionUnit, { foreignKey: 'session_unit_id', as: 'sessionUnit' });
+SessionUnit.hasMany(FormAnswer, { foreignKey: 'session_unit_id', as: 'formAnswers' });
 
 FormAnswer.belongsTo(Form, { foreignKey: 'form_id', as: 'form' });
 Form.hasMany(FormAnswer, { foreignKey: 'form_id', as: 'answers' });

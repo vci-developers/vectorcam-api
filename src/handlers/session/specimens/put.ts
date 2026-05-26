@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Specimen, SpecimenImage } from '../../../db/models';
-import { formatSpecimenResponse, handleError } from '../../specimen/common';
+import { formatSpecimenResponse, handleError, validateSpecimenSessionUnit } from '../../specimen/common';
 import { findSession, findSessionSpecimen } from '../common';
 
 export const schema = {
@@ -19,6 +19,7 @@ export const schema = {
     type: 'object',
     properties: {
       specimenId: { type: 'string' },
+      sessionUnitId: { type: ['number', 'null'] },
       thumbnailImageId: { type: 'number' },
       shouldProcessFurther: { type: 'boolean' },
       expectedImages: { type: 'number' }
@@ -35,6 +36,23 @@ export const schema = {
             id: { type: 'number' },
             specimenId: { type: 'string' },
             sessionId: { type: 'number' },
+            sessionUnitId: { type: ['number', 'null'] },
+            sessionUnit: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    frontendId: { type: ['string', 'null'] },
+                    sessionId: { type: 'number' },
+                    unitOrder: { type: 'number' },
+                    createdAt: { type: ['number', 'null'] },
+                    updatedAt: { type: ['number', 'null'] },
+                  },
+                },
+              ],
+            },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
@@ -89,11 +107,11 @@ export const schema = {
 };
 
 export async function updateSessionSpecimen(
-  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; thumbnailImageId?: number; shouldProcessFurther?: boolean; expectedImages?: number } }>,
+  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; sessionUnitId?: number | null; thumbnailImageId?: number; shouldProcessFurther?: boolean; expectedImages?: number } }>,
   reply: FastifyReply
 ) {
   const { session_id, specimen_id } = request.params;
-  const { specimenId, thumbnailImageId, shouldProcessFurther, expectedImages } = request.body;
+  const { specimenId, sessionUnitId, thumbnailImageId, shouldProcessFurther, expectedImages } = request.body;
   try {
     // Fetch session first
     const session = await findSession(session_id);
@@ -125,8 +143,14 @@ export async function updateSessionSpecimen(
         return reply.code(400).send({ error: 'The specified image does not exist or does not belong to this specimen' });
       }
     }
+    const nextSessionUnitId = sessionUnitId !== undefined ? sessionUnitId : specimen.sessionUnitId;
+    const unitError = await validateSpecimenSessionUnit(session, nextSessionUnitId);
+    if (unitError) {
+      return reply.code(400).send({ error: unitError });
+    }
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
+      sessionUnitId: nextSessionUnitId ?? null,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
       shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther,
       expectedImages: expectedImages !== undefined ? expectedImages : specimen.expectedImages

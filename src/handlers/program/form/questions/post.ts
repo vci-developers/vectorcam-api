@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Form, FormQuestion } from '../../../../db/models';
 import sequelize from '../../../../db/index';
-import { serializeQuestion } from '../common';
+import { serializeQuestion, validateQuestionScopeConfig } from '../common';
 
 interface CreateQuestionBody {
   label: string;
@@ -11,6 +11,8 @@ interface CreateQuestionBody {
   order?: number | null;
   parentId?: number | null;
   prerequisite?: unknown | null;
+  answerScope?: 'SESSION' | 'SESSION_UNIT';
+  isUnitIdentityComponent?: boolean;
 }
 
 export const schema = {
@@ -34,6 +36,8 @@ export const schema = {
       order: { type: ['number', 'null'] },
       parentId: { type: ['number', 'null'] },
       prerequisite: {},
+      answerScope: { type: 'string', enum: ['SESSION', 'SESSION_UNIT'] },
+      isUnitIdentityComponent: { type: 'boolean' },
     },
   },
   response: {
@@ -53,6 +57,8 @@ export const schema = {
             required: { type: 'boolean' },
             options: { type: ['array', 'null'] },
             order: { type: ['number', 'null'] },
+            answerScope: { type: 'string' },
+            isUnitIdentityComponent: { type: 'boolean' },
             createdAt: { type: ['number', 'null'] },
             updatedAt: { type: ['number', 'null'] },
           },
@@ -96,6 +102,12 @@ export async function createProgramFormQuestion(
       }
     }
 
+    const scopeError = validateQuestionScopeConfig(request.body);
+    if (scopeError) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: scopeError });
+    }
+
     const question = await FormQuestion.create(
       {
         formId: form.id,
@@ -106,6 +118,8 @@ export async function createProgramFormQuestion(
         required: request.body.required ?? false,
         options: request.body.options ?? null,
         order: request.body.order ?? null,
+        answerScope: request.body.answerScope ?? 'SESSION',
+        isUnitIdentityComponent: request.body.isUnitIdentityComponent ?? false,
       },
       { transaction }
     );

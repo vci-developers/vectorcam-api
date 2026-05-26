@@ -8,6 +8,7 @@ class Specimen extends Model {
   declare id: number;
   declare specimenId: string;
   declare sessionId: number;
+  declare sessionUnitId: number | null;
   declare thumbnailImageId: number | null;
   declare shouldProcessFurther: boolean;
   declare expectedImages: number;
@@ -34,6 +35,16 @@ Specimen.init(
         key: 'id',
       },
       field: 'session_id',
+    },
+    sessionUnitId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'session_units',
+        key: 'id',
+      },
+      field: 'session_unit_id',
+      onDelete: 'SET NULL',
     },
     thumbnailImageId: {
       type: DataTypes.INTEGER,

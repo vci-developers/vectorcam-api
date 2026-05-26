@@ -7,7 +7,7 @@ import {
 } from '../../db/models';
 import { formatUserResponse, UserResponse } from '../user/common';
 import { formatAnnotationTaskResponse, AnnotationTaskResponse } from '../annotation-task/common';
-import { SpecimenResponse, ImageResponse } from '../specimen/common';
+import { SpecimenResponse, ImageResponse, formatSessionUnitResponse } from '../specimen/common';
 import { formatSessionResponse, SessionResponse } from '../session/common';
 import { formatSiteResponse, SiteResponse } from '../site/common';
 
@@ -83,10 +83,15 @@ export async function formatAnnotationResponse(
     // Include specimen with session and site if available
     if (annotation.get('specimen')) {
       const specimen = annotation.get('specimen') as any;
-      response.specimen = {
+      const sessionUnit = typeof specimen.get === 'function'
+        ? specimen.get('sessionUnit')
+        : specimen.sessionUnit;
+      const specimenResponse: SpecimenWithSessionResponse = {
         id: specimen.id,
         specimenId: specimen.specimenId,
         sessionId: specimen.sessionId,
+        sessionUnitId: specimen.sessionUnitId ?? null,
+        sessionUnit: formatSessionUnitResponse(sessionUnit),
         thumbnailUrl: null,
         thumbnailImageId: specimen.thumbnailImageId,
         shouldProcessFurther: specimen.shouldProcessFurther ?? false,
@@ -94,25 +99,26 @@ export async function formatAnnotationResponse(
         images: [],
         thumbnailImage: null,
       };
+      response.specimen = specimenResponse;
 
       if (specimen.thumbnailImageId) {
-        response.specimen.thumbnailUrl = `/specimens/${specimen.id}/images/${specimen.thumbnailImageId}`;
+        specimenResponse.thumbnailUrl = `/specimens/${specimen.id}/images/${specimen.thumbnailImageId}`;
       }
 
       // Add thumbnail image if available
       if (specimen.thumbnailImage) {
-        response.specimen.thumbnailImage = formatSpecimenImageResponse(specimen.thumbnailImage, specimen.id);
+        specimenResponse.thumbnailImage = formatSpecimenImageResponse(specimen.thumbnailImage, specimen.id);
       }
 
       // Add session info if available
       if (specimen.session) {
-        response.specimen.session = {
+        specimenResponse.session = {
           ...formatSessionResponse(specimen.session),
         };
 
         // Add site info if available
         if (specimen.session.site) {
-          response.specimen.session.site = await formatSiteResponse(specimen.session.site);
+          specimenResponse.session.site = await formatSiteResponse(specimen.session.site);
         }
       }
     }

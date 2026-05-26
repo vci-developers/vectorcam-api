@@ -1,7 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import sequelize from '../../../db/index';
 import { FormAnswer } from '../../../db/models';
-import { fetchQuestionsMap, FormAnswerInput, loadSessionAndForm } from './common';
+import {
+  fetchQuestionsMap,
+  FormAnswerInput,
+  loadSessionAndForm,
+  validateFormAnswerScopes,
+  validateUniqueUnitsWithinSession,
+} from './common';
 
 interface UpdateAnswersBody {
   answers: FormAnswerInput[];
@@ -32,6 +38,7 @@ export const schema = {
           required: ['questionId', 'value'],
           properties: {
             frontendId: { type: 'string' },
+            sessionUnitId: { type: ['number', 'null'] },
             questionId: { type: 'number' },
             value: {},
             dataType: { type: 'string' },
@@ -77,25 +84,65 @@ export async function updateSessionFormAnswers(
       }
     }
 
+    const scopeError = await validateFormAnswerScopes(context.session.id, request.body.answers, questionsMap);
+    if (scopeError) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: scopeError });
+    }
+
+    const identityError = await validateUniqueUnitsWithinSession(
+      context.session.id,
+      context.form.id,
+      request.body.answers,
+      questionsMap
+    );
+    if (identityError) {
+      await transaction.rollback();
+      return reply.code(409).send({ error: identityError });
+    }
+
     const submittedAt = request.body.submittedAt ? new Date(request.body.submittedAt) : new Date();
     const now = new Date();
 
-    await FormAnswer.bulkCreate(
-      request.body.answers.map(answer => ({
-        frontendId: answer.frontendId ?? null,
-        sessionId: context.session.id,
-        formId: context.form.id,
-        questionId: answer.questionId,
-        value: answer.value,
-        dataType: answer.dataType || 'text',
-        submittedAt,
-        updatedAt: now,
-      })),
-      {
+    for (const answer of request.body.answers) {
+      const existing = await FormAnswer.findOne({
+        where: {
+          sessionId: context.session.id,
+          sessionUnitId: answer.sessionUnitId ?? null,
+          formId: context.form.id,
+          questionId: answer.questionId,
+        },
         transaction,
-        updateOnDuplicate: ['frontend_id', 'value', 'data_type', 'submitted_at', 'updated_at'],
+      });
+
+      if (existing) {
+        await existing.update(
+          {
+            frontendId: answer.frontendId ?? null,
+            value: answer.value,
+            dataType: answer.dataType || 'text',
+            submittedAt,
+            updatedAt: now,
+          },
+          { transaction }
+        );
+      } else {
+        await FormAnswer.create(
+          {
+            frontendId: answer.frontendId ?? null,
+            sessionId: context.session.id,
+            sessionUnitId: answer.sessionUnitId ?? null,
+            formId: context.form.id,
+            questionId: answer.questionId,
+            value: answer.value,
+            dataType: answer.dataType || 'text',
+            submittedAt,
+            updatedAt: now,
+          },
+          { transaction }
+        );
       }
-    );
+    }
 
     await transaction.commit();
 

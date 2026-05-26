@@ -1,11 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { formatSpecimenResponse, handleError } from './common';
+import { formatSpecimenResponse, handleError, validateSpecimenSessionUnit } from './common';
 import { Specimen, SpecimenImage, Session } from '../../db/models';
 import { getChangedFields, logReviewAction } from '../../services/reviewActionLog.service';
 
 interface UpdateSpecimenRequest {
   specimenId?: string;
+  sessionUnitId?: number | null;
   thumbnailImageId?: number;
   shouldProcessFurther?: boolean;
   expectedImages?: number;
@@ -24,6 +25,7 @@ export const schema = {
     type: 'object',
     properties: {
       specimenId: { type: 'string' },
+      sessionUnitId: { type: ['number', 'null'] },
       thumbnailImageId: { type: 'number' },
       shouldProcessFurther: { type: 'boolean' },
       expectedImages: { type: 'number' }
@@ -40,6 +42,23 @@ export const schema = {
             id: { type: 'number' },
             specimenId: { type: 'string' },
             sessionId: { type: 'number' },
+            sessionUnitId: { type: ['number', 'null'] },
+            sessionUnit: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    frontendId: { type: ['string', 'null'] },
+                    sessionId: { type: 'number' },
+                    unitOrder: { type: 'number' },
+                    createdAt: { type: ['number', 'null'] },
+                    updatedAt: { type: ['number', 'null'] },
+                  },
+                },
+              ],
+            },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
@@ -99,7 +118,7 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, thumbnailImageId, shouldProcessFurther, expectedImages } = request.body;
+    const { specimenId, sessionUnitId, thumbnailImageId, shouldProcessFurther, expectedImages } = request.body;
     
     const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
@@ -132,9 +151,20 @@ export async function updateSpecimen(
       }
     }
 
-    const trackedFields = ['specimenId', 'thumbnailImageId', 'shouldProcessFurther', 'expectedImages'];
+    const session = await Session.findByPk(specimen.sessionId);
+    if (!session) {
+      return reply.code(400).send({ error: 'Specimen session not found' });
+    }
+    const nextSessionUnitId = sessionUnitId !== undefined ? sessionUnitId : specimen.sessionUnitId;
+    const unitError = await validateSpecimenSessionUnit(session, nextSessionUnitId);
+    if (unitError) {
+      return reply.code(400).send({ error: unitError });
+    }
+
+    const trackedFields = ['specimenId', 'sessionUnitId', 'thumbnailImageId', 'shouldProcessFurther', 'expectedImages'];
     const beforeState: Record<string, unknown> = {
       specimenId: specimen.specimenId,
+      sessionUnitId: specimen.sessionUnitId,
       thumbnailImageId: specimen.thumbnailImageId,
       shouldProcessFurther: specimen.shouldProcessFurther,
       expectedImages: specimen.expectedImages,
@@ -143,6 +173,7 @@ export async function updateSpecimen(
     // Update the specimen with the new data
     await specimen.update({
       specimenId: specimenId !== undefined ? specimenId : specimen.specimenId,
+      sessionUnitId: nextSessionUnitId ?? null,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
       shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther,
       expectedImages: expectedImages !== undefined ? expectedImages : specimen.expectedImages
@@ -150,12 +181,12 @@ export async function updateSpecimen(
 
     const afterState: Record<string, unknown> = {
       specimenId: specimen.specimenId,
+      sessionUnitId: specimen.sessionUnitId,
       thumbnailImageId: specimen.thumbnailImageId,
       shouldProcessFurther: specimen.shouldProcessFurther,
       expectedImages: specimen.expectedImages,
     };
     const changedFields = getChangedFields(beforeState, afterState, trackedFields);
-    const session = await Session.findByPk(specimen.sessionId);
     if (session) {
       const reviewDate = session.collectionDate || session.createdAt || new Date();
       const userId = (request as any).user?.id || null;

@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen } from '../../../db/models';
-import { formatSpecimenResponse, handleError } from '../../specimen/common';
+import { formatSpecimenResponse, handleError, validateSpecimenSessionUnit } from '../../specimen/common';
 import { findSession } from '../common';
 
 export const schema = {
@@ -18,6 +18,7 @@ export const schema = {
     required: ['specimenId'],
     properties: {
       specimenId: { type: 'string' },
+      sessionUnitId: { type: ['number', 'null'] },
       shouldProcessFurther: { type: 'boolean' },
       expectedImages: { type: 'number' }
     }
@@ -33,6 +34,23 @@ export const schema = {
             id: { type: 'number' },
             specimenId: { type: 'string' },
             sessionId: { type: 'number' },
+            sessionUnitId: { type: ['number', 'null'] },
+            sessionUnit: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    frontendId: { type: ['string', 'null'] },
+                    sessionId: { type: 'number' },
+                    unitOrder: { type: 'number' },
+                    createdAt: { type: ['number', 'null'] },
+                    updatedAt: { type: ['number', 'null'] },
+                  },
+                },
+              ],
+            },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
@@ -87,11 +105,11 @@ export const schema = {
 };
 
 export async function createSessionSpecimen(
-  request: FastifyRequest<{ Params: { session_id: string }; Body: { specimenId: string; shouldProcessFurther?: boolean; expectedImages?: number } }>,
+  request: FastifyRequest<{ Params: { session_id: string }; Body: { specimenId: string; sessionUnitId?: number | null; shouldProcessFurther?: boolean; expectedImages?: number } }>,
   reply: FastifyReply
 ) {
   const { session_id } = request.params;
-  const { specimenId, shouldProcessFurther, expectedImages } = request.body;
+  const { specimenId, sessionUnitId, shouldProcessFurther, expectedImages } = request.body;
   try {
     // Check if session exists
     const session = await findSession(session_id);
@@ -103,8 +121,13 @@ export async function createSessionSpecimen(
     if (existing) {
       return reply.code(409).send({ error: 'A specimen with this id already exists for this session' });
     }
+    const unitError = await validateSpecimenSessionUnit(session, sessionUnitId);
+    if (unitError) {
+      return reply.code(400).send({ error: unitError });
+    }
     const specimen = await Specimen.create({ 
-      sessionId: Number(session_id), 
+      sessionId: session.id,
+      sessionUnitId: sessionUnitId ?? null,
       specimenId,
       shouldProcessFurther: shouldProcessFurther ?? false,
       expectedImages,

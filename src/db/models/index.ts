@@ -23,6 +23,7 @@ import TusUploadLog from './TusUploadLog';
 import ReviewActionLog from './ReviewActionLog';
 import CollectionSchedule from './CollectionSchedule';
 import CollectionCycle from './CollectionCycle';
+import SessionUnit from './SessionUnit';
 
 export {
   Program,
@@ -50,4 +51,5 @@ export {
   ReviewActionLog,
   CollectionSchedule,
   CollectionCycle,
+  SessionUnit,
 };

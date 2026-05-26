@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { FormAnswer, FormQuestion } from '../../../db/models';
+import { FormAnswer, FormQuestion, SessionUnit } from '../../../db/models';
 import { loadSessionAndForm } from './common';
 
 export const schema = {
@@ -34,12 +34,31 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               frontendId: { type: ['string', 'null'] },
+              sessionUnitId: { type: ['number', 'null'] },
+              sessionUnit: {
+                anyOf: [
+                  { type: 'null' },
+                  {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      frontendId: { type: ['string', 'null'] },
+                      sessionId: { type: 'number' },
+                      unitOrder: { type: 'number' },
+                      createdAt: { type: ['number', 'null'] },
+                      updatedAt: { type: ['number', 'null'] },
+                    },
+                  },
+                ],
+              },
               questionId: { type: 'number' },
               parentId: { type: ['number', 'null'] },
               prerequisite: {},
               label: { type: ['string', 'null'] },
               type: { type: ['string', 'null'] },
               required: { type: ['boolean', 'null'] },
+              answerScope: { type: ['string', 'null'] },
+              isUnitIdentityComponent: { type: ['boolean', 'null'] },
               options: { type: ['array', 'null'] },
               value: {},
               dataType: { type: 'string' },
@@ -71,8 +90,11 @@ export async function getSessionFormAnswers(
 
     const answers = await FormAnswer.findAll({
       where: { sessionId: context.session.id, formId: context.form.id },
-      include: [{ model: FormQuestion, as: 'question' }],
-      order: [['question_id', 'ASC']],
+      include: [
+        { model: FormQuestion, as: 'question' },
+        { model: SessionUnit, as: 'sessionUnit', required: false },
+      ],
+      order: [['session_unit_id', 'ASC'], ['question_id', 'ASC']],
     });
 
     return reply.send({
@@ -84,12 +106,27 @@ export async function getSessionFormAnswers(
       answers: answers.map(answer => ({
         id: answer.id,
         frontendId: answer.frontendId ?? null,
+        sessionUnitId: answer.sessionUnitId ?? null,
+        sessionUnit: (() => {
+          const unit = answer.get('sessionUnit') as SessionUnit | undefined;
+          if (!unit) return null;
+          return {
+            id: unit.id,
+            frontendId: unit.frontendId ?? null,
+            sessionId: unit.sessionId,
+            unitOrder: unit.unitOrder,
+            createdAt: unit.createdAt?.getTime?.() ?? null,
+            updatedAt: unit.updatedAt?.getTime?.() ?? null,
+          };
+        })(),
         questionId: answer.questionId,
         parentId: (answer.get('question') as FormQuestion | undefined)?.parentId ?? null,
         prerequisite: (answer.get('question') as FormQuestion | undefined)?.prerequisite ?? null,
         label: (answer.get('question') as FormQuestion | undefined)?.label ?? null,
         type: (answer.get('question') as FormQuestion | undefined)?.type ?? null,
         required: (answer.get('question') as FormQuestion | undefined)?.required ?? null,
+        answerScope: (answer.get('question') as FormQuestion | undefined)?.answerScope ?? null,
+        isUnitIdentityComponent: (answer.get('question') as FormQuestion | undefined)?.isUnitIdentityComponent ?? null,
         options: (answer.get('question') as FormQuestion | undefined)?.options ?? null,
         value: answer.value,
         dataType: answer.dataType,

@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, Site, SpecimenImage, InferenceResult } from '../../db/models';
+import { Specimen, Session, Site, SpecimenImage, InferenceResult, SessionUnit } from '../../db/models';
 import { formatSpecimenResponseFromImages } from './common';
 import { Op, Order } from 'sequelize';
 import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
@@ -41,6 +41,23 @@ export const schema = {
               id: { type: 'number' },
               specimenId: { type: 'string' },
               sessionId: { type: 'number' },
+              sessionUnitId: { type: ['number', 'null'] },
+              sessionUnit: {
+                anyOf: [
+                  { type: 'null' },
+                  {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      frontendId: { type: ['string', 'null'] },
+                      sessionId: { type: 'number' },
+                      unitOrder: { type: 'number' },
+                      createdAt: { type: ['number', 'null'] },
+                      updatedAt: { type: ['number', 'null'] },
+                    },
+                  },
+                ],
+              },
               thumbnailUrl: { type: 'string', nullable: true },
               thumbnailImageId: { type: 'number', nullable: true },
               shouldProcessFurther: { type: 'boolean' },
@@ -200,6 +217,12 @@ export async function getSpecimenList(
     if (shouldProcessFurther !== undefined) {
       whereClause.shouldProcessFurther = shouldProcessFurther;
     }
+
+    include.push({
+      model: SessionUnit,
+      as: 'sessionUnit',
+      required: false,
+    });
 
     // Apply site access restrictions first
     const siteAccess = request.siteAccess;

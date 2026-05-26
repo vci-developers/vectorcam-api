@@ -14,6 +14,8 @@ class FormQuestion extends Model {
   declare required: boolean;
   declare options: unknown[] | null;
   declare order: number | null;
+  declare answerScope: 'SESSION' | 'SESSION_UNIT';
+  declare isUnitIdentityComponent: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -69,6 +71,21 @@ FormQuestion.init(
     order: {
       type: DataTypes.INTEGER,
       allowNull: true,
+    },
+    answerScope: {
+      type: DataTypes.STRING(32),
+      allowNull: false,
+      defaultValue: 'SESSION',
+      field: 'answer_scope',
+      validate: {
+        isIn: [['SESSION', 'SESSION_UNIT']],
+      },
+    },
+    isUnitIdentityComponent: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'is_unit_identity_component',
     },
   },
   {

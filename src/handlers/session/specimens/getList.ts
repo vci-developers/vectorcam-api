@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findSession, handleError } from '../common';
-import { Specimen } from '../../../db/models';
+import { Specimen, SessionUnit } from '../../../db/models';
 import { formatSpecimenResponse } from '../../specimen/common';
 
 export const schema = {
@@ -23,6 +23,23 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               specimenId: { type: 'string' },
+              sessionUnitId: { type: ['number', 'null'] },
+              sessionUnit: {
+                anyOf: [
+                  { type: 'null' },
+                  {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'number' },
+                      frontendId: { type: ['string', 'null'] },
+                      sessionId: { type: 'number' },
+                      unitOrder: { type: 'number' },
+                      createdAt: { type: ['number', 'null'] },
+                      updatedAt: { type: ['number', 'null'] },
+                    },
+                  },
+                ],
+              },
               thumbnailUrl: { type: ['string', 'null'] },
               thumbnailImageId: { type: ['number', 'null'] },
               shouldProcessFurther: { type: 'boolean' },
@@ -92,6 +109,7 @@ export async function getSessionSpecimens(
     // Get all specimens for this session
     const specimens = await Specimen.findAll({
       where: { sessionId: session_id },
+      include: [{ model: SessionUnit, as: 'sessionUnit', required: false }],
       order: [['createdAt', 'DESC']],
     });
 
@@ -102,6 +120,8 @@ export async function getSessionSpecimens(
       return {
         id: formatted.id,
         specimenId: formatted.specimenId,
+        sessionUnitId: formatted.sessionUnitId,
+        sessionUnit: formatted.sessionUnit,
         thumbnailUrl: formatted.thumbnailUrl,
         thumbnailImageId: formatted.thumbnailImageId,
         shouldProcessFurther: formatted.shouldProcessFurther,

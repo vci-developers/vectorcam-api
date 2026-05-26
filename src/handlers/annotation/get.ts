@@ -7,7 +7,8 @@ import {
   SpecimenImage, 
   InferenceResult, 
   Session, 
-  Site 
+  Site,
+  SessionUnit,
 } from '../../db/models';
 import { formatAnnotationResponse } from './common';
 
@@ -78,6 +79,23 @@ export const schema = {
             id: { type: 'number' },
             specimenId: { type: 'string' },
             sessionId: { type: 'number' },
+            sessionUnitId: { type: ['number', 'null'] },
+            sessionUnit: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    frontendId: { type: ['string', 'null'] },
+                    sessionId: { type: 'number' },
+                    unitOrder: { type: 'number' },
+                    createdAt: { type: ['number', 'null'] },
+                    updatedAt: { type: ['number', 'null'] },
+                  },
+                },
+              ],
+            },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             images: { type: 'array' },
@@ -215,6 +233,11 @@ export default async function getAnnotation(
                   as: 'inferenceResult',
                 }
               ]
+            },
+            {
+              model: SessionUnit,
+              as: 'sessionUnit',
+              required: false,
             },
             {
               model: Session,

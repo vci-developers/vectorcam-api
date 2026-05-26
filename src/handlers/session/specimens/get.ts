@@ -23,6 +23,23 @@ export const schema = {
         id: { type: 'number' },
         specimenId: { type: 'string' },
         sessionId: { type: 'number' },
+        sessionUnitId: { type: ['number', 'null'] },
+        sessionUnit: {
+          anyOf: [
+            { type: 'null' },
+            {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+                frontendId: { type: ['string', 'null'] },
+                sessionId: { type: 'number' },
+                unitOrder: { type: 'number' },
+                createdAt: { type: ['number', 'null'] },
+                updatedAt: { type: ['number', 'null'] },
+              },
+            },
+          ],
+        },
         thumbnailUrl: { type: ['string', 'null'] },
         thumbnailImageId: { type: ['number', 'null'] },
         shouldProcessFurther: { type: 'boolean' },

@@ -3,6 +3,7 @@ import {
   findSessionById, 
   handleError, 
   formatSpecimenResponse,
+  validateSpecimenSessionUnit,
 } from './common';
 import { Specimen } from '../../db/models';
 import { findSessionSpecimen } from '../session/common';
@@ -10,6 +11,7 @@ import { findSessionSpecimen } from '../session/common';
 interface CreateSpecimenRequest {
   specimenId: string;
   sessionId: number;
+  sessionUnitId?: number | null;
   shouldProcessFurther?: boolean;
   expectedImages?: number;
 }
@@ -23,6 +25,7 @@ export const schema = {
     properties: {
       specimenId: { type: 'string' },
       sessionId: { type: 'number' },
+      sessionUnitId: { type: ['number', 'null'] },
       shouldProcessFurther: { type: 'boolean' },
       expectedImages: { type: 'number' }
     }
@@ -38,6 +41,23 @@ export const schema = {
             id: { type: 'number' },
             specimenId: { type: 'string' },
             sessionId: { type: 'number' },
+            sessionUnitId: { type: ['number', 'null'] },
+            sessionUnit: {
+              anyOf: [
+                { type: 'null' },
+                {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'number' },
+                    frontendId: { type: ['string', 'null'] },
+                    sessionId: { type: 'number' },
+                    unitOrder: { type: 'number' },
+                    createdAt: { type: ['number', 'null'] },
+                    updatedAt: { type: ['number', 'null'] },
+                  },
+                },
+              ],
+            },
             thumbnailUrl: { type: ['string', 'null'] },
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
@@ -99,6 +119,7 @@ export async function createSpecimen(
     const {
       specimenId,
       sessionId,
+      sessionUnitId,
       shouldProcessFurther,
       expectedImages,
     } = request.body;
@@ -126,10 +147,16 @@ export async function createSpecimen(
       return reply.code(409).send({ error: 'A specimen with this id already exists' });
     }
 
+    const unitError = await validateSpecimenSessionUnit(session, sessionUnitId);
+    if (unitError) {
+      return reply.code(400).send({ error: unitError });
+    }
+
     // Create the specimen first
     const specimen = await Specimen.create({
       specimenId,
       sessionId,
+      sessionUnitId: sessionUnitId ?? null,
       shouldProcessFurther: shouldProcessFurther ?? false,
       expectedImages,
     });
