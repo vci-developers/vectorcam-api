@@ -9,7 +9,6 @@ import {
   LocationType,
   Program,
   Session,
-  SessionUnit,
   Site,
   SurveillanceForm,
 } from '../../db/models';
@@ -40,7 +39,6 @@ interface HouseholdValueSetGroups {
 
 interface SpecimenCountRow {
   sessionId: number;
-  sessionUnitId: number | null;
   siteId: number;
   monthKey: string | null;
   species: string | null;
@@ -53,10 +51,6 @@ interface GroupAccumulator {
   monthKey: string;
   siteId: number;
   site: Site;
-  sessionId: number;
-  sessionUnit: SessionUnit | null;
-  rowType: 'SESSION' | 'SESSION_UNIT';
-  unitIdentity: string;
   sessionFieldValues: HouseholdValueSetMap;
   formFieldValues: HouseholdValueSetMap;
   firstCollectionDate: Date | null;
@@ -82,6 +76,15 @@ interface WorkbookSheetSpec {
 }
 
 const DISCREPANCY_VALUE = 'DISCREPANCY';
+const ALLOWED_HLC_DIFFERENCE_LABEL_PARTS = [
+  'collection place',
+  'collection time',
+  'number of collectors',
+  'wind',
+  'rain',
+  'relative humidity',
+  'temperature',
+];
 
 const SESSION_FIELD_LABELS: Array<{ key: string; label: string }> = [
   { key: 'collectorName', label: 'Collector Name' },
@@ -248,11 +251,17 @@ function getReportGroupKey(monthKey: string, siteId: number): string {
   return `${monthKey}|${siteId}`;
 }
 
-function getDiscrepancyGroupKey(session: Session, monthKey: string, siteId: number): string {
-  const cycleKey = session.collectionCycleId === null || session.collectionCycleId === undefined
-    ? `month:${monthKey}`
-    : `cycle:${session.collectionCycleId}`;
-  return `${siteId}|${cycleKey}|method:${normalizeValue(session.collectionMethod)}`;
+function getHlcReportGroupKey(monthKey: string, siteId: number, sessionId: number): string {
+  return `${getReportGroupKey(monthKey, siteId)}|session:${sessionId}`;
+}
+
+function isHlcCollectionMethod(collectionMethod: string | null | undefined): boolean {
+  return normalizeValue(collectionMethod).toUpperCase().includes('HLC');
+}
+
+function isAllowedHlcDifferenceColumn(column: string): boolean {
+  const normalizedColumn = column.toLowerCase();
+  return ALLOWED_HLC_DIFFERENCE_LABEL_PARTS.some((labelPart) => normalizedColumn.includes(labelPart));
 }
 
 function createHouseholdValueSetGroups(): HouseholdValueSetGroups {
@@ -439,11 +448,6 @@ export async function exportSessionReport(
           as: 'surveillanceForm',
           required: false,
         },
-        {
-          model: SessionUnit,
-          as: 'sessionUnits',
-          required: false,
-        },
       ],
       order: [['collectionDate', 'ASC'], ['id', 'ASC']],
     });
@@ -528,7 +532,7 @@ export async function exportSessionReport(
     const formQuestions = selectedFormIds.length > 0
       ? await FormQuestion.findAll({
         where: { formId: { [Op.in]: selectedFormIds } },
-        attributes: ['id', 'formId', 'label', 'order', 'answerScope', 'isUnitIdentityComponent'],
+        attributes: ['id', 'formId', 'label', 'order'],
         order: [['formId', 'ASC'], ['order', 'ASC'], ['id', 'ASC']],
       })
       : [];
@@ -536,12 +540,8 @@ export async function exportSessionReport(
     const questionById = new Map<number, FormQuestion>();
     const dynamicQuestionLabels: string[] = [];
     const seenDynamicLabels = new Set<string>();
-    const identityQuestionLabels = new Set<string>();
     for (const question of formQuestions) {
       questionById.set(question.id, question);
-      if (question.isUnitIdentityComponent) {
-        identityQuestionLabels.add(question.label);
-      }
       if (!seenDynamicLabels.has(question.label)) {
         dynamicQuestionLabels.push(question.label);
         seenDynamicLabels.add(question.label);
@@ -554,40 +554,22 @@ export async function exportSessionReport(
           sessionId: { [Op.in]: sessionIds },
           formId: { [Op.in]: selectedFormIds },
         },
-        attributes: ['sessionId', 'sessionUnitId', 'formId', 'questionId', 'value'],
+        attributes: ['sessionId', 'formId', 'questionId', 'value'],
       })
       : [];
 
     const answerMapBySession = new Map<number, HouseholdValueMap>();
-    const answerMapByUnit = new Map<number, HouseholdValueMap>();
-    const identityMapByUnit = new Map<number, HouseholdValueMap>();
     for (const answer of rawAnswers) {
       const question = questionById.get(answer.questionId);
       if (!question) continue;
 
-      const targetMap = answer.sessionUnitId === null || answer.sessionUnitId === undefined
-        ? answerMapBySession
-        : answerMapByUnit;
-      const targetId = answer.sessionUnitId === null || answer.sessionUnitId === undefined
-        ? answer.sessionId
-        : answer.sessionUnitId;
-
-      let values = targetMap.get(targetId);
+      let values = answerMapBySession.get(answer.sessionId);
       if (!values) {
         values = new Map<string, string>();
-        targetMap.set(targetId, values);
+        answerMapBySession.set(answer.sessionId, values);
       }
 
       values.set(question.label, normalizeFormAnswerValue(answer.value));
-
-      if (answer.sessionUnitId !== null && answer.sessionUnitId !== undefined && question.isUnitIdentityComponent) {
-        let identityValues = identityMapByUnit.get(answer.sessionUnitId);
-        if (!identityValues) {
-          identityValues = new Map<string, string>();
-          identityMapByUnit.set(answer.sessionUnitId, identityValues);
-        }
-        identityValues.set(question.label, normalizeFormAnswerValue(answer.value));
-      }
     }
 
     const specimenCountRows = await getSpecimenCountsBySession(sessionIds);
@@ -599,9 +581,8 @@ export async function exportSessionReport(
       specimenColumns.add(columnName);
 
       const reportGroupKeys = [
-        row.sessionUnitId === null || row.sessionUnitId === undefined
-          ? `session:${row.sessionId}`
-          : `unit:${row.sessionUnitId}`,
+        getReportGroupKey(monthKey, row.siteId),
+        getHlcReportGroupKey(monthKey, row.siteId, row.sessionId),
       ];
 
       for (const groupKey of reportGroupKeys) {
@@ -629,45 +610,42 @@ export async function exportSessionReport(
 
     const finalSpecimenColumns = Array.from(specimenColumns).sort((a, b) => a.localeCompare(b));
 
+    const methodTypesByHouseMonth = new Map<string, Set<'HLC' | 'OTHER'>>();
+    for (const session of sessions) {
+      const monthKey = toMonthKey(session.collectionDate);
+      const houseMonthGroupKey = getReportGroupKey(monthKey, session.siteId);
+      const isHlc = isHlcCollectionMethod(session.collectionMethod);
+      if (!methodTypesByHouseMonth.has(houseMonthGroupKey)) {
+        methodTypesByHouseMonth.set(houseMonthGroupKey, new Set<'HLC' | 'OTHER'>());
+      }
+      methodTypesByHouseMonth.get(houseMonthGroupKey)!.add(isHlc ? 'HLC' : 'OTHER');
+    }
+
     const groupedByMonthAndSite = new Map<string, GroupAccumulator>();
     const comparisonValuesByHouseMonth = new Map<string, HouseholdValueSetGroups>();
-    const unitComparisonValuesByIdentity = new Map<string, HouseholdValueSetMap>();
-
-    const getDerivedUnitIdentity = (unit: SessionUnit): string => {
-      const identityValues = identityMapByUnit.get(unit.id);
-      if (!identityValues || identityValues.size === 0) {
-        return `Unit ${unit.unitOrder}`;
-      }
-
-      return Array.from(identityValues.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([label, value]) => `${label}: ${value}`)
-        .join(' | ');
-    };
-
     for (const session of sessions) {
       const monthKey = toMonthKey(session.collectionDate);
       const site = session.get('site') as Site;
-      const discrepancyBaseKey = getDiscrepancyGroupKey(session, monthKey, site.id);
-      const reportGroupKey = `session:${session.id}`;
+      const houseMonthGroupKey = getReportGroupKey(monthKey, site.id);
+      const methodTypes = methodTypesByHouseMonth.get(houseMonthGroupKey) ?? new Set<'HLC' | 'OTHER'>();
+      const isPureHlcHouseMonth = methodTypes.size === 1 && methodTypes.has('HLC');
+      const reportGroupKey = isPureHlcHouseMonth
+        ? getHlcReportGroupKey(monthKey, site.id, session.id)
+        : houseMonthGroupKey;
 
       if (!groupedByMonthAndSite.has(reportGroupKey)) {
         groupedByMonthAndSite.set(reportGroupKey, {
           monthKey,
           siteId: site.id,
           site,
-          sessionId: session.id,
-          sessionUnit: null,
-          rowType: 'SESSION',
-          unitIdentity: '',
           sessionFieldValues: new Map<string, Set<string>>(),
           formFieldValues: new Map<string, Set<string>>(),
           firstCollectionDate: null,
           lastSubmittedAt: null,
           specimenGroupKey: reportGroupKey,
-          discrepancyGroupKey: discrepancyBaseKey,
+          discrepancyGroupKey: houseMonthGroupKey,
           sortDate: session.collectionDate,
-          sortId: session.id * 1000000 - 1,
+          sortId: session.id,
         });
       }
 
@@ -692,7 +670,7 @@ export async function exportSessionReport(
 
       const houseMonthValues = getOrCreateHouseholdValueSetGroups(
         comparisonValuesByHouseMonth,
-        discrepancyBaseKey
+        houseMonthGroupKey
       );
 
       for (const column of sessionColumns) {
@@ -706,53 +684,12 @@ export async function exportSessionReport(
         addHouseholdValue(group.formFieldValues, column, value);
         addHouseholdValue(houseMonthValues.form, column, value);
       }
-
-      const sessionUnits = ((session.get('sessionUnits') as SessionUnit[] | undefined) ?? [])
-        .sort((a, b) => {
-          if (a.unitOrder !== b.unitOrder) return a.unitOrder - b.unitOrder;
-          return a.id - b.id;
-        });
-
-      for (const unit of sessionUnits) {
-        const unitGroupKey = `unit:${unit.id}`;
-        const unitIdentity = getDerivedUnitIdentity(unit);
-        groupedByMonthAndSite.set(unitGroupKey, {
-          monthKey,
-          siteId: site.id,
-          site,
-          sessionId: session.id,
-          sessionUnit: unit,
-          rowType: 'SESSION_UNIT',
-          unitIdentity,
-          sessionFieldValues: new Map<string, Set<string>>(),
-          formFieldValues: new Map<string, Set<string>>(),
-          firstCollectionDate: session.collectionDate,
-          lastSubmittedAt: session.submittedAt,
-          specimenGroupKey: unitGroupKey,
-          discrepancyGroupKey: `${discrepancyBaseKey}|unit:${unitIdentity}`,
-          sortDate: session.collectionDate,
-          sortId: session.id * 1000000 + unit.unitOrder,
-        });
-
-        const unitGroup = groupedByMonthAndSite.get(unitGroupKey)!;
-        const unitAnswers = answerMapByUnit.get(unit.id) ?? new Map<string, string>();
-        const unitComparisonValues = unitComparisonValuesByIdentity.get(unitGroup.discrepancyGroupKey)
-          ?? new Map<string, Set<string>>();
-        unitComparisonValuesByIdentity.set(unitGroup.discrepancyGroupKey, unitComparisonValues);
-
-        for (const column of formColumns) {
-          const value = unitAnswers.get(column) ?? '';
-          addHouseholdValue(unitGroup.formFieldValues, column, value);
-
-          if (!identityQuestionLabels.has(column)) {
-            addHouseholdValue(unitComparisonValues, column, value);
-          }
-        }
-      }
     }
 
     const discrepancyColumnsByHouseMonth = new Map<string, HouseholdValueSetGroups>();
     for (const [houseMonthGroupKey, valuesBySection] of comparisonValuesByHouseMonth.entries()) {
+      const methodTypes = methodTypesByHouseMonth.get(houseMonthGroupKey) ?? new Set<'HLC' | 'OTHER'>();
+      const allowHlcDifferences = methodTypes.size === 1 && methodTypes.has('HLC');
       const discrepantColumns = createHouseholdValueSetGroups();
 
       for (const [column, values] of valuesBySection.session.entries()) {
@@ -762,22 +699,14 @@ export async function exportSessionReport(
       }
 
       for (const [column, values] of valuesBySection.form.entries()) {
-        if (resolveDiscrepancy(values) === DISCREPANCY_VALUE) {
+        if (
+          !(allowHlcDifferences && isAllowedHlcDifferenceColumn(column))
+          && resolveDiscrepancy(values) === DISCREPANCY_VALUE
+        ) {
           discrepantColumns.form.set(column, values);
         }
       }
       discrepancyColumnsByHouseMonth.set(houseMonthGroupKey, discrepantColumns);
-    }
-
-    const discrepancyColumnsByUnitIdentity = new Map<string, Set<string>>();
-    for (const [unitIdentityKey, valuesByColumn] of unitComparisonValuesByIdentity.entries()) {
-      const columns = new Set<string>();
-      for (const [column, values] of valuesByColumn.entries()) {
-        if (resolveDiscrepancy(values) === DISCREPANCY_VALUE) {
-          columns.add(column);
-        }
-      }
-      discrepancyColumnsByUnitIdentity.set(unitIdentityKey, columns);
     }
 
     const orderedGroups = Array.from(groupedByMonthAndSite.values()).sort((a, b) => {
@@ -806,11 +735,6 @@ export async function exportSessionReport(
         : []),
       'Collection Date',
       'Submitted At',
-      'Row Type',
-      'Session ID',
-      'Session Unit ID',
-      'Session Unit Order',
-      'Session Unit Identity',
       ...sessionColumns,
       ...formColumns,
       ...finalSpecimenColumns,
@@ -845,12 +769,7 @@ export async function exportSessionReport(
 
         row.push(
           formatTimestamp(group.firstCollectionDate),
-          formatTimestamp(group.lastSubmittedAt),
-          group.rowType === 'SESSION' ? 'Session' : 'Session Unit',
-          group.sessionId,
-          group.sessionUnit?.id ?? '',
-          group.sessionUnit?.unitOrder ?? '',
-          group.unitIdentity
+          formatTimestamp(group.lastSubmittedAt)
         );
 
         for (const sessionColumn of sessionColumns) {
@@ -861,12 +780,8 @@ export async function exportSessionReport(
 
         for (const formColumn of formColumns) {
           const values = group.formFieldValues.get(formColumn) ?? new Set<string>();
-          const sessionDiscrepancies = discrepancyColumnsByHouseMonth.get(group.discrepancyGroupKey);
-          const unitDiscrepancies = discrepancyColumnsByUnitIdentity.get(group.discrepancyGroupKey);
-          const isDiscrepant = group.rowType === 'SESSION_UNIT'
-            ? unitDiscrepancies?.has(formColumn)
-            : sessionDiscrepancies?.form.has(formColumn);
-          row.push(isDiscrepant ? DISCREPANCY_VALUE : resolveDiscrepancy(values));
+          const discrepancies = discrepancyColumnsByHouseMonth.get(group.discrepancyGroupKey);
+          row.push(discrepancies?.form.has(formColumn) ? DISCREPANCY_VALUE : resolveDiscrepancy(values));
         }
 
         const specimenCounts = specimenCountByReportGroup.get(group.specimenGroupKey) ?? new Map<string, number>();
@@ -1018,7 +933,7 @@ export async function exportSessionReport(
 
     const firstLocationColumn = 1;
     const locationDetailColumnCount = includeLegacyLocationColumns ? 5 : 0;
-    const timestampColumnCount = 7;
+    const timestampColumnCount = 2;
     const lastLocationColumn = 1 + locationHierarchyColumns.length + locationDetailColumnCount + timestampColumnCount;
     const firstSessionColumn = lastLocationColumn + 1;
     const lastSessionColumn = firstSessionColumn + sessionColumns.length - 1;
@@ -1065,7 +980,6 @@ async function getSpecimenCountsBySession(sessionIds: number[]): Promise<Specime
   const query = `
     SELECT
       sess.id AS sessionId,
-      sp.session_unit_id AS sessionUnitId,
       s.id AS siteId,
       DATE_FORMAT(sess.collection_date, '%Y-%m') AS monthKey,
       si.species AS species,
@@ -1079,7 +993,6 @@ async function getSpecimenCountsBySession(sessionIds: number[]): Promise<Specime
     WHERE sess.id IN (:sessionIds)
     GROUP BY
       sess.id,
-      sp.session_unit_id,
       s.id,
       DATE_FORMAT(sess.collection_date, '%Y-%m'),
       si.species,
