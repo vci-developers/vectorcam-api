@@ -205,11 +205,6 @@ export async function validateSpecimenSessionUnit(
   session: Session,
   sessionUnitId?: number | null
 ): Promise<string | null> {
-  const collectionMethod = (session.collectionMethod ?? '').toUpperCase();
-  if (collectionMethod.includes('HLC') && (sessionUnitId === null || sessionUnitId === undefined)) {
-    return 'HLC specimens require sessionUnitId';
-  }
-
   if (sessionUnitId === null || sessionUnitId === undefined) {
     return null;
   }
