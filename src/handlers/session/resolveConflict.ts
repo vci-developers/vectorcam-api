@@ -1,12 +1,28 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Session, SurveillanceForm, SessionConflictResolution } from '../../db/models';
+import {
+  Form,
+  FormAnswer,
+  FormQuestion,
+  Session,
+  SessionConflictResolution,
+  SessionUnit,
+  Site,
+  SurveillanceForm,
+} from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { Op } from 'sequelize';
 import { getChangedFields, logReviewAction } from '../../services/reviewActionLog.service';
 
+interface ResolvedFormAnswer {
+  questionId: number;
+  value: unknown;
+  dataType?: string;
+}
+
 interface ResolveConflictRequest {
-  sessionIds: number[];
-  resolvedData: {
+  sessionIds?: number[];
+  sessionUnitIds?: number[];
+  resolvedData?: {
     collectorTitle?: string | null;
     collectorName?: string | null;
     collectionDate?: number | null;
@@ -32,16 +48,21 @@ interface ResolveConflictRequest {
     llinBrand?: string | null;
     numPeopleSleptUnderLlin?: number | null;
   } | null;
+  resolvedFormAnswers?: ResolvedFormAnswer[] | null;
 }
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Resolve conflicts between multiple sessions in the same site and month',
+  description: 'Resolve conflicts between multiple sessions or session units in the same site and month',
   body: {
     type: 'object',
-    required: ['sessionIds', 'resolvedData'],
     properties: {
       sessionIds: {
+        type: 'array',
+        items: { type: 'number' },
+        minItems: 2,
+      },
+      sessionUnitIds: {
         type: 'array',
         items: { type: 'number' },
         minItems: 2,
@@ -78,6 +99,18 @@ export const schema = {
           numPeopleSleptUnderLlin: { type: ['number', 'null'] },
         },
       },
+      resolvedFormAnswers: {
+        type: ['array', 'null'],
+        items: {
+          type: 'object',
+          required: ['questionId', 'value'],
+          properties: {
+            questionId: { type: 'number' },
+            value: {},
+            dataType: { type: 'string' },
+          },
+        },
+      },
     },
   },
   response: {
@@ -87,6 +120,7 @@ export const schema = {
         message: { type: 'string' },
         resolutionId: { type: 'number' },
         updatedSessionCount: { type: 'number' },
+        updatedSessionUnitCount: { type: 'number' },
       },
     },
     400: {
@@ -121,47 +155,116 @@ export async function resolveConflict(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { sessionIds, resolvedData, resolvedSurveillanceForm } = request.body;
+    const {
+      sessionIds: requestedSessionIds,
+      sessionUnitIds,
+      resolvedData = {},
+      resolvedSurveillanceForm,
+      resolvedFormAnswers,
+    } = request.body;
+    const hasSessionIds = Array.isArray(requestedSessionIds) && requestedSessionIds.length > 0;
+    const hasSessionUnitIds = Array.isArray(sessionUnitIds) && sessionUnitIds.length > 0;
 
-    // Validate that at least 2 sessions are provided
-    if (sessionIds.length < 2) {
+    if (hasSessionIds === hasSessionUnitIds) {
+      return reply.code(400).send({ error: 'Provide either sessionIds or sessionUnitIds' });
+    }
+
+    if (hasSessionIds && requestedSessionIds!.length < 2) {
       return reply.code(400).send({ error: 'At least 2 session IDs are required' });
     }
 
-    // Fetch all sessions
-    const sessions = await Session.findAll({
-      where: {
-        id: {
-          [Op.in]: sessionIds,
-        },
-      },
-      include: [
-        {
-          model: SurveillanceForm,
-          as: 'surveillanceForm',
-          required: false,
-        },
-      ],
-    });
-
-    // Verify all sessions were found
-    if (sessions.length !== sessionIds.length) {
-      const foundIds = sessions.map(s => s.id);
-      const missingIds = sessionIds.filter(id => !foundIds.includes(id));
-      return reply.code(404).send({
-        error: `Sessions not found: ${missingIds.join(', ')}`,
-      });
+    if (hasSessionUnitIds && sessionUnitIds!.length < 2) {
+      return reply.code(400).send({ error: 'At least 2 session unit IDs are required' });
     }
 
-    // Validate all sessions are under the same site
+    if (hasSessionUnitIds && Object.keys(resolvedData).length > 0) {
+      return reply.code(400).send({ error: 'resolvedData can only be used with sessionIds' });
+    }
+
+    if (hasSessionUnitIds && resolvedSurveillanceForm) {
+      return reply.code(400).send({ error: 'resolvedSurveillanceForm can only be used with sessionIds' });
+    }
+
+    if (hasSessionUnitIds && (!resolvedFormAnswers || resolvedFormAnswers.length === 0)) {
+      return reply.code(400).send({ error: 'resolvedFormAnswers are required when resolving session units' });
+    }
+
+    let sessionUnits: SessionUnit[] = [];
+    let sessions: Session[];
+    let sessionIds: number[];
+
+    if (hasSessionIds) {
+      sessionIds = requestedSessionIds!;
+      sessions = await Session.findAll({
+        where: {
+          id: {
+            [Op.in]: sessionIds,
+          },
+        },
+        include: [
+          {
+            model: SurveillanceForm,
+            as: 'surveillanceForm',
+            required: false,
+          },
+        ],
+      });
+
+      // Verify all sessions were found
+      if (sessions.length !== sessionIds.length) {
+        const foundIds = sessions.map(s => s.id);
+        const missingIds = sessionIds.filter(id => !foundIds.includes(id));
+        return reply.code(404).send({
+          error: `Sessions not found: ${missingIds.join(', ')}`,
+        });
+      }
+    } else {
+      sessionUnits = await SessionUnit.findAll({
+        where: {
+          id: {
+            [Op.in]: sessionUnitIds!,
+          },
+        },
+        include: [
+          {
+            model: Session,
+            as: 'session',
+            required: true,
+          },
+        ],
+      });
+
+      if (sessionUnits.length !== sessionUnitIds!.length) {
+        const foundIds = sessionUnits.map(unit => unit.id);
+        const missingIds = sessionUnitIds!.filter(id => !foundIds.includes(id));
+        return reply.code(404).send({
+          error: `Session units not found: ${missingIds.join(', ')}`,
+        });
+      }
+
+      const sessionsById = new Map<number, Session>();
+      for (const unit of sessionUnits) {
+        const session = unit.get('session') as Session | undefined;
+        if (!session) {
+          return reply.code(404).send({ error: `Session not found for session unit ${unit.id}` });
+        }
+        sessionsById.set(session.id, session);
+      }
+      sessions = Array.from(sessionsById.values());
+      sessionIds = sessions.map(session => session.id);
+    }
+
+    // Validate all target sessions are under the same site
     const siteIds = new Set(sessions.map(s => s.siteId));
     if (siteIds.size > 1) {
       return reply.code(400).send({
-        error: 'All sessions must be under the same site',
+        error: hasSessionUnitIds
+          ? 'All session units must be under the same site'
+          : 'All sessions must be under the same site',
       });
     }
 
-    // Validate all sessions are in the same month and year
+    // Validate all target sessions are in the same month and year
     const monthYearPairs = new Set(
       sessions.map(s => {
         const date = s.collectionDate || s.createdAt;
@@ -174,7 +277,9 @@ export async function resolveConflict(
 
     if (monthYearPairs.size > 1) {
       return reply.code(400).send({
-        error: 'All sessions must be in the same month and year',
+        error: hasSessionUnitIds
+          ? 'All session units must be in sessions from the same month and year'
+          : 'All sessions must be in the same month and year',
       });
     }
 
@@ -191,6 +296,60 @@ export async function resolveConflict(
         return reply.code(403).send({
           error: 'Forbidden: You do not have access to resolve conflicts for this site',
         });
+      }
+    }
+
+    const targetAnswerScope = hasSessionUnitIds ? 'SESSION_UNIT' : 'SESSION';
+    const formAnswerQuestionIds = Array.from(
+      new Set((resolvedFormAnswers ?? []).map(answer => answer.questionId))
+    );
+    let resolvedFormAnswersFormId: number | null = null;
+    let formQuestionsById = new Map<number, FormQuestion>();
+
+    if (formAnswerQuestionIds.length > 0) {
+      const site = await Site.findByPk(siteId);
+      if (!site) {
+        return reply.code(404).send({ error: `Site not found: ${siteId}` });
+      }
+
+      const questions = await FormQuestion.findAll({
+        where: { id: { [Op.in]: formAnswerQuestionIds } },
+        include: [{ model: Form, as: 'form', required: true }],
+      });
+
+      formQuestionsById = new Map(questions.map(question => [question.id, question]));
+
+      for (const questionId of formAnswerQuestionIds) {
+        if (!formQuestionsById.has(questionId)) {
+          return reply.code(400).send({ error: `Question ${questionId} does not exist` });
+        }
+      }
+
+      for (const question of questions) {
+        const form = question.get('form') as Form | undefined;
+        if (!form || form.programId !== site.programId) {
+          return reply.code(400).send({
+            error: `Question ${question.id} does not belong to the program for this site`,
+          });
+        }
+
+        if (form.version === '') {
+          return reply.code(400).send({ error: `Question ${question.id} belongs to an unpublished form` });
+        }
+
+        if (question.answerScope !== targetAnswerScope) {
+          return reply.code(400).send({
+            error: hasSessionUnitIds
+              ? `Question ${question.id} is session-scoped and cannot be resolved for session units`
+              : `Question ${question.id} is unit-scoped and cannot be resolved at the session level`,
+          });
+        }
+
+        if (resolvedFormAnswersFormId !== null && resolvedFormAnswersFormId !== question.formId) {
+          return reply.code(400).send({ error: 'Resolved form answers must belong to the same form' });
+        }
+
+        resolvedFormAnswersFormId = question.formId;
       }
     }
 
@@ -218,6 +377,15 @@ export async function resolveConflict(
         state: session.state,
       })),
       surveillanceForms: [] as any[],
+      sessionUnits: sessionUnits.map(unit => ({
+        sessionUnitId: unit.id,
+        frontendId: unit.frontendId,
+        sessionId: unit.sessionId,
+        unitOrder: unit.unitOrder,
+        createdAt: unit.createdAt ? unit.createdAt.getTime() : null,
+        updatedAt: unit.updatedAt ? unit.updatedAt.getTime() : null,
+      })),
+      formAnswers: [] as any[],
     };
 
     // Get surveillance forms
@@ -238,6 +406,29 @@ export async function resolveConflict(
           numPeopleSleptUnderLlin: form.numPeopleSleptUnderLlin,
         });
       }
+    }
+
+    if (formAnswerQuestionIds.length > 0) {
+      const formAnswers = await FormAnswer.findAll({
+        where: {
+          sessionId: { [Op.in]: sessionIds },
+          questionId: { [Op.in]: formAnswerQuestionIds },
+          sessionUnitId: hasSessionUnitIds ? { [Op.in]: sessionUnitIds! } : null,
+        },
+        order: [['session_id', 'ASC'], ['question_id', 'ASC']],
+      });
+
+      beforeData.formAnswers = formAnswers.map(answer => ({
+        sessionId: answer.sessionId,
+        sessionUnitId: answer.sessionUnitId,
+        formId: answer.formId,
+        questionId: answer.questionId,
+        value: answer.value,
+        dataType: answer.dataType,
+        submittedAt: answer.submittedAt?.getTime?.() ?? null,
+        createdAt: answer.createdAt?.getTime?.() ?? null,
+        updatedAt: answer.updatedAt?.getTime?.() ?? null,
+      }));
     }
 
     // Update all sessions with resolved data
@@ -267,13 +458,15 @@ export async function resolveConflict(
     if (resolvedData.hardwareId !== undefined) updateData.hardwareId = resolvedData.hardwareId;
     if (resolvedData.expectedSpecimens !== undefined) updateData.expectedSpecimens = resolvedData.expectedSpecimens;
     if (resolvedData.state !== undefined) updateData.state = resolvedData.state;
-    await Session.update(updateData, {
-      where: {
-        id: {
-          [Op.in]: sessionIds,
+    if (Object.keys(updateData).length > 0) {
+      await Session.update(updateData, {
+        where: {
+          id: {
+            [Op.in]: sessionIds,
+          },
         },
-      },
-    });
+      });
+    }
 
     // Update surveillance forms if provided
     if (resolvedSurveillanceForm) {
@@ -300,13 +493,60 @@ export async function resolveConflict(
         formUpdateData.numPeopleSleptUnderLlin = resolvedSurveillanceForm.numPeopleSleptUnderLlin;
       }
 
-      await SurveillanceForm.update(formUpdateData, {
-        where: {
-          sessionId: {
-            [Op.in]: sessionIds,
+      if (Object.keys(formUpdateData).length > 0) {
+        await SurveillanceForm.update(formUpdateData, {
+          where: {
+            sessionId: {
+              [Op.in]: sessionIds,
+            },
           },
-        },
-      });
+        });
+      }
+    }
+
+    if (resolvedFormAnswers && resolvedFormAnswers.length > 0) {
+      const submittedAt = new Date();
+      const now = new Date();
+      const formAnswerTargets = hasSessionUnitIds
+        ? sessionUnits.map(unit => ({ sessionId: unit.sessionId, sessionUnitId: unit.id }))
+        : sessionIds.map(sessionId => ({ sessionId, sessionUnitId: null }));
+
+      for (const target of formAnswerTargets) {
+        for (const answer of resolvedFormAnswers) {
+          const question = formQuestionsById.get(answer.questionId);
+          if (!question) continue;
+
+          const existing = await FormAnswer.findOne({
+            where: {
+              sessionId: target.sessionId,
+              sessionUnitId: target.sessionUnitId,
+              formId: question.formId,
+              questionId: answer.questionId,
+            },
+          });
+
+          if (existing) {
+            await existing.update({
+              value: answer.value,
+              dataType: answer.dataType || existing.dataType || 'text',
+              submittedAt,
+              updatedAt: now,
+            });
+          } else {
+            await FormAnswer.create({
+              frontendId: null,
+              sessionId: target.sessionId,
+              sessionUnitId: target.sessionUnitId,
+              formId: question.formId,
+              questionId: answer.questionId,
+              value: answer.value,
+              dataType: answer.dataType || 'text',
+              submittedAt,
+              updatedAt: now,
+            });
+          }
+        }
+      }
     }
 
     // Get user ID from request if available (from auth middleware)
@@ -322,15 +562,27 @@ export async function resolveConflict(
       beforeData,
       afterData: {
         ...resolvedData,
+        sessionUnitIds: hasSessionUnitIds ? sessionUnitIds : null,
         surveillanceForm: resolvedSurveillanceForm || null,
+        formAnswers: resolvedFormAnswers || null,
       },
     });
 
     const resolvedSessionKeys = Object.keys(resolvedData || {});
     const resolvedFormKeys = Object.keys(resolvedSurveillanceForm || {});
+    const resolvedFormAnswerKeys = (resolvedFormAnswers || []).map(answer => `question:${answer.questionId}`);
     const sessionFieldChanges = getChangedFields({}, resolvedData as Record<string, unknown>, resolvedSessionKeys);
     const formFieldChanges = resolvedSurveillanceForm
       ? getChangedFields({}, resolvedSurveillanceForm as Record<string, unknown>, resolvedFormKeys)
+      : {};
+    const formAnswerChanges = resolvedFormAnswers
+      ? getChangedFields(
+          {},
+          Object.fromEntries(
+            resolvedFormAnswers.map(answer => [`question:${answer.questionId}`, answer.value])
+          ),
+          resolvedFormAnswerKeys
+        )
       : {};
 
     try {
@@ -338,11 +590,12 @@ export async function resolveConflict(
         siteId,
         year,
         month,
-        action: 'resolve_session_conflicts',
+        action: hasSessionUnitIds ? 'resolve_session_unit_conflicts' : 'resolve_session_conflicts',
         userId,
         changes: {
           sessions: sessionFieldChanges,
           surveillanceForm: formFieldChanges,
+          formAnswers: formAnswerChanges,
         },
         fields: {
           endpoint: '/sessions/conflicts/resolve',
@@ -350,9 +603,11 @@ export async function resolveConflict(
           entityType: 'session_conflict_resolution',
           entityId: resolution.id,
           sessionIds,
+          sessionUnitIds: hasSessionUnitIds ? sessionUnitIds : undefined,
         },
         metadata: {
           updatedSessionCount: sessions.length,
+          updatedSessionUnitCount: sessionUnits.length,
           resolutionId: resolution.id,
         },
       });
@@ -364,6 +619,7 @@ export async function resolveConflict(
       message: 'Conflict resolved successfully',
       resolutionId: resolution.id,
       updatedSessionCount: sessions.length,
+      updatedSessionUnitCount: sessionUnits.length,
     });
   } catch (error) {
     request.log.error(error);
