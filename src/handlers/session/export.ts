@@ -131,7 +131,7 @@ export async function exportSessionsCSV(
 
     // Generate CSV header with program data
     let csv =
-      'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,ExpectedSpecimens,State,DeviceID,DeviceModel,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry\n';
+      'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,ExpectedSpecimens,State,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry\n';
 
     // Generate CSV rows
     for (const session of sessions) {
@@ -165,6 +165,7 @@ export async function exportSessionsCSV(
         escapeCSVField(session.state),
         escapeCSVField(session.deviceId),
         escapeCSVField(device?.model),
+        escapeCSVField(device?.ssaid),
         escapeCSVField(device?.registeredAt?.toISOString()),
         escapeCSVField(session.siteId),
         escapeCSVField(formattedSite?.district ?? ''),

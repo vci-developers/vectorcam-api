@@ -7,6 +7,7 @@ import Program from './Program';
 class Device extends Model {
   declare id: number;
   declare model: string;
+  declare ssaid: string | null;
   declare appVersion: string | null;
   declare registeredAt: Date;
   declare programId: number;
@@ -24,6 +25,10 @@ Device.init(
     model: {
       type: DataTypes.STRING(255),
       allowNull: false,
+    },
+    ssaid: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
     },
     appVersion: {
       type: DataTypes.STRING(50),

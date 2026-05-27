@@ -4,6 +4,7 @@ import { formatDeviceResponse, findProgramById } from './common';
 
 interface CreateDeviceRequest {
   model: string;
+  ssaid?: string;
   appVersion?: string;
   registeredAt: number; // Unix timestamp in milliseconds
   programId: number;
@@ -16,6 +17,7 @@ export const schema = {
     required: ['model', 'registeredAt', 'programId'],
     properties: {
       model: { type: 'string' },
+      ssaid: { type: 'string' },
       appVersion: { type: 'string' },
       registeredAt: { type: 'number' }, // Unix timestamp in milliseconds
       programId: { type: 'number' },
@@ -31,6 +33,7 @@ export const schema = {
           properties: {
             deviceId: { type: 'number' },
             model: { type: 'string' },
+            ssaid: { type: ['string', 'null'] },
             appVersion: { type: ['string', 'null'] },
             registeredAt: { type: 'number' }, // Unix timestamp in milliseconds
             programId: { type: 'number' },
@@ -47,7 +50,7 @@ export async function createDevice(
   reply: FastifyReply
 ) {
   try {
-    const { model, appVersion, registeredAt, programId } = request.body;
+    const { model, ssaid, appVersion, registeredAt, programId } = request.body;
 
     // Check if program exists
     const program = await findProgramById(programId);
@@ -57,6 +60,7 @@ export async function createDevice(
 
     const device = await Device.create({
       model,
+      ssaid: ssaid ?? null,
       appVersion: appVersion ?? null,
       registeredAt: new Date(registeredAt),
       programId,

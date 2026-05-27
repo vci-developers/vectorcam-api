@@ -66,6 +66,7 @@ export const schema = {
             deviceId: { type: 'number' },
             programId: { type: 'number' },
             model: { type: 'string' },
+            ssaid: { type: ['string', 'null'] },
             registeredAt: { type: 'number' },
             submittedAt: { type: 'number' }
           }
@@ -106,7 +107,7 @@ export async function getSessionDetails(
       {
         model: Device,
         as: 'device',
-        attributes: ['id', 'programId', 'model', 'registeredAt', 'createdAt']
+        attributes: ['id', 'programId', 'model', 'ssaid', 'registeredAt', 'createdAt']
       }
     ];
 
@@ -128,6 +129,7 @@ export async function getSessionDetails(
         deviceId: sessionData.device.id,
         programId: sessionData.device.programId,
         model: sessionData.device.model,
+        ssaid: sessionData.device.ssaid,
         registeredAt: new Date(sessionData.device.registeredAt).getTime(),
         submittedAt: new Date(sessionData.device.createdAt).getTime()
       } : null

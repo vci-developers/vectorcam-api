@@ -168,6 +168,7 @@ export const schema = {
               properties: {
                 id: { type: 'number' },
                 model: { type: 'string' },
+                ssaid: { type: ['string', 'null'] },
                 registeredAt: { type: 'number' }
               }
             }
@@ -218,7 +219,7 @@ export async function getSessionSpecimen(
           {
             model: Device,
             as: 'device',
-            attributes: ['id', 'model', 'registeredAt']
+            attributes: ['id', 'model', 'ssaid', 'registeredAt']
           }
         ]
       }
@@ -265,6 +266,7 @@ export async function getSessionSpecimen(
         device: specimenData.session.device ? {
           id: specimenData.session.device.id,
           model: specimenData.session.device.model,
+          ssaid: specimenData.session.device.ssaid,
           registeredAt: new Date(specimenData.session.device.registeredAt).getTime()
         } : null
       } : null

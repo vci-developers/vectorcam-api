@@ -3,6 +3,7 @@ import { formatDeviceResponse, findDeviceById, findProgramById } from './common'
 
 interface UpdateDeviceRequest {
   model?: string;
+  ssaid?: string | null;
   appVersion?: string | null;
   registeredAt?: number; // Unix timestamp in milliseconds
   programId?: number;
@@ -21,6 +22,7 @@ export const schema = {
     type: 'object',
     properties: {
       model: { type: 'string' },
+      ssaid: { type: ['string', 'null'] },
       appVersion: { type: ['string', 'null'] },
       registeredAt: { type: 'number' }, // Unix timestamp in milliseconds
       programId: { type: 'number' },
@@ -36,6 +38,7 @@ export const schema = {
           properties: {
             deviceId: { type: 'number' },
             model: { type: 'string' },
+            ssaid: { type: ['string', 'null'] },
             appVersion: { type: ['string', 'null'] },
             registeredAt: { type: 'number' }, // Unix timestamp in milliseconds
             programId: { type: 'number' },
@@ -56,7 +59,7 @@ export async function updateDevice(
 ) {
   try {
     const { device_id } = request.params;
-    const { model, appVersion, registeredAt, programId } = request.body;
+    const { model, ssaid, appVersion, registeredAt, programId } = request.body;
 
     const device = await findDeviceById(device_id);
     if (!device) {
@@ -72,6 +75,7 @@ export async function updateDevice(
 
     await device.update({
       model: model !== undefined ? model : device.model,
+      ssaid: ssaid !== undefined ? ssaid : device.ssaid,
       appVersion: appVersion !== undefined ? appVersion : device.appVersion,
       registeredAt: registeredAt !== undefined ? new Date(registeredAt) : device.registeredAt,
       programId: programId !== undefined ? programId : device.programId,
