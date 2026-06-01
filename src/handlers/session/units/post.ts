@@ -1,11 +1,12 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { SessionUnit } from '../../../db/models';
 import { findSession } from '../common';
-import { formatSessionUnit } from './common';
+import { formatSessionUnit, sessionUnitResponseSchema } from './common';
 
 interface CreateSessionUnitBody {
   frontendId?: string | null;
   unitOrder: number;
+  createdAt?: number;
 }
 
 export const schema = {
@@ -24,6 +25,28 @@ export const schema = {
     properties: {
       frontendId: { type: ['string', 'null'] },
       unitOrder: { type: 'number' },
+      createdAt: { type: 'number' },
+    },
+  },
+  response: {
+    201: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        sessionUnit: sessionUnitResponseSchema,
+      },
+    },
+    400: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    404: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
     },
   },
 };
@@ -45,7 +68,11 @@ export async function createSessionUnit(
     sessionId: session.id,
     frontendId: request.body.frontendId ?? null,
     unitOrder: request.body.unitOrder,
+    createdAt: request.body.createdAt !== undefined ? new Date(request.body.createdAt) : undefined,
   });
 
-  return reply.code(201).send(formatSessionUnit(unit));
+  return reply.code(201).send({
+    message: 'Session unit created successfully',
+    sessionUnit: formatSessionUnit(unit),
+  });
 }

@@ -13,6 +13,32 @@ export const schema = {
       session_unit_id: { type: 'string' },
     },
   },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+    400: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    404: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    409: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+  },
 };
 
 export async function deleteSessionUnit(
@@ -44,5 +70,5 @@ export async function deleteSessionUnit(
   }
 
   await unit.destroy();
-  return reply.code(204).send();
+  return reply.send({ message: 'Session unit deleted successfully' });
 }

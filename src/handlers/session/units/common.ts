@@ -9,6 +9,18 @@ export interface SessionUnitResponse {
   updatedAt: number | null;
 }
 
+export const sessionUnitResponseSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    sessionId: { type: 'number' },
+    frontendId: { type: ['string', 'null'] },
+    unitOrder: { type: 'number' },
+    createdAt: { type: ['number', 'null'] },
+    updatedAt: { type: ['number', 'null'] },
+  },
+};
+
 export function formatSessionUnit(unit: SessionUnit): SessionUnitResponse {
   return {
     id: unit.id,

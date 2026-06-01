@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { SessionUnit } from '../../../db/models';
 import { findSession } from '../common';
-import { formatSessionUnit } from './common';
+import { formatSessionUnit, sessionUnitResponseSchema } from './common';
 
 interface UpdateSessionUnitBody {
   frontendId?: string | null;
@@ -24,6 +24,27 @@ export const schema = {
     properties: {
       frontendId: { type: ['string', 'null'] },
       unitOrder: { type: 'number' },
+    },
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        sessionUnit: sessionUnitResponseSchema,
+      },
+    },
+    400: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
+    },
+    404: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+      },
     },
   },
 };
@@ -56,5 +77,8 @@ export async function updateSessionUnit(
     unitOrder: request.body.unitOrder !== undefined ? request.body.unitOrder : unit.unitOrder,
   });
 
-  return reply.send(formatSessionUnit(unit));
+  return reply.send({
+    message: 'Session unit updated successfully',
+    sessionUnit: formatSessionUnit(unit),
+  });
 }
