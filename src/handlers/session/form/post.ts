@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { UniqueConstraintError } from 'sequelize';
 import sequelize from '../../../db/index';
 import { FormAnswer } from '../../../db/models';
 import {
@@ -70,6 +71,12 @@ export const schema = {
             },
           },
         },
+      },
+    },
+    409: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
       },
     },
   },
@@ -168,6 +175,10 @@ export async function createSessionFormAnswers(
     });
   } catch (error) {
     await transaction.rollback();
+    if (error instanceof UniqueConstraintError) {
+      return reply.code(409).send({ error: 'One or more answers already exist for this session/form scope' });
+    }
+
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to submit form answers' });
   }
