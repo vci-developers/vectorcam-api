@@ -88,7 +88,8 @@ export const schema = {
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
             expectedSpecimens: { type: 'number' },
-            state: { type: 'string', enum: Object.values(SessionState) }
+            state: { type: 'string', enum: Object.values(SessionState) },
+            certifiedBy: { type: ['number', 'null'] }
           }
         }
       }
@@ -146,6 +147,7 @@ export async function updateSession(
     if (!session) {
       return reply.code(404).send({ error: 'Session not found' });
     }
+    const userId = request.user?.id ?? null;
 
     // Check if site exists when updating siteId
     if (siteId) {
@@ -193,6 +195,7 @@ export async function updateSession(
       'hardwareId',
       'expectedSpecimens',
       'state',
+      'certifiedBy',
     ];
     const beforeState: Record<string, unknown> = {
       frontendId: session.frontendId,
@@ -214,7 +217,14 @@ export async function updateSession(
       hardwareId: session.hardwareId,
       expectedSpecimens: session.expectedSpecimens,
       state: session.state,
+      certifiedBy: session.certifiedBy,
     };
+
+    const nextState = state !== undefined ? state : session.state;
+    const nextCertifiedBy =
+      nextState === SessionState.CERTIFIED
+        ? (session.state === SessionState.CERTIFIED ? session.certifiedBy : userId)
+        : null;
 
     // Update the session
     await session.update({
@@ -235,7 +245,8 @@ export async function updateSession(
       collectorLastTrainedOn: collectorLastTrainedOn !== undefined ? new Date(collectorLastTrainedOn) : session.collectorLastTrainedOn,
       hardwareId: hardwareId !== undefined ? hardwareId : session.hardwareId,
       expectedSpecimens: expectedSpecimens !== undefined ? expectedSpecimens : session.expectedSpecimens,
-      state: state !== undefined ? state : session.state
+      state: nextState,
+      certifiedBy: nextCertifiedBy
     });
 
     if (Object.prototype.hasOwnProperty.call(request.body, 'collectionCycleId')) {
@@ -271,10 +282,10 @@ export async function updateSession(
       hardwareId: session.hardwareId,
       expectedSpecimens: session.expectedSpecimens,
       state: session.state,
+      certifiedBy: session.certifiedBy,
     };
     const changedFields = getChangedFields(beforeState, afterState, trackedFields);
     const reviewDate = session.collectionDate || session.createdAt || new Date();
-    const userId = (request as any).user?.id || null;
 
     try {
       await logReviewAction({

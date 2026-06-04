@@ -7,6 +7,7 @@ import Specimen from './Specimen';
 import SurveillanceForm from './SurveillanceForm';
 import Device from './Device';
 import CollectionCycle from './CollectionCycle';
+import User from './User';
 
 export enum SessionState {
   NEEDS_REVIEW = 'NEEDS_REVIEW',
@@ -40,6 +41,7 @@ class Session extends Model {
   declare hardwareId: string | null;
   declare expectedSpecimens: number;
   declare state: SessionState;
+  declare certifiedBy: number | null;
   declare collectionCycleId: number | null;
 }
 
@@ -155,6 +157,17 @@ Session.init(
       allowNull: false,
       defaultValue: SessionState.NEEDS_REVIEW,
     },
+    certifiedBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'users',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
+      field: 'certified_by',
+    },
     collectionCycleId: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -183,6 +196,9 @@ Device.hasMany(Session, { foreignKey: 'device_id', as: 'sessions' });
 
 Session.belongsTo(CollectionCycle, { foreignKey: 'collection_cycle_id', as: 'collectionCycle' });
 CollectionCycle.hasMany(Session, { foreignKey: 'collection_cycle_id', as: 'sessions' });
+
+Session.belongsTo(User, { foreignKey: 'certified_by', as: 'certifier' });
+User.hasMany(Session, { foreignKey: 'certified_by', as: 'certifiedSessions' });
 
 Session.hasMany(Specimen, { foreignKey: 'session_id', as: 'specimens' });
 Specimen.belongsTo(Session, { foreignKey: 'session_id', as: 'session' });

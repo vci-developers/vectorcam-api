@@ -145,6 +145,7 @@ export const schema = {
             hardwareId: { type: ['string', 'null'] },
             expectedSpecimens: { type: 'number' },
             state: { type: 'string', enum: Object.values(SessionState) },
+            certifiedBy: { type: ['number', 'null'] },
             site: {
               type: 'object',
               properties: {
@@ -262,6 +263,7 @@ export async function getSessionSpecimen(
         hardwareId: specimenData.session.hardwareId,
         expectedSpecimens: specimenData.session.expectedSpecimens,
         state: specimenData.session.state,
+        certifiedBy: specimenData.session.certifiedBy,
         site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
         device: specimenData.session.device ? {
           id: specimenData.session.device.id,

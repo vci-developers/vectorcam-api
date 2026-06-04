@@ -41,6 +41,7 @@ export const schema = {
               collectionCycleId: { type: ['number', 'null'] },
               siteId: { type: 'number' },
               deviceId: { type: 'number' },
+              certifiedBy: { type: ['number', 'null'] },
             },
           },
         },

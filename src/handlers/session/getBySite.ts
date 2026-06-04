@@ -41,7 +41,8 @@ export const schema = {
               collectorLastTrainedOn: { type: ['number', 'null'] },
               hardwareId: { type: ['string', 'null'] },
               expectedSpecimens: { type: 'number' },
-              state: { type: 'string', enum: Object.values(SessionState) }
+              state: { type: 'string', enum: Object.values(SessionState) },
+              certifiedBy: { type: ['number', 'null'] }
             }
           }
         }

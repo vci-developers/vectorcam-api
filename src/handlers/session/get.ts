@@ -39,6 +39,7 @@ export const schema = {
         hardwareId: { type: ['string', 'null'] },
         expectedSpecimens: { type: 'number' },
         state: { type: 'string', enum: Object.values(SessionState) },
+        certifiedBy: { type: ['number', 'null'] },
         site: {
           type: 'object',
           properties: {

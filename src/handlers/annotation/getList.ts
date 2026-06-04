@@ -141,6 +141,7 @@ export const schema = {
                       latitude: { type: ['number', 'null'] },
                       longitude: { type: ['number', 'null'] },
                       type: { type: 'string' },
+                      certifiedBy: { type: ['number', 'null'] },
                       site: {
                         type: 'object',
                         properties: {

@@ -141,6 +141,7 @@ export const schema = {
             hardwareId: { type: ['string', 'null'] },
             expectedSpecimens: { type: 'number' },
             expectedImages: { type: 'number' },
+            certifiedBy: { type: ['number', 'null'] },
             site: {
               type: 'object',
               properties: {
@@ -250,6 +251,7 @@ export async function getSpecimenDetails(
         type: specimenData.session.type,
         collectorLastTrainedOn: specimenData.session.collectorLastTrainedOn ? new Date(specimenData.session.collectorLastTrainedOn).getTime() : null,
         hardwareId: specimenData.session.hardwareId,
+        certifiedBy: specimenData.session.certifiedBy,
         site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
         device: specimenData.session.device ? {
           id: specimenData.session.device.id,

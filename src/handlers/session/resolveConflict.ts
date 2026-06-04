@@ -162,6 +162,7 @@ export async function resolveConflict(
       resolvedSurveillanceForm,
       resolvedFormAnswers,
     } = request.body;
+    const userId = request.user?.id ?? null;
     const hasSessionIds = Array.isArray(requestedSessionIds) && requestedSessionIds.length > 0;
     const hasSessionUnitIds = Array.isArray(sessionUnitIds) && sessionUnitIds.length > 0;
 
@@ -375,6 +376,7 @@ export async function resolveConflict(
         hardwareId: session.hardwareId,
         expectedSpecimens: session.expectedSpecimens,
         state: session.state,
+        certifiedBy: session.certifiedBy,
       })),
       surveillanceForms: [] as any[],
       sessionUnits: sessionUnits.map(unit => ({
@@ -457,15 +459,32 @@ export async function resolveConflict(
     }
     if (resolvedData.hardwareId !== undefined) updateData.hardwareId = resolvedData.hardwareId;
     if (resolvedData.expectedSpecimens !== undefined) updateData.expectedSpecimens = resolvedData.expectedSpecimens;
-    if (resolvedData.state !== undefined) updateData.state = resolvedData.state;
+    if (resolvedData.state !== undefined) {
+      updateData.state = resolvedData.state;
+    }
     if (Object.keys(updateData).length > 0) {
-      await Session.update(updateData, {
-        where: {
-          id: {
-            [Op.in]: sessionIds,
+      if (resolvedData.state !== undefined) {
+        await Promise.all(
+          sessions.map((session) => {
+            const certifiedBy = resolvedData.state === SessionState.CERTIFIED
+              ? (session.state === SessionState.CERTIFIED ? session.certifiedBy : userId)
+              : null;
+
+            return Session.update(
+              { ...updateData, certifiedBy },
+              { where: { id: session.id } }
+            );
+          })
+        );
+      } else {
+        await Session.update(updateData, {
+          where: {
+            id: {
+              [Op.in]: sessionIds,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     // Update surveillance forms if provided
@@ -548,9 +567,6 @@ export async function resolveConflict(
         }
       }
     }
-
-    // Get user ID from request if available (from auth middleware)
-    const userId = (request as any).user?.id || null;
 
     // Create conflict resolution log
     const resolution = await SessionConflictResolution.create({

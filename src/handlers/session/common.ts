@@ -26,6 +26,7 @@ export interface SessionResponse {
   hardwareId: string | null;
   expectedSpecimens: number;
   state: SessionState;
+  certifiedBy: number | null;
 }
 
 // Helper to format session data consistently across endpoints
@@ -52,6 +53,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     hardwareId: session.hardwareId,
     expectedSpecimens: session.expectedSpecimens,
     state: session.state,
+    certifiedBy: session.certifiedBy,
   };
 }
 
