@@ -1,2 +1,2 @@
-export { syncToDHIS2 } from './sync';
+export { getDhis2SyncTask, syncToDHIS2 } from './sync';
 

@@ -77,7 +77,23 @@ class DHIS2AggregationService {
       };
     }
 
-    // Find all sessions in this month
+    return this.getHouseholdData(whereClause);
+  }
+
+  /**
+   * Get household data for a specific collection cycle and site.
+   */
+  async getHouseholdDataByCollectionCycle(
+    collectionCycleId: number,
+    siteId: number
+  ): Promise<HouseholdData[]> {
+    return this.getHouseholdData({
+      collectionCycleId,
+      siteId,
+    });
+  }
+
+  private async getHouseholdData(whereClause: any): Promise<HouseholdData[]> {
     const sessions = await Session.findAll({
       where: whereClause,
       include: [

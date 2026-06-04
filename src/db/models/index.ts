@@ -17,6 +17,7 @@ import AnnotationTask from './AnnotationTask';
 import Annotation from './Annotation';
 import Dhis2Cache from './Dhis2Cache';
 import Dhis2SyncEvent from './Dhis2SyncEvent';
+import Dhis2SyncTask from './Dhis2SyncTask';
 import SessionConflictResolution from './SessionConflictResolution';
 import LocationType from './LocationType';
 import TusUploadLog from './TusUploadLog';
@@ -45,6 +46,7 @@ export {
   Annotation,
   Dhis2Cache,
   Dhis2SyncEvent,
+  Dhis2SyncTask,
   SessionConflictResolution,
   LocationType,
   TusUploadLog,

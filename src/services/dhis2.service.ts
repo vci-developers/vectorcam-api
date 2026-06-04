@@ -32,6 +32,10 @@ export interface Event {
   dataValues: EventDataValue[];
 }
 
+interface DHIS2RequestOptions {
+  signal?: AbortSignal;
+}
+
 class DHIS2Service {
   private baseUrl: string;
   private authHeader: string;
@@ -97,7 +101,12 @@ class DHIS2Service {
   /**
    * Get organization unit ID by name (with database caching)
    */
-  private async getOrgUnitId(healthCenterName: string): Promise<string | null> {
+  private async getOrgUnitId(
+    healthCenterName: string,
+    options: DHIS2RequestOptions = {}
+  ): Promise<string | null> {
+    options.signal?.throwIfAborted();
+
     // Check cache first
     const cached = await this.getFromCache<string>('orgUnit', healthCenterName);
     if (cached) {
@@ -112,6 +121,7 @@ class DHIS2Service {
           Authorization: this.authHeader,
           'Content-Type': 'application/json',
         },
+        signal: options.signal,
       }
     );
 
@@ -138,9 +148,12 @@ class DHIS2Service {
    */
   async searchTrackedEntityInstances(
     orgUnitName: string,
-    houseNumber: string
+    houseNumber: string,
+    options: DHIS2RequestOptions = {}
   ): Promise<TrackedEntityInstance | null> {
     try {
+      options.signal?.throwIfAborted();
+
       // Check cache first - cache key is house number only
       const cached = await this.getFromCache<TrackedEntityInstance>('tei', houseNumber);
       if (cached) {
@@ -148,7 +161,7 @@ class DHIS2Service {
       }
 
       // Get organization unit ID (uses cache internally)
-      const orgUnitId = await this.getOrgUnitId(orgUnitName);
+      const orgUnitId = await this.getOrgUnitId(orgUnitName, options);
       if (!orgUnitId) {
         return null;
       }
@@ -162,6 +175,7 @@ class DHIS2Service {
             Authorization: this.authHeader,
             'Content-Type': 'application/json',
           },
+          signal: options.signal,
         }
       );
 
@@ -185,6 +199,7 @@ class DHIS2Service {
             Authorization: this.authHeader,
             'Content-Type': 'application/json',
           },
+          signal: options.signal,
         }
       );
 
@@ -213,8 +228,10 @@ class DHIS2Service {
   /**
    * Get data elements for a program stage
    */
-  async getProgramStageDataElements(): Promise<DataElement[]> {
+  async getProgramStageDataElements(options: DHIS2RequestOptions = {}): Promise<DataElement[]> {
     try {
+      options.signal?.throwIfAborted();
+
       const response = await fetch(
         `${this.baseUrl}/api/programStages/${config.dhis2.programStageId}.json?fields=programStageDataElements[dataElement[id,displayName,valueType]]`,
         {
@@ -222,6 +239,7 @@ class DHIS2Service {
             Authorization: this.authHeader,
             'Content-Type': 'application/json',
           },
+          signal: options.signal,
         }
       );
 
@@ -249,14 +267,16 @@ class DHIS2Service {
   /**
    * Build a map of data element display names to IDs (with database caching)
    */
-  async getDataElementMap(): Promise<Map<string, string>> {
+  async getDataElementMap(options: DHIS2RequestOptions = {}): Promise<Map<string, string>> {
+    options.signal?.throwIfAborted();
+
     // Check cache first - use program stage ID as key
     const cached = await this.getFromCache<Array<[string, string]>>('dataElementMap', this.programStageId);
     if (cached) {
       return new Map(cached);
     }
 
-    const dataElements = await this.getProgramStageDataElements();
+    const dataElements = await this.getProgramStageDataElements(options);
     const map = new Map<string, string>();
 
     for (const de of dataElements) {
@@ -272,8 +292,10 @@ class DHIS2Service {
   /**
    * Create or update an event for a tracked entity instance
    */
-  async createEvent(event: Event): Promise<any> {
+  async createEvent(event: Event, options: DHIS2RequestOptions = {}): Promise<any> {
     try {
+      options.signal?.throwIfAborted();
+
       const response = await fetch(
         `${this.baseUrl}/api/events`,
         {
@@ -283,6 +305,7 @@ class DHIS2Service {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(event),
+          signal: options.signal,
         }
       );
 
@@ -303,9 +326,12 @@ class DHIS2Service {
    */
   async getExistingEvent(
     teiId: string,
-    eventDate: string
+    eventDate: string,
+    options: DHIS2RequestOptions = {}
   ): Promise<any | null> {
     try {
+      options.signal?.throwIfAborted();
+
       const response = await fetch(
         `${this.baseUrl}/api/events.json?trackedEntityInstance=${teiId}&programStage=${config.dhis2.programStageId}&startDate=${eventDate}&endDate=${eventDate}&fields=event,eventDate,dataValues[dataElement,value]&paging=false`,
         {
@@ -313,6 +339,7 @@ class DHIS2Service {
             Authorization: this.authHeader,
             'Content-Type': 'application/json',
           },
+          signal: options.signal,
         }
       );
 
@@ -336,8 +363,14 @@ class DHIS2Service {
   /**
    * Update an existing event
    */
-  async updateEvent(eventId: string, event: Partial<Event>): Promise<any> {
+  async updateEvent(
+    eventId: string,
+    event: Partial<Event>,
+    options: DHIS2RequestOptions = {}
+  ): Promise<any> {
     try {
+      options.signal?.throwIfAborted();
+
       const response = await fetch(
         `${this.baseUrl}/api/events/${eventId}`,
         {
@@ -347,6 +380,7 @@ class DHIS2Service {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(event),
+          signal: options.signal,
         }
       );
 
