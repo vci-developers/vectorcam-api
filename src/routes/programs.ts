@@ -22,6 +22,7 @@ import { requireAdminAuth, requireAnyWhitelistedAuth, requireAdminOrMobileAuth, 
 import {
   createCollectionSchedule,
   changeProgramCollectionSchedule,
+  getCollectionScheduleList,
 } from '../handlers/program/collectionSchedule';
 import {
   createCollectionCycle,
@@ -37,6 +38,7 @@ import { schema as verifyAccessCodeSchema } from '../handlers/program/verifyAcce
 import { schema as getListSchema } from '../handlers/program/getList';
 import { schema as createCollectionScheduleSchema } from '../handlers/program/collectionSchedule/post';
 import { schema as changeCollectionScheduleSchema } from '../handlers/program/collectionSchedule/change';
+import { schema as getCollectionScheduleListSchema } from '../handlers/program/collectionSchedule/getList';
 import { schema as createCollectionCycleSchema } from '../handlers/program/collectionCycle/post';
 import { schema as getCollectionCycleListSchema } from '../handlers/program/collectionCycle/getList';
 import { schema as getUnassignedProgramSessionsSchema } from '../handlers/program/sessions/getUnassigned';
@@ -75,6 +77,11 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireAdminAuth],
     schema: createSchema,
   }, createProgram as any);
+
+  fastify.get('/:program_id/collection-schedules', {
+    preHandler: [requireAdminOrMobileAuth],
+    schema: getCollectionScheduleListSchema,
+  }, getCollectionScheduleList as any);
 
   fastify.post('/:program_id/collection-schedules', {
     preHandler: [requireAdminAuth],
