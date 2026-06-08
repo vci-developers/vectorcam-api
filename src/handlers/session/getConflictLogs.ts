@@ -6,6 +6,7 @@ import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants, siteIdInSubtreeOfL
 
 interface GetConflictLogsQuery {
   siteId?: string;
+  collectionCycleId?: string;
   month?: string;
   year?: string;
   sessionId?: string;
@@ -20,6 +21,7 @@ export const schema = {
     type: 'object',
     properties: {
       siteId: { type: 'number' },
+        collectionCycleId: { type: 'number' },
       month: { type: 'number', minimum: 1, maximum: 12 },
       year: { type: 'number' },
       sessionId: { type: 'number' },
@@ -44,6 +46,7 @@ export const schema = {
                 items: { type: 'number' },
               },
               siteId: { type: 'number' },
+              collectionCycleId: { type: ['number', 'null'] },
               month: { type: 'number' },
               year: { type: 'number' },
               beforeData: { 
@@ -88,7 +91,7 @@ export async function getConflictLogs(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { siteId, month, year, sessionId, page = '1', size = '10' } = request.query;
+    const { siteId, collectionCycleId, month, year, sessionId, page = '1', size = '10' } = request.query;
 
     // Build where clause
     const where: any = {};
@@ -139,6 +142,10 @@ export async function getConflictLogs(
       where.month = parseInt(month, 10);
     }
 
+    if (collectionCycleId) {
+      where.collectionCycleId = parseInt(collectionCycleId, 10);
+    }
+
     if (year) {
       where.year = parseInt(year, 10);
     }
@@ -167,6 +174,7 @@ export async function getConflictLogs(
         'resolvedAt',
         'sessionIds',
         'siteId',
+        'collectionCycleId',
         'month',
         'year',
         'beforeData',
@@ -188,6 +196,7 @@ export async function getConflictLogs(
         resolvedAt: new Date(plainLog.resolvedAt).getTime(),
         sessionIds: plainLog.sessionIds,
         siteId: plainLog.siteId,
+        collectionCycleId: plainLog.collectionCycleId,
         month: plainLog.month,
         year: plainLog.year,
         beforeData: plainLog.beforeData,

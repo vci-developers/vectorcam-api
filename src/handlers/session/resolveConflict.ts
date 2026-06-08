@@ -53,7 +53,7 @@ interface ResolveConflictRequest {
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Resolve conflicts between multiple sessions or session units in the same site and month',
+  description: 'Resolve conflicts between multiple sessions or session units in the same site and collection cycle',
   body: {
     type: 'object',
     properties: {
@@ -265,26 +265,18 @@ export async function resolveConflict(
       });
     }
 
-    // Validate all target sessions are in the same month and year
-    const monthYearPairs = new Set(
-      sessions.map(s => {
-        const date = s.collectionDate || s.createdAt;
-        if (!date) {
-          throw new Error(`Session ${s.id} has no valid date`);
-        }
-        return `${date.getMonth() + 1}-${date.getFullYear()}`;
-      })
-    );
-
-    if (monthYearPairs.size > 1) {
+    // Validate all target sessions are in the same collection cycle
+    const collectionCycleIds = new Set(sessions.map(s => s.collectionCycleId));
+    if (collectionCycleIds.size > 1) {
       return reply.code(400).send({
         error: hasSessionUnitIds
-          ? 'All session units must be in sessions from the same month and year'
-          : 'All sessions must be in the same month and year',
+          ? 'All session units must be in sessions from the same collection cycle'
+          : 'All sessions must be in the same collection cycle',
       });
     }
 
     const siteId = sessions[0].siteId;
+    const collectionCycleId = sessions[0].collectionCycleId;
     const referenceDate = sessions[0].collectionDate || sessions[0].createdAt;
     const month = referenceDate.getMonth() + 1;
     const year = referenceDate.getFullYear();
@@ -377,6 +369,7 @@ export async function resolveConflict(
         expectedSpecimens: session.expectedSpecimens,
         state: session.state,
         certifiedBy: session.certifiedBy,
+        collectionCycleId: session.collectionCycleId,
       })),
       surveillanceForms: [] as any[],
       sessionUnits: sessionUnits.map(unit => ({
@@ -573,6 +566,7 @@ export async function resolveConflict(
       resolvedByUserId: userId,
       sessionIds,
       siteId,
+      collectionCycleId,
       month,
       year,
       beforeData,

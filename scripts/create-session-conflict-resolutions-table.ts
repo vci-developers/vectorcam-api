@@ -28,6 +28,15 @@ async function createSessionConflictResolutionsTable() {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
+      collection_cycle_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'collection_cycles',
+          key: 'id',
+        },
+        onDelete: 'SET NULL',
+      },
       month: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -68,6 +77,10 @@ async function createSessionConflictResolutionsTable() {
     // Add indexes for common query patterns
     await sequelize.query(
       'CREATE INDEX idx_session_conflict_resolutions_site_id ON session_conflict_resolutions(site_id)'
+    );
+
+    await sequelize.query(
+      'CREATE INDEX idx_session_conflict_resolutions_collection_cycle_id ON session_conflict_resolutions(collection_cycle_id)'
     );
     
     await sequelize.query(

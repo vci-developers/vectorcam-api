@@ -8,6 +8,7 @@ class SessionConflictResolution extends Model {
   declare resolvedAt: Date;
   declare sessionIds: number[];
   declare siteId: number;
+  declare collectionCycleId: number | null;
   declare month: number;
   declare year: number;
   declare beforeData: {
@@ -29,6 +30,7 @@ class SessionConflictResolution extends Model {
       hardwareId: string | null;
       expectedSpecimens: number;
       state: SessionState;
+      collectionCycleId: number | null;
     }[];
     surveillanceForms: {
       sessionId: number;
@@ -98,6 +100,15 @@ SessionConflictResolution.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       field: 'site_id',
+    },
+    collectionCycleId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'collection_cycle_id',
+      references: {
+        model: 'collection_cycles',
+        key: 'id',
+      },
     },
     month: {
       type: DataTypes.INTEGER,
