@@ -208,6 +208,44 @@ export function requireAdminOrMobileAuth(
 }
 
 /**
+ * Middleware to require admin, developer, or superadmin (privilege >= 3) authentication
+ */
+export function requireAdminOrSuperAdminAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  done: HookHandlerDoneFunction
+): void {
+  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
+  const isSuperAdminUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
+
+  if (!request.isAdminToken && !isDeveloperUser && !isSuperAdminUser) {
+    reply.code(401).send({ error: 'Unauthorized: Admin, developer, or superadmin authentication required' });
+    return done(new Error('Unauthorized'));
+  }
+
+  done();
+}
+
+/**
+ * Middleware to require admin, developer, superadmin (privilege >= 3), or mobile authentication
+ */
+export function requireAdminOrMobileOrSuperAdminAuth(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  done: HookHandlerDoneFunction
+): void {
+  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
+  const isSuperAdminUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
+
+  if (!request.isAdminToken && !request.isMobileApp && !isDeveloperUser && !isSuperAdminUser) {
+    reply.code(401).send({ error: 'Unauthorized: Admin, developer, superadmin, or mobile token required' });
+    return done(new Error('Unauthorized'));
+  }
+
+  done();
+}
+
+/**
  * Middleware to require admin privileges (for user JWT tokens with privilege >= 2)
  */
 export function requireAdmin(

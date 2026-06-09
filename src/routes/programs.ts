@@ -18,7 +18,14 @@ import {
   deleteProgramFormQuestion,
 } from '../handlers/program/form';
 import { getProgramList } from '../handlers/program/getList';
-import { requireAdminAuth, requireAnyWhitelistedAuth, requireAdminOrMobileAuth, requireSuperAdmin } from '../middleware/auth.middleware';
+import {
+  requireAdminAuth,
+  requireAnyWhitelistedAuth,
+  requireAdminOrMobileAuth,
+  requireAdminOrMobileOrSuperAdminAuth,
+  requireAdminOrSuperAdminAuth,
+  requireSuperAdmin,
+} from '../middleware/auth.middleware';
 import {
   createCollectionSchedule,
   changeProgramCollectionSchedule,
@@ -125,27 +132,27 @@ export default async function programRoutes(fastify: FastifyInstance) {
 
   // Location types under programs
   fastify.get('/:program_id/location-types', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireAdminOrMobileOrSuperAdminAuth],
     schema: getLocationTypeListSchema,
   }, getLocationTypeList as any);
 
   fastify.post('/:program_id/location-types', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireAdminOrSuperAdminAuth],
     schema: createLocationTypeSchema,
   }, createLocationType as any);
 
   fastify.get('/:program_id/location-types/:location_type_id', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireAdminOrMobileOrSuperAdminAuth],
     schema: getLocationTypeSchema,
   }, getLocationType as any);
 
   fastify.put('/:program_id/location-types/:location_type_id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireAdminOrSuperAdminAuth],
     schema: updateLocationTypeSchema,
   }, updateLocationType as any);
 
   fastify.delete('/:program_id/location-types/:location_type_id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireAdminOrSuperAdminAuth],
     schema: deleteLocationTypeSchema,
   }, deleteLocationType as any);
 
