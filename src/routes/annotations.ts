@@ -1,5 +1,14 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { getAnnotationTaskList, getAnnotationTask, updateAnnotationTask, deleteAnnotationTask, createAnnotationTasks } from '../handlers/annotation-task';
+import {
+  getAnnotationTaskList,
+  getAnnotationTask,
+  updateAnnotationTask,
+  deleteAnnotationTask,
+  createAnnotationTasks,
+  createManualAnnotationTask,
+  bulkAddAnnotations,
+  bulkDeleteAnnotations,
+} from '../handlers/annotation-task';
 import { getAnnotationList, getAnnotationSummary, getAnnotation, updateAnnotation, exportAnnotationsCSV } from '../handlers/annotation';
 
 // Import schemas from handler files
@@ -8,6 +17,9 @@ import { schema as getAnnotationTaskSchema } from '../handlers/annotation-task/g
 import { schema as updateAnnotationTaskSchema } from '../handlers/annotation-task/put';
 import { schema as deleteAnnotationTaskSchema } from '../handlers/annotation-task/delete';
 import { schema as createAnnotationTasksSchema } from '../handlers/annotation-task/post';
+import { schema as createManualAnnotationTaskSchema } from '../handlers/annotation-task/postManual';
+import { schema as bulkAddAnnotationsSchema } from '../handlers/annotation-task/postAnnotations';
+import { schema as bulkDeleteAnnotationsSchema } from '../handlers/annotation-task/deleteAnnotations';
 import { schema as getAnnotationListSchema } from '../handlers/annotation/getList';
 import { schema as getAnnotationSummarySchema } from '../handlers/annotation/getSummary';
 import { schema as getAnnotationSchema } from '../handlers/annotation/get';
@@ -38,6 +50,24 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireAdminAuth],
     schema: createAnnotationTasksSchema
   }, createAnnotationTasks as any);
+
+  // Create an empty annotation task manually (admin token only)
+  fastify.post('/task/manual', {
+    preHandler: [requireAdminAuth],
+    schema: createManualAnnotationTaskSchema
+  }, createManualAnnotationTask as any);
+
+  // Bulk add specimens as empty annotations to a task (admin token only)
+  fastify.post('/task/:taskId/annotations', {
+    preHandler: [requireAdminAuth],
+    schema: bulkAddAnnotationsSchema
+  }, bulkAddAnnotations as any);
+
+  // Bulk delete annotations from a task (admin token only)
+  fastify.delete('/task/:taskId/annotations', {
+    preHandler: [requireAdminAuth],
+    schema: bulkDeleteAnnotationsSchema
+  }, bulkDeleteAnnotations as any);
 
   // Update annotation task (admin token and admin user)
   fastify.put('/task/:taskId', {
