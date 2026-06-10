@@ -44,6 +44,10 @@ async function createCollectionCyclesTables() {
           type: DataTypes.DATE,
           allowNull: true,
         },
+        timezone: {
+          type: DataTypes.STRING(64),
+          allowNull: true,
+        },
         created_at: {
           type: DataTypes.DATE,
           allowNull: false,
@@ -103,6 +107,10 @@ async function createCollectionCyclesTables() {
         end_date: {
           type: DataTypes.DATE,
           allowNull: false,
+        },
+        timezone: {
+          type: DataTypes.STRING(64),
+          allowNull: true,
         },
         created_at: {
           type: DataTypes.DATE,

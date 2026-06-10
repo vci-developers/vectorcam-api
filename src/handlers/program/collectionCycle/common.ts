@@ -19,12 +19,14 @@ export interface CollectionScheduleInput {
   intervalCount?: number | null;
   effectiveStartDate: Date;
   previousEndDate?: Date | null;
+  timezone?: string | null;
 }
 
 export interface ManualCollectionCycleInput {
   collectionScheduleId: number;
   startDate: Date;
   endDate: Date;
+  timezone?: string | null;
 }
 
 export interface CollectionScheduleBody {
@@ -33,12 +35,14 @@ export interface CollectionScheduleBody {
   intervalCount?: number | null;
   effectiveStartDate: number | string;
   previousEndDate?: number | string | null;
+  timezone?: string | null;
 }
 
 export interface CreateManualCycleBody {
   collectionScheduleId: number;
   startDate: number | string;
   endDate: number | string;
+  timezone?: string | null;
 }
 
 export interface GetCollectionCyclesQuery {
@@ -56,6 +60,7 @@ export const collectionScheduleResponseSchema = {
     intervalCount: { type: ['number', 'null'] },
     effectiveStartDate: { type: 'number' },
     effectiveEndDate: { type: ['number', 'null'] },
+    timezone: { type: ['string', 'null'] },
     createdAt: { type: 'number' },
     updatedAt: { type: 'number' },
   },
@@ -81,6 +86,7 @@ export const collectionScheduleBodySchema = {
         { type: 'null' },
       ],
     },
+    timezone: { type: ['string', 'null'] },
   },
 };
 
@@ -93,6 +99,7 @@ export const collectionCycleResponseSchema = {
     cycleNumber: { type: 'number' },
     startDate: { type: 'number' },
     endDate: { type: 'number' },
+    timezone: { type: ['string', 'null'] },
     createdAt: { type: 'number' },
     updatedAt: { type: 'number' },
     collectionSchedule: collectionScheduleResponseSchema,
@@ -108,6 +115,7 @@ export function formatCollectionScheduleResponse(schedule: CollectionSchedule) {
     intervalCount: schedule.intervalCount,
     effectiveStartDate: schedule.effectiveStartDate.getTime(),
     effectiveEndDate: schedule.effectiveEndDate ? schedule.effectiveEndDate.getTime() : null,
+    timezone: schedule.timezone,
     createdAt: schedule.createdAt.getTime(),
     updatedAt: schedule.updatedAt.getTime(),
   };
@@ -121,6 +129,7 @@ export function formatCollectionCycleResponse(cycle: CollectionCycle) {
     cycleNumber: cycle.cycleNumber,
     startDate: cycle.startDate.getTime(),
     endDate: cycle.endDate.getTime(),
+    timezone: cycle.timezone,
     createdAt: cycle.createdAt.getTime(),
     updatedAt: cycle.updatedAt.getTime(),
   };
@@ -133,6 +142,7 @@ export function toScheduleInput(body: CollectionScheduleBody) {
     intervalCount: body.intervalCount,
     effectiveStartDate: parseDate(body.effectiveStartDate),
     previousEndDate: body.previousEndDate == null ? null : parseDate(body.previousEndDate),
+    timezone: body.timezone ?? null,
   };
 }
 
@@ -177,7 +187,15 @@ export function toManualCycleInput(body: CreateManualCycleBody) {
     collectionScheduleId: body.collectionScheduleId,
     startDate: parseDate(body.startDate),
     endDate: parseDate(body.endDate),
+    timezone: body.timezone ?? null,
   };
+}
+
+function resolveCycleTimezone(
+  timezone: string | null | undefined,
+  schedule: CollectionSchedule
+): string | null {
+  return timezone ?? schedule.timezone ?? null;
 }
 
 export async function assignCollectionCycleOnSessionUpload(
@@ -302,6 +320,7 @@ export async function createManualCollectionCycle(
       cycleNumber: (maxCycleNumber ?? 0) + 1,
       startDate: input.startDate,
       endDate: input.endDate,
+      timezone: resolveCycleTimezone(input.timezone, schedule),
     }, { transaction });
   });
 }
@@ -376,6 +395,7 @@ export async function ensureRecurringCyclesExistThroughCycle(
         cycleNumber,
         startDate,
         endDate: boundedEndDate,
+        timezone: schedule.timezone ?? null,
       },
       transaction,
     });

@@ -10,6 +10,7 @@ class CollectionCycle extends Model {
   declare cycleNumber: number;
   declare startDate: Date;
   declare endDate: Date;
+  declare timezone: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -53,6 +54,10 @@ CollectionCycle.init(
       type: DataTypes.DATE,
       allowNull: false,
       field: 'end_date',
+    },
+    timezone: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
     },
   },
   {

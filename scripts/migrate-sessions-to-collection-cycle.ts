@@ -307,6 +307,7 @@ async function resolveCycleForSession(
         endDate: schedule.effectiveEndDate && target.endDate > schedule.effectiveEndDate
           ? schedule.effectiveEndDate
           : target.endDate,
+        timezone: schedule.timezone ?? null,
       }),
       created: true,
     };
@@ -325,6 +326,7 @@ async function resolveCycleForSession(
       endDate: schedule.effectiveEndDate && target.endDate > schedule.effectiveEndDate
         ? schedule.effectiveEndDate
         : target.endDate,
+      timezone: schedule.timezone ?? null,
     },
     transaction,
   });

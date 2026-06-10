@@ -60,6 +60,7 @@ export async function createCollectionSchedule(
         intervalCount: input.cadenceType === CollectionScheduleCadenceType.RECURRING ? input.intervalCount : null,
         effectiveStartDate: input.effectiveStartDate,
         effectiveEndDate: null,
+        timezone: input.timezone ?? null,
       }, { transaction });
     });
 

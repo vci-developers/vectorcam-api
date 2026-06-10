@@ -22,6 +22,7 @@ class CollectionSchedule extends Model {
   declare intervalCount: number | null;
   declare effectiveStartDate: Date;
   declare effectiveEndDate: Date | null;
+  declare timezone: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -66,6 +67,10 @@ CollectionSchedule.init(
       type: DataTypes.DATE,
       allowNull: true,
       field: 'effective_end_date',
+    },
+    timezone: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
     },
   },
   {

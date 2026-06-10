@@ -35,6 +35,7 @@ export const schema = {
           { type: 'string' },
         ],
       },
+      timezone: { type: ['string', 'null'] },
     },
   },
   response: {
