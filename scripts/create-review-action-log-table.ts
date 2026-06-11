@@ -31,6 +31,15 @@ async function createReviewActionLogTable() {
         type: DataTypes.INTEGER,
         allowNull: true,
       },
+      collection_cycle_id: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+          model: 'collection_cycles',
+          key: 'id',
+        },
+        onDelete: 'SET NULL',
+      },
       has_changes: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
@@ -65,6 +74,9 @@ async function createReviewActionLogTable() {
     );
     await sequelize.query('CREATE INDEX idx_review_action_logs_action ON review_action_logs(action)');
     await sequelize.query('CREATE INDEX idx_review_action_logs_user_id ON review_action_logs(user_id)');
+    await sequelize.query(
+      'CREATE INDEX idx_review_action_logs_collection_cycle_id ON review_action_logs(collection_cycle_id)'
+    );
 
     console.log('review_action_logs table created successfully');
   } catch (error) {

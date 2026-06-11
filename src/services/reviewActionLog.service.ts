@@ -1,4 +1,4 @@
-import { ReviewActionLog } from '../db/models';
+import ReviewActionLog from '../db/models/ReviewActionLog';
 
 interface ReviewActionLogInput {
   siteId: number;
@@ -6,6 +6,7 @@ interface ReviewActionLogInput {
   month: number;
   action: string;
   userId?: number | null;
+  collectionCycleId?: number | null;
   changes?: Record<string, unknown> | null;
   fields?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
@@ -47,8 +48,12 @@ export function getChangedFields(
 
 export async function logReviewAction(input: ReviewActionLogInput): Promise<void> {
   await ReviewActionLog.create({
-    ...input,
+    siteId: input.siteId,
+    year: input.year,
+    month: input.month,
+    action: input.action,
     userId: input.userId ?? null,
+    collectionCycleId: input.collectionCycleId ?? null,
     hasChanges: Boolean(input.changes && Object.keys(input.changes).length > 0),
     changes: input.changes || null,
     fields: input.fields || null,

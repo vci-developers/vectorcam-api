@@ -9,6 +9,7 @@ interface GetReviewActionLogsQuery {
   year?: number;
   action?: string;
   userId?: number;
+  collectionCycleId?: number;
   hasChanges?: boolean;
   page?: number;
   size?: number;
@@ -25,6 +26,7 @@ export const schema = {
       year: { type: 'number' },
       action: { type: 'string' },
       userId: { type: 'number' },
+      collectionCycleId: { type: 'number' },
       hasChanges: { type: 'boolean' },
       page: { type: 'number', minimum: 1, default: 1 },
       size: { type: 'number', minimum: 1, maximum: 100, default: 20 },
@@ -45,6 +47,7 @@ export const schema = {
               month: { type: 'number' },
               action: { type: 'string' },
               userId: { type: ['number', 'null'] },
+              collectionCycleId: { type: ['number', 'null'] },
               hasChanges: { type: 'boolean' },
               changes: { type: ['object', 'null'], additionalProperties: true },
               fields: { type: ['object', 'null'], additionalProperties: true },
@@ -85,6 +88,7 @@ export async function getReviewActionLogs(
       year,
       action,
       userId,
+      collectionCycleId,
       hasChanges,
       page = 1,
       size = 20,
@@ -132,6 +136,9 @@ export async function getReviewActionLogs(
     if (userId !== undefined) {
       whereClause.userId = userId;
     }
+    if (collectionCycleId !== undefined) {
+      whereClause.collectionCycleId = collectionCycleId;
+    }
     if (hasChanges !== undefined) {
       whereClause.hasChanges = hasChanges;
     }
@@ -152,6 +159,7 @@ export async function getReviewActionLogs(
       month: log.month,
       action: log.action,
       userId: log.userId,
+      collectionCycleId: log.collectionCycleId ?? (log.fields?.collectionCycleId as number | undefined) ?? null,
       hasChanges: log.hasChanges,
       changes: log.changes,
       fields: log.fields,

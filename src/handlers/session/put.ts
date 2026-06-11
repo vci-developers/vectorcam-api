@@ -294,6 +294,7 @@ export async function updateSession(
         month: reviewDate.getMonth() + 1,
         action: state === SessionState.CERTIFIED ? 'certify_session' : 'update_session_household_info',
         userId,
+        collectionCycleId: session.collectionCycleId,
         changes: changedFields,
         fields: {
           endpoint: '/sessions/:session_id',

@@ -270,6 +270,7 @@ export async function updateImageData(
           month: reviewDate.getMonth() + 1,
           action: 'update_specimen_image_prediction',
           userId,
+          collectionCycleId: session.collectionCycleId,
           changes: combinedChanges,
           fields: {
             endpoint: '/specimens/:specimen_id/images/data/:image_id',

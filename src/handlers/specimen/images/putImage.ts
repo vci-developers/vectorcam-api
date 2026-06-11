@@ -164,6 +164,7 @@ export async function putImage(
           month: reviewDate.getMonth() + 1,
           action: 'replace_specimen_image_file',
           userId,
+          collectionCycleId: session.collectionCycleId,
           changes: combinedChanges,
           fields: {
             endpoint: '/specimens/:specimen_id/images/:image_id',

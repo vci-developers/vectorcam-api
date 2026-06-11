@@ -198,6 +198,7 @@ export async function updateSpecimen(
           month: reviewDate.getMonth() + 1,
           action: 'update_specimen_thumbnail_prediction',
           userId,
+          collectionCycleId: session.collectionCycleId,
           changes: changedFields,
           fields: {
             endpoint: '/specimens/:specimen_id',

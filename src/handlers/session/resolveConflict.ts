@@ -602,6 +602,7 @@ export async function resolveConflict(
         month,
         action: hasSessionUnitIds ? 'resolve_session_unit_conflicts' : 'resolve_session_conflicts',
         userId,
+        collectionCycleId,
         changes: {
           sessions: sessionFieldChanges,
           surveillanceForm: formFieldChanges,
