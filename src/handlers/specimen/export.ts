@@ -159,20 +159,27 @@ export async function exportSpecimensCSV(
       include: includeConditions
     });
 
-    // If inference results are requested, fetch them separately
-    let inferenceResults: any = {};
-    if (includeInferenceResult) {
-      // Gather all image IDs for the selected specimens
-      const specimenIds = specimens.map(s => s.id);
-      const allImages = await SpecimenImage.findAll({ where: { specimenId: { [Op.in]: specimenIds } } });
+    const specimenIds = specimens.map(s => s.id);
+    const allImages = specimenIds.length > 0
+      ? await SpecimenImage.findAll({ where: { specimenId: { [Op.in]: specimenIds } } })
+      : [];
+
+    const imagesBySpecimenId = new Map<number, typeof allImages>();
+    for (const img of allImages) {
+      const existing = imagesBySpecimenId.get(img.specimenId) ?? [];
+      existing.push(img);
+      imagesBySpecimenId.set(img.specimenId, existing);
+    }
+
+    const inferenceResults = new Map<number, InstanceType<typeof InferenceResult>>();
+    if (includeInferenceResult && allImages.length > 0) {
       const imageIds = allImages.map(img => img.id);
       const results = await InferenceResult.findAll({
         where: { specimenImageId: { [Op.in]: imageIds } }
       });
-      // Create a map for quick lookup by specimenImageId
-      results.forEach(result => {
-        inferenceResults[result.specimenImageId] = result;
-      });
+      for (const result of results) {
+        inferenceResults.set(result.specimenImageId, result);
+      }
     }
 
     // Generate CSV header
@@ -194,14 +201,11 @@ export async function exportSpecimensCSV(
       const program = site?.program as any;
       const formattedSite = site ? await formatSiteResponse(site) : undefined;
       const siteLocationHierarchy = formattedSite ? JSON.stringify(formattedSite) : '';
-      // Get all images for this specimen
-      const images = await SpecimenImage.findAll({ where: { specimenId: specimen.id } });
+      const images = imagesBySpecimenId.get(specimen.id) ?? [];
       for (const img of images) {
-        // Get inference result for this image if requested
-        let inferenceResult = null;
-        if (includeInferenceResult) {
-          inferenceResult = await InferenceResult.findOne({ where: { specimenImageId: img.id } });
-        }
+        const inferenceResult = includeInferenceResult
+          ? inferenceResults.get(img.id) ?? null
+          : null;
         // Check if image file is uploaded by checking if imageKey exists and is not empty
         const imageUrl = img.imageKey && img.imageKey.trim() !== '' 
           ? `${config.server.domain}/specimens/${specimen.id}/images/${img.id}`
