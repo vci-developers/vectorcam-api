@@ -1,5 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { signedUrlMiddleware } from '../middleware/signedUrl.middleware';
+import exportRoutes from './export';
 import programRoutes from './programs';
 import siteRoutes from './sites';
 import deviceRoutes from './devices';
@@ -19,6 +21,7 @@ import dhis2Routes from './dhis2';
 export default async function routes(server: FastifyInstance): Promise<void> {
   // Register unified auth middleware globally
   server.addHook('preHandler', authMiddleware);
+  server.addHook('preHandler', signedUrlMiddleware);
   
   // Register health check routes at root level
   server.register(healthRoutes);
@@ -31,6 +34,7 @@ export default async function routes(server: FastifyInstance): Promise<void> {
   server.register(sessionRoutes, { prefix: '/sessions' });
   server.register(specimenRoutes, { prefix: '/specimens' });
   server.register(annotationRoutes, { prefix: '/annotations' });
+  server.register(exportRoutes, { prefix: '/export' });
   server.register(dhis2Routes, { prefix: '/dhis2' });
   
   // Register test routes

@@ -56,6 +56,10 @@ const developmentConfig = {
     programId: process.env.DHIS2_PROGRAM_ID || '',
     programStageId: process.env.DHIS2_PROGRAM_STAGE_ID || '',
   },
+  signedUrl: {
+    secret: process.env.SIGNED_URL_HMAC_SECRET || 'dev-signed-url-secret',
+    expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
+  },
 };
 
 // Configuration for test environment
@@ -100,6 +104,10 @@ const testConfig = {
     programId: process.env.DHIS2_PROGRAM_ID || '',
     programStageId: process.env.DHIS2_PROGRAM_STAGE_ID || '',
   },
+  signedUrl: {
+    secret: process.env.SIGNED_URL_HMAC_SECRET || 'test-signed-url-secret',
+    expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
+  },
 };
 
 // Configuration for production environment
@@ -143,6 +151,10 @@ const productionConfig = {
     password: process.env.DHIS2_PASSWORD!,
     programId: process.env.DHIS2_PROGRAM_ID!,
     programStageId: process.env.DHIS2_PROGRAM_STAGE_ID!,
+  },
+  signedUrl: {
+    secret: process.env.SIGNED_URL_HMAC_SECRET,
+    expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
   },
 };
 

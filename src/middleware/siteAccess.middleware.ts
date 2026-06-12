@@ -39,6 +39,16 @@ export async function siteAccessMiddleware(
     return;
   }
 
+  if (request.isSignedUrl) {
+    request.siteAccess = {
+      canRead: false,
+      canWrite: false,
+      canPush: false,
+      userSites: [],
+    };
+    return;
+  }
+
   // Admin token and mobile token have full access
   if (request.isAdminToken || request.isMobileApp) {
     request.siteAccess = {

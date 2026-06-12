@@ -25,7 +25,8 @@ import { schema as getAnnotationSummarySchema } from '../handlers/annotation/get
 import { schema as getAnnotationSchema } from '../handlers/annotation/get';
 import { schema as updateAnnotationSchema } from '../handlers/annotation/put';
 import { schema as exportAnnotationsSchema } from '../handlers/annotation/export';
-import { requireAdminAuth, requireAdminOrSuperAdminAuth, requireSuperAdmin } from '../middleware/auth.middleware';
+import { requireAdminAuth, requireSuperAdmin } from '../middleware/auth.middleware';
+import { requireExportAuth } from '../middleware/signedUrl.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
   
@@ -97,7 +98,7 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Export annotations to CSV (admin token, developer, or superadmin)
   fastify.get('/export', {
-    preHandler: [requireAdminOrSuperAdminAuth],
+    preHandler: [requireExportAuth],
     schema: exportAnnotationsSchema
   }, exportAnnotationsCSV as any);
 

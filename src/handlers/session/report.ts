@@ -335,13 +335,15 @@ export async function exportSessionReport(
     }
 
     const siteAccess = request.siteAccess;
-    if (!siteAccess?.canRead) {
+    if (!request.isSignedUrl && !siteAccess?.canRead) {
       return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to read site data' });
     }
 
     const requestedDistricts = parseCommaSeparated(districts);
     const requestedSiteIds = parseSiteIds(siteIds);
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
+    const accessibleSiteIds = request.isSignedUrl
+      ? []
+      : await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
 
     const siteWhere: any = {};
     if (requestedDistricts.length > 0) {
