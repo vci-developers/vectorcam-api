@@ -86,7 +86,7 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, createProgram as any);
 
   fastify.get('/:program_id/collection-schedules', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireAnyWhitelistedAuth],
     schema: getCollectionScheduleListSchema,
   }, getCollectionScheduleList as any);
 
@@ -101,7 +101,7 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, changeProgramCollectionSchedule as any);
 
   fastify.get('/:program_id/collection-cycles', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireAnyWhitelistedAuth],
     schema: getCollectionCycleListSchema,
   }, getCollectionCycleList as any);
 
