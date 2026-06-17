@@ -2,12 +2,14 @@ import sequelize from '../src/db';
 import { User } from '../src/db/models';
 
 /**
- * Migrates legacy privilege levels to the new scale:
- * - 1 -> 2 (read/write/push for assigned site(s))
- * - 2 -> 3 (read/write/push for all sites + annotate)
- * Other values remain unchanged.
+ * One-time migration for the privilege 3/4 split:
+ * - 3 -> 4 (existing annotate superadmins keep annotation access at the new level)
  *
- * Run with ts-node or compile first:
+ * Levels 0, 1, and 2 are unchanged. Do NOT re-run the older 1->2 / 2->3
+ * migration here — that was for a pre-2024 legacy scale and would incorrectly
+ * upgrade current read-only (1) and per-site writer (2) users.
+ *
+ * Run once after deploying the privilege 3/4 split:
  *   npx ts-node scripts/migrate-privileges.ts
  */
 async function migratePrivileges() {
@@ -17,14 +19,12 @@ async function migratePrivileges() {
     let updated = 0;
 
     for (const user of users) {
-      let newPrivilege = user.privilege;
-      if (user.privilege === 1) newPrivilege = 2;
-      else if (user.privilege === 2) newPrivilege = 3;
-
-      if (newPrivilege !== user.privilege) {
-        await user.update({ privilege: newPrivilege }, { transaction });
-        updated++;
+      if (user.privilege !== 3) {
+        continue;
       }
+
+      await user.update({ privilege: 4 }, { transaction });
+      updated++;
     }
 
     await transaction.commit();

@@ -31,8 +31,8 @@ export const addToWhitelistSchema: any = {
       },
       adminPrivilege: { 
         type: 'number',
-        description: 'Optional privilege: 0=view one site, 1=view all in program, 2=write/push one site, 3=write/push all in program + annotate',
-        enum: [0, 1, 2, 3]
+        description: 'Optional privilege: 0=view one site, 1=view all in program, 2=write/push one site, 3=write/push all in program, 4=write/push all in program + annotate',
+        enum: [0, 1, 2, 3, 4]
       },
       districtAccess: {
         type: 'string',
@@ -235,8 +235,8 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
     }
 
     // Validate admin privilege if provided
-    if (adminPrivilege !== undefined && ![0, 1, 2, 3].includes(adminPrivilege)) {
-      return reply.code(400).send({ error: 'Invalid privilege. Must be 0, 1, 2, or 3' });
+    if (adminPrivilege !== undefined && ![0, 1, 2, 3, 4].includes(adminPrivilege)) {
+      return reply.code(400).send({ error: 'Invalid privilege. Must be 0, 1, 2, 3, or 4' });
     }
 
     // Check if email is already whitelisted

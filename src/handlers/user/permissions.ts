@@ -115,7 +115,8 @@ export const getPermissionsSchema: any = {
  * - 0: READ/VIEW assigned site(s) within program
  * - 1: READ/VIEW all sites within program
  * - 2: READ/VIEW + WRITE + PUSH assigned site(s) within program
- * - 3: READ/VIEW + WRITE + PUSH all sites within program + ANNOTATE
+ * - 3: READ/VIEW + WRITE + PUSH all sites within program
+ * - 4: READ/VIEW + WRITE + PUSH all sites within program + ANNOTATE
  * - Regular User: No access
  */
 export async function getPermissionsHandler(
@@ -178,11 +179,11 @@ export async function getPermissionsHandler(
     };
 
     if (user.privilege >= 3) {
-      // Super Admin: Full permissions including annotate and push (scoped to program)
+      // Program-wide data access (scoped to program)
       sitePermissions.viewSiteMetadata = true;
       sitePermissions.writeSiteMetadata = true;
       sitePermissions.pushSiteMetadata = true;
-      annotationPermissions.viewAndWriteAnnotationTasks = true;
+      annotationPermissions.viewAndWriteAnnotationTasks = user.privilege >= 4;
     } else if (user.privilege === 2) {
       // Per-site writer/pusher
       sitePermissions.viewSiteMetadata = hasAccessToQueriedSite && siteAccess.canRead;

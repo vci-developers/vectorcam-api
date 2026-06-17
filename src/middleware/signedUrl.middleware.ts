@@ -4,7 +4,7 @@ import {
   isExportReportPath,
   verifySignedExportUrl,
 } from '../services/signedUrl.service';
-import { requireAdminOrSuperAdminAuth } from './auth.middleware';
+import { requireAdminOrSuperAdminAuth, requireSuperAdmin } from './auth.middleware';
 import { requireSiteReadAccess } from './siteAccess.middleware';
 
 declare module 'fastify' {
@@ -46,6 +46,13 @@ export async function requireExportAuth(
 
   if (authRequirement === 'siteRead') {
     return requireSiteReadAccess(request, reply);
+  }
+
+  if (authRequirement === 'annotation') {
+    await new Promise<void>((resolve) => {
+      requireSuperAdmin(request, reply, () => resolve());
+    });
+    return;
   }
 
   await new Promise<void>((resolve) => {

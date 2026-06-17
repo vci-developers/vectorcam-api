@@ -81,10 +81,10 @@ export async function createSite(
     }
 
     // For user JWT tokens (not admin/mobile), enforce program scope:
-    // only privilege 3 users can create sites, and only within their own program
+    // only privilege 3+ users can create sites, and only within their own program
     if (request.authType === 'user' && request.user) {
       if (request.user.privilege < 3) {
-        return reply.code(403).send({ error: 'Forbidden: Only program admins (privilege 3) can create sites' });
+        return reply.code(403).send({ error: 'Forbidden: Only program-wide users (privilege 3+) can create sites' });
       }
       if (programId !== request.user.programId) {
         return reply.code(403).send({ error: 'Forbidden: Cannot create sites in a different program' });

@@ -91,7 +91,7 @@ export default async function getAnnotationTaskList(
     const whereConditions: WhereOptions = {};
 
     // If admin token: show all tasks
-    // If superadmin user (privilege = 2): only show their own tasks
+    // If annotation user (privilege >= 4): only show their own tasks
     if (!request.isAdminToken && request.user) {
       // Superadmin user - only their own tasks
       whereConditions.userId = request.user.id;

@@ -136,12 +136,12 @@ export default async function createAnnotationTasks(
       return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
     }
 
-    // Get all superadmin users (privilege >= 3) who are active in this program
+    // Get all annotation users (privilege >= 4) who are active in this program
     const superAdminUsers = await User.findAll({
       where: {
         programId,
         privilege: {
-          [Op.gte]: 3
+          [Op.gte]: 4
         },
         isActive: true
       },
@@ -150,7 +150,7 @@ export default async function createAnnotationTasks(
 
     if (superAdminUsers.length === 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: `No active superadmin users found for program ${programId} to assign tasks to` });
+      return reply.code(400).send({ error: `No active annotation users found for program ${programId} to assign tasks to` });
     }
 
     // Calculate the date range for the specified month and year (using UTC)

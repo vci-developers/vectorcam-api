@@ -63,9 +63,16 @@ export interface SignExportUrlRequest {
 
 function hasAdminOrSuperAdminAccess(request: FastifyRequest): boolean {
   const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-  const isSuperAdminUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
+  const isProgramWideUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
 
-  return Boolean(request.isAdminToken || isDeveloperUser || isSuperAdminUser);
+  return Boolean(request.isAdminToken || isDeveloperUser || isProgramWideUser);
+}
+
+function hasAnnotationAccess(request: FastifyRequest): boolean {
+  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
+  const isAnnotationUser = request.authType === 'user' && !!request.user && request.user.privilege >= 4;
+
+  return Boolean(request.isAdminToken || isDeveloperUser || isAnnotationUser);
 }
 
 function hasSiteReadAccess(request: FastifyRequest): boolean {
@@ -102,7 +109,11 @@ export async function signExportUrlHandler(
   }
 
   if (authRequirement === 'adminOrSuperAdmin' && !hasAdminOrSuperAdminAccess(request)) {
-    return reply.code(403).send({ error: 'Forbidden: Admin, developer, or superadmin authentication required' });
+    return reply.code(403).send({ error: 'Forbidden: Admin, developer, or program-wide user authentication required' });
+  }
+
+  if (authRequirement === 'annotation' && !hasAnnotationAccess(request)) {
+    return reply.code(403).send({ error: 'Forbidden: Annotation privileges required' });
   }
 
   if (authRequirement === 'siteRead' && !hasSiteReadAccess(request)) {

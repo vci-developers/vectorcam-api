@@ -19,11 +19,12 @@ declare module 'fastify' {
 /**
  * Site access control middleware that enforces the following rules:
  * 
- * New privilege map:
+ * Privilege map:
  * - 0: read/view for assigned site(s)
- * - 1: read/view for all sites
+ * - 1: read/view for all sites in program
  * - 2: read/view/write/push for assigned site(s)
- * - 3: read/view/write/push for all sites + annotate
+ * - 3: read/view/write/push for all sites in program
+ * - 4: read/view/write/push for all sites in program + annotate
  *
  * - Whitelisted users: can view data for their sites only (treated like privilege 0 if no higher privilege)
  * - Admin token / mobile token: full access to all sites
@@ -215,7 +216,7 @@ function getSiteIdFromRequest(request: FastifyRequest): number | null {
  * This function is shared between the middleware and permissions endpoint
  * 
  * All site access is now scoped to the user's assigned program.
- * For privilege 1 and 3, "all sites" means "all sites within the user's program".
+ * For privilege 1, 3, and 4, "all sites" means "all sites within the user's program".
  * No cross-program access is allowed.
  * 
  * @param userId - User ID
@@ -240,7 +241,7 @@ export async function getUserSiteAccess(
     };
   }
 
-  // Super admin users (privilege >= 3) have access to all sites within their program
+  // Program-wide users (privilege >= 3) have access to all sites within their program
   if (privilege >= 3) {
     // Get all sites within the user's program
     const programSites = await Site.findAll({

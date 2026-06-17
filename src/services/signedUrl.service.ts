@@ -12,7 +12,7 @@ export const EXPORT_REPORT_PATHS = [
 
 export type ExportReportPath = (typeof EXPORT_REPORT_PATHS)[number];
 
-export type ExportPathAuthRequirement = 'adminOrSuperAdmin' | 'siteRead';
+export type ExportPathAuthRequirement = 'adminOrSuperAdmin' | 'siteRead' | 'annotation';
 
 const SIGNATURE_QUERY_PARAM = 'signature';
 
@@ -27,6 +27,10 @@ export function getExportPathAuthRequirement(pathname: string): ExportPathAuthRe
 
   if (pathname === '/sessions/report') {
     return 'siteRead';
+  }
+
+  if (pathname === '/annotations/export') {
+    return 'annotation';
   }
 
   return 'adminOrSuperAdmin';
