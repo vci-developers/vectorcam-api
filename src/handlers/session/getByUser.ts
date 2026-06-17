@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { handleError } from './common';
+import { certifiedByResponseSchema, handleError } from './common';
 import { SessionState } from '../../db/models/Session';
 
 export const schema = {
@@ -41,7 +41,7 @@ export const schema = {
               hardwareId: { type: ['string', 'null'] },
               expectedSpecimens: { type: 'number' },
               state: { type: 'string', enum: Object.values(SessionState) },
-              certifiedBy: { type: ['number', 'null'] }
+              certifiedBy: certifiedByResponseSchema
             }
           }
         }

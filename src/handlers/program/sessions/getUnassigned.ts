@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Session, Site } from '../../../db/models';
-import { formatSessionResponse } from '../../session/common';
+import { certifierInclude, certifiedByResponseSchema, formatSessionResponse } from '../../session/common';
 import { expandSiteIdsWithDescendants } from '../../site/common';
 
 interface QueryParams {
@@ -41,7 +41,7 @@ export const schema = {
               collectionCycleId: { type: ['number', 'null'] },
               siteId: { type: 'number' },
               deviceId: { type: 'number' },
-              certifiedBy: { type: ['number', 'null'] },
+              certifiedBy: certifiedByResponseSchema
             },
           },
         },
@@ -92,6 +92,7 @@ export async function getUnassignedProgramSessions(
       Session.count({ where }),
       Session.findAll({
         where,
+        include: [certifierInclude],
         order: [['collectionDate', 'ASC'], ['id', 'ASC']],
         limit,
         offset,

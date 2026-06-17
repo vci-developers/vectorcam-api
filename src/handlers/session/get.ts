@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { formatSessionResponse, handleError, findSession } from './common';
+import { certifierInclude, certifiedByResponseSchema, formatSessionResponse, handleError, findSession } from './common';
 import { Site, Device } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { formatSiteResponse } from '../site/common';
@@ -39,7 +39,7 @@ export const schema = {
         hardwareId: { type: ['string', 'null'] },
         expectedSpecimens: { type: 'number' },
         state: { type: 'string', enum: Object.values(SessionState) },
-        certifiedBy: { type: ['number', 'null'] },
+        certifiedBy: certifiedByResponseSchema,
         site: {
           type: 'object',
           properties: {
@@ -85,6 +85,7 @@ export async function getSessionDetails(
     const { session_id } = request.params;
 
     const include = [
+      certifierInclude,
       {
         model: Site,
         as: 'site',

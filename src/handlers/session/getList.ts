@@ -1,16 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { CollectionCycle, Session, Site } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
-import { formatSessionResponse } from './common';
+import { certifierInclude, certifiedByResponseSchema, formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
-import { expandSiteIdsWithDescendants, siteIdInSubtreeOfLiteral } from '../site/common';
+import { expandSiteIdsWithDescendants, parseSiteIds, siteIdsInSubtreesOfLiteral } from '../site/common';
 
 export const schema = {
   tags: ['Sessions'],
   querystring: {
     type: 'object',
     properties: {
-      siteId: { type: 'number', description: 'Filter by site ID' },
+      siteIds: { type: 'string', description: 'Comma-separated site IDs to filter by (includes descendant sites)' },
       programId: { type: 'number', description: 'Filter by program ID' },
       district: { type: 'string', description: 'Filter by district name' },
       deviceId: { type: 'number', description: 'Filter by device ID' },
@@ -68,7 +68,7 @@ export const schema = {
               hardwareId: { type: ['string', 'null'] },
               expectedSpecimens: { type: 'number' },
               state: { type: 'string', enum: Object.values(SessionState) },
-              certifiedBy: { type: ['number', 'null'] }
+              certifiedBy: certifiedByResponseSchema
             }
           }
         },
@@ -82,7 +82,7 @@ export const schema = {
 };
 
 interface QueryParams {
-  siteId?: number;
+  siteIds?: string;
   programId?: number;
   district?: string;
   deviceId?: number;
@@ -110,7 +110,7 @@ export async function getSessionList(
 ) {
   try {
     const {
-      siteId,
+      siteIds,
       programId,
       district,
       deviceId,
@@ -176,10 +176,12 @@ export async function getSessionList(
       whereClause.siteId = { [Op.in]: accessibleSiteIds };
     }
     
-    // If user provides a specific siteId filter, apply it using the JSON siteIds field directly.
+    const requestedSiteIds = parseSiteIds(siteIds);
+
+    // If user provides siteIds filter, apply it using the JSON siteIds field directly.
     // When the user has limited access, AND with their accessible sites so the SQL enforces both.
-    if (siteId) {
-      const subtreeLiteral = siteIdInSubtreeOfLiteral(siteId);
+    if (requestedSiteIds.length > 0) {
+      const subtreeLiteral = siteIdsInSubtreesOfLiteral(requestedSiteIds);
       if (accessibleSiteIds.length > 0) {
         whereClause[Op.and] = [
           ...((whereClause[Op.and] as any[]) ?? []),
@@ -278,7 +280,7 @@ export async function getSessionList(
     // Get sessions with pagination
     const sessions = await Session.findAll({
       where: whereClause,
-      include,
+      include: [...include, certifierInclude],
       order: orderClause,
       limit,
       offset

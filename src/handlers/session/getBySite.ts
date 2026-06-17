@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSiteById, formatSessionResponse, handleError } from './common';
+import { findSiteById, certifierInclude, certifiedByResponseSchema, formatSessionResponse, handleError } from './common';
 import { Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 
@@ -42,7 +42,7 @@ export const schema = {
               hardwareId: { type: ['string', 'null'] },
               expectedSpecimens: { type: 'number' },
               state: { type: 'string', enum: Object.values(SessionState) },
-              certifiedBy: { type: ['number', 'null'] }
+              certifiedBy: certifiedByResponseSchema
             }
           }
         }
@@ -79,6 +79,7 @@ export async function getSessionsBySite(
     // Get all sessions for this site
     const sessions = await Session.findAll({
       where: { siteId: site_id },
+      include: [certifierInclude],
       order: [['createdAt', 'DESC']],
     });
 

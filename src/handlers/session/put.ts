@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSessionById, findSiteById, findDeviceById, formatSessionResponse, handleError, findSession } from './common';
+import { findSessionById, findSiteById, findDeviceById, certifierInclude, certifiedByResponseSchema, formatSessionResponse, handleError, findSession } from './common';
 import { Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { getChangedFields, logReviewAction } from '../../services/reviewActionLog.service';
@@ -89,7 +89,7 @@ export const schema = {
             hardwareId: { type: ['string', 'null'] },
             expectedSpecimens: { type: 'number' },
             state: { type: 'string', enum: Object.values(SessionState) },
-            certifiedBy: { type: ['number', 'null'] }
+            certifiedBy: certifiedByResponseSchema
           }
         }
       }
@@ -311,6 +311,8 @@ export async function updateSession(
     } catch (logError) {
       request.log.error({ err: logError, sessionId: session.id }, 'Failed to write review action log');
     }
+
+    await session.reload({ include: [certifierInclude] });
 
     return reply.send({
       message: 'Session updated successfully',

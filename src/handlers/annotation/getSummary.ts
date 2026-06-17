@@ -2,9 +2,11 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { QueryTypes } from 'sequelize';
 import sequelize from '../../db/index';
 
+import { buildSiteIdsSubtreeSql, parseSiteIds } from '../site/common';
+
 interface GetAnnotationSummaryQuery {
   district?: string;
-  siteId?: number;
+  siteIds?: string;
   startDate?: string;
   endDate?: string;
 }
@@ -92,7 +94,7 @@ export const schema = {
     type: 'object',
     properties: {
       district: { type: 'string', description: 'Filter annotations by site district' },
-      siteId: { type: 'number', description: 'Filter annotations by site ID' },
+      siteIds: { type: 'string', description: 'Comma-separated site IDs to filter by (includes descendant sites)' },
       startDate: { type: 'string', format: 'date', description: 'Filter annotations created from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter annotations created to this date (YYYY-MM-DD)' }
     }
@@ -179,7 +181,8 @@ export default async function getAnnotationSummary(
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { district, siteId, startDate, endDate } = request.query;
+    const { district, siteIds, startDate, endDate } = request.query;
+    const requestedSiteIds = parseSiteIds(siteIds);
 
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
       return reply.code(400).send({ error: 'Start date must be before or equal to end date' });
@@ -204,12 +207,10 @@ export default async function getAnnotationSummary(
       replacements.district = district;
       whereClauses.push('s.district = :district');
     }
-    if (siteId) {
-      // Filter against the subtree rooted at the requested siteId via the JSON siteIds field.
-      replacements.requestedSiteId = Number(siteId);
-      whereClauses.push(
-        "s.id IN (SELECT id FROM sites WHERE JSON_CONTAINS(JSON_EXTRACT(COALESCE(location_hierarchy, JSON_OBJECT()), '$.siteIds'), JSON_ARRAY(:requestedSiteId)))"
-      );
+    if (requestedSiteIds.length > 0) {
+      const { sql, replacements: siteReplacements } = buildSiteIdsSubtreeSql('s.id', requestedSiteIds);
+      whereClauses.push(sql);
+      Object.assign(replacements, siteReplacements);
     }
 
     const whereSql = whereClauses.length > 0 ? `AND ${whereClauses.join(' AND ')}` : '';

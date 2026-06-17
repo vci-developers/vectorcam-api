@@ -306,6 +306,20 @@ export function buildSiteSubtreeWhere(rootSiteIds: number[]): WhereOptions | nul
   } as WhereOptions;
 }
 
+export function parseCommaSeparated(value?: string): string[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+export function parseSiteIds(value?: string): number[] {
+  return parseCommaSeparated(value)
+    .map((entry) => Number(entry))
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
+
 // Literal subquery that yields the id set of the subtree rooted at rootSiteId.
 // Use with `{ [Op.in]: siteIdInSubtreeOfLiteral(siteId) }` on non-Site tables
 // (Session, SessionConflictResolution, ReviewActionLog, etc.) to avoid pre-expanding.
@@ -314,6 +328,47 @@ export function siteIdInSubtreeOfLiteral(rootSiteId: number) {
   return literal(
     `(SELECT id FROM sites WHERE JSON_CONTAINS(JSON_EXTRACT(COALESCE(location_hierarchy, JSON_OBJECT()), '$.siteIds'), JSON_ARRAY(${id})))`
   );
+}
+
+// Union of subtrees for multiple root site ids. Use like siteIdInSubtreeOfLiteral.
+export function siteIdsInSubtreesOfLiteral(rootSiteIds: number[]) {
+  const normalized = normalizeSiteIds(rootSiteIds);
+  if (normalized.length === 0) {
+    return literal('(SELECT NULL WHERE 1 = 0)');
+  }
+  if (normalized.length === 1) {
+    return siteIdInSubtreeOfLiteral(normalized[0]);
+  }
+
+  const conditions = normalized.map(
+    (id) =>
+      `JSON_CONTAINS(JSON_EXTRACT(COALESCE(location_hierarchy, JSON_OBJECT()), '$.siteIds'), JSON_ARRAY(${id}))`
+  );
+  return literal(`(SELECT id FROM sites WHERE ${conditions.join(' OR ')})`);
+}
+
+// Raw SQL fragment for filtering site rows by one or more subtree roots.
+export function buildSiteIdsSubtreeSql(
+  siteIdColumn: string,
+  rootSiteIds: number[],
+  replacementPrefix = 'requestedSiteId'
+): { sql: string; replacements: Record<string, number> } {
+  const normalized = normalizeSiteIds(rootSiteIds);
+  if (normalized.length === 0) {
+    return { sql: '', replacements: {} };
+  }
+
+  const replacements: Record<string, number> = {};
+  const conditions = normalized.map((id, index) => {
+    const key = `${replacementPrefix}${index}`;
+    replacements[key] = id;
+    return `JSON_CONTAINS(JSON_EXTRACT(COALESCE(location_hierarchy, JSON_OBJECT()), '$.siteIds'), JSON_ARRAY(:${key}))`;
+  });
+
+  return {
+    sql: `${siteIdColumn} IN (SELECT id FROM sites WHERE ${conditions.join(' OR ')})`,
+    replacements,
+  };
 }
 
 // Expand an array of accessible root site ids into the flat list of every site in their

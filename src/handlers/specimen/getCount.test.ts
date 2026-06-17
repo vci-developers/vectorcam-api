@@ -26,6 +26,12 @@ jest.mock('../site/common', () => ({
     hasData: false,
     locationHierarchy: {},
   })),
+  buildSiteSubtreeWhere: jest.fn(),
+  parseSiteIds: jest.fn((value?: string) =>
+    value
+      ? value.split(',').map((entry) => Number(entry.trim())).filter((id) => Number.isInteger(id) && id > 0)
+      : []
+  ),
 }));
 
 function createReply() {

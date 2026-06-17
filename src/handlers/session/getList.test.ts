@@ -5,6 +5,7 @@ import { expandSiteIdsWithDescendants } from '../site/common';
 
 jest.mock('../../db/models', () => ({
   CollectionCycle: {},
+  User: {},
   Session: {
     count: jest.fn(),
     findAll: jest.fn(),
@@ -16,11 +17,23 @@ jest.mock('../../db/models', () => ({
 
 jest.mock('../site/common', () => ({
   expandSiteIdsWithDescendants: jest.fn(),
-  siteIdInSubtreeOfLiteral: jest.fn(() => ({ __literal: true })),
+  parseSiteIds: jest.fn((value?: string) =>
+    value
+      ? value.split(',').map((entry) => Number(entry.trim())).filter((id) => Number.isInteger(id) && id > 0)
+      : []
+  ),
+  siteIdsInSubtreesOfLiteral: jest.fn(() => ({ __literal: true })),
 }));
 
 jest.mock('./common', () => ({
   formatSessionResponse: jest.fn((session) => session),
+  certifierInclude: {
+    as: 'certifier',
+    model: {},
+    attributes: ['id', 'name'],
+    required: false,
+  },
+  certifiedByResponseSchema: {},
 }));
 
 function createReply() {
@@ -96,7 +109,9 @@ describe('getSessionList hierarchy filtering', () => {
     expect(countArgs.where.collectionCycleId).toBe(123);
     expect(findArgs.where.collectionCycleId).toBe(123);
     expect(countArgs.include).toEqual([]);
-    expect(findArgs.include).toEqual([]);
+    expect(findArgs.include).toEqual(expect.arrayContaining([
+      expect.objectContaining({ as: 'certifier' }),
+    ]));
   });
 
   it('filters unassigned sessions when collectionCycleId is null', async () => {
@@ -135,7 +150,10 @@ describe('getSessionList hierarchy filtering', () => {
     const countInclude = (Session.count as jest.Mock).mock.calls[0][0].include;
     const findInclude = (Session.findAll as jest.Mock).mock.calls[0][0].include;
     expect(countInclude).toHaveLength(1);
-    expect(findInclude).toEqual(countInclude);
+    expect(findInclude).toEqual(expect.arrayContaining(countInclude));
+    expect(findInclude).toEqual(expect.arrayContaining([
+      expect.objectContaining({ as: 'certifier' }),
+    ]));
     expect(countInclude[0]).toEqual(expect.objectContaining({
       as: 'collectionCycle',
       required: true,
@@ -144,5 +162,28 @@ describe('getSessionList hierarchy filtering', () => {
         endDate: { [Op.lte]: new Date('2026-04-30T23:59:59.999Z') },
       },
     }));
+  });
+
+  it('filters sessions by requested siteIds subtree', async () => {
+    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
+
+    const request: any = {
+      query: { siteIds: '10,20' },
+      siteAccess: { userSites: [] },
+      log: { error: jest.fn() },
+    };
+    const reply = createReply();
+
+    await getSessionList(request, reply as any);
+
+    const countWhere = (Session.count as jest.Mock).mock.calls[0][0].where;
+    expect(countWhere.siteId[Op.in]).toEqual({ __literal: true });
+    expect(Session.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.arrayContaining([
+          expect.objectContaining({ as: 'certifier' }),
+        ]),
+      })
+    );
   });
 });

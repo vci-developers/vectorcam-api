@@ -2,12 +2,13 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session, Site, SpecimenImage } from '../../db/models';
 import { Op, QueryTypes, fn, col, where, literal } from 'sequelize';
 import sequelize from '../../db/index';
-import { formatSiteResponse } from '../site/common';
+import { formatSiteResponse, buildSiteSubtreeWhere, parseSiteIds } from '../site/common';
 
 interface QueryParams {
   startDate?: string;
   endDate?: string;
   district?: string;
+  siteIds?: string;
   sessionId?: string;
   sessionType?: string;
   locationTypeKey?: string;
@@ -32,6 +33,10 @@ export const schema = {
       district: {
         type: 'string',
         description: 'Filter specimens by district name'
+      },
+      siteIds: {
+        type: 'string',
+        description: 'Comma-separated site IDs to filter by (includes descendant sites)'
       },
       sessionId: {
         type: 'string',
@@ -129,7 +134,8 @@ export async function getSpecimenCount(
   reply: FastifyReply
 ) {
   try {
-    const { startDate, endDate, district, sessionId, sessionType, locationTypeKey, locationTypeValue } = request.query;
+    const { startDate, endDate, district, siteIds, sessionId, sessionType, locationTypeKey, locationTypeValue } = request.query;
+    const requestedSiteIds = parseSiteIds(siteIds);
 
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
@@ -171,6 +177,17 @@ export async function getSpecimenCount(
     // Add district filter if provided
     if (district) {
       siteWhere.district = district;
+      hasSiteFilter = true;
+    }
+
+    if (requestedSiteIds.length > 0) {
+      const subtreeWhere = buildSiteSubtreeWhere(requestedSiteIds);
+      if (subtreeWhere) {
+        siteWhere[Op.and] = [
+          ...((siteWhere[Op.and] as any[]) ?? []),
+          subtreeWhere,
+        ];
+      }
       hasSiteFilter = true;
     }
 

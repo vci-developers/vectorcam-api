@@ -1,6 +1,28 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Session, Site, Device, Specimen } from '../../db/models';
+import { Session, Site, Device, Specimen, User } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
+
+export interface CertifiedByInfo {
+  userId: number;
+  name: string | null;
+  certifiedAt: number | null;
+}
+
+export const certifiedByResponseSchema = {
+  type: ['object', 'null'],
+  properties: {
+    userId: { type: 'number' },
+    name: { type: ['string', 'null'] },
+    certifiedAt: { type: ['number', 'null'] },
+  },
+};
+
+export const certifierInclude = {
+  model: User,
+  as: 'certifier',
+  attributes: ['id', 'name'],
+  required: false,
+};
 
 // Session response format interface
 export interface SessionResponse {
@@ -26,7 +48,24 @@ export interface SessionResponse {
   hardwareId: string | null;
   expectedSpecimens: number;
   state: SessionState;
-  certifiedBy: number | null;
+  certifiedBy: CertifiedByInfo | null;
+}
+
+export function formatCertifiedBy(session: Session): CertifiedByInfo | null {
+  if (session.certifiedBy == null) {
+    return null;
+  }
+
+  const certifier = (session as Session & { certifier?: User | null }).certifier;
+
+  return {
+    userId: session.certifiedBy,
+    name: certifier?.name ?? null,
+    certifiedAt:
+      session.state === SessionState.CERTIFIED && session.updatedAt
+        ? session.updatedAt.getTime()
+        : null,
+  };
 }
 
 // Helper to format session data consistently across endpoints
@@ -53,7 +92,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     hardwareId: session.hardwareId,
     expectedSpecimens: session.expectedSpecimens,
     state: session.state,
-    certifiedBy: session.certifiedBy,
+    certifiedBy: formatCertifiedBy(session),
   };
 }
 

@@ -1,3 +1,4 @@
+import { certifiedByResponseSchema } from '../session/common';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op, WhereOptions } from 'sequelize';
 import { Annotation, AnnotationTask, User, Specimen, Session, Site, SpecimenImage, SessionUnit } from '../../db/models';
@@ -141,7 +142,7 @@ export const schema = {
                       latitude: { type: ['number', 'null'] },
                       longitude: { type: ['number', 'null'] },
                       type: { type: 'string' },
-                      certifiedBy: { type: ['number', 'null'] },
+                      certifiedBy: certifiedByResponseSchema,
                       site: {
                         type: 'object',
                         properties: {

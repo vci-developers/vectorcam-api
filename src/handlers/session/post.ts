@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { 
   findDeviceById, 
   findSiteById, 
+  certifiedByResponseSchema,
   formatSessionResponse,
   handleError
 } from './common';
@@ -84,7 +85,7 @@ export const schema = {
             hardwareId: { type: ['string', 'null'] },
             expectedSpecimens: { type: 'number' },
             state: { type: 'string', enum: Object.values(SessionState) },
-            certifiedBy: { type: ['number', 'null'] }
+            certifiedBy: certifiedByResponseSchema
           }
         }
       }

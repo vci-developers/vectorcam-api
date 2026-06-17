@@ -1,4 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { certifiedByResponseSchema } from '../session/common';
 import { 
   Annotation, 
   AnnotationTask, 
@@ -151,7 +152,7 @@ export const schema = {
                 latitude: { type: ['number', 'null'] },
                 longitude: { type: ['number', 'null'] },
                 type: { type: 'string' },
-                certifiedBy: { type: ['number', 'null'] },
+                certifiedBy: certifiedByResponseSchema,
                 site: {
                   type: 'object',
                   properties: {

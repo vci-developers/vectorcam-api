@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, Site, Device } from '../../../db/models';
 import { SessionState } from '../../../db/models/Session';
 import { formatSpecimenResponse, handleError } from '../../specimen/common';
-import { findSession, findSessionSpecimen } from '../common';
+import { certifiedByResponseSchema, findSession, findSessionSpecimen, formatCertifiedBy } from '../common';
 import { formatSiteResponse } from '../../site/common';
 
 export const schema = {
@@ -145,7 +145,7 @@ export const schema = {
             hardwareId: { type: ['string', 'null'] },
             expectedSpecimens: { type: 'number' },
             state: { type: 'string', enum: Object.values(SessionState) },
-            certifiedBy: { type: ['number', 'null'] },
+            certifiedBy: certifiedByResponseSchema,
             site: {
               type: 'object',
               properties: {
@@ -263,7 +263,7 @@ export async function getSessionSpecimen(
         hardwareId: specimenData.session.hardwareId,
         expectedSpecimens: specimenData.session.expectedSpecimens,
         state: specimenData.session.state,
-        certifiedBy: specimenData.session.certifiedBy,
+        certifiedBy: formatCertifiedBy(specimenData.session),
         site: formattedSite ? { ...formattedSite, id: formattedSite.siteId } : null,
         device: specimenData.session.device ? {
           id: specimenData.session.device.id,
