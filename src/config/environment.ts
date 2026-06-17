@@ -60,6 +60,19 @@ const developmentConfig = {
     secret: process.env.SIGNED_URL_HMAC_SECRET || 'dev-signed-url-secret',
     expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
   },
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM || 'noreply@vectorcam.org',
+  },
+  emailVerification: {
+    secret: process.env.EMAIL_VERIFICATION_JWT_SECRET || 'dev-email-verification-secret',
+    expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES_IN || '24h',
+    baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL,
+  },
 };
 
 // Configuration for test environment
@@ -108,6 +121,19 @@ const testConfig = {
     secret: process.env.SIGNED_URL_HMAC_SECRET || 'test-signed-url-secret',
     expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
   },
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM || 'noreply@vectorcam.org',
+  },
+  emailVerification: {
+    secret: process.env.EMAIL_VERIFICATION_JWT_SECRET || 'test-email-verification-secret',
+    expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES_IN || '24h',
+    baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL,
+  },
 };
 
 // Configuration for production environment
@@ -155,6 +181,19 @@ const productionConfig = {
   signedUrl: {
     secret: process.env.SIGNED_URL_HMAC_SECRET,
     expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
+  },
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM || 'noreply@vectorcam.org',
+  },
+  emailVerification: {
+    secret: process.env.EMAIL_VERIFICATION_JWT_SECRET!,
+    expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES_IN || '24h',
+    baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL,
   },
 };
 

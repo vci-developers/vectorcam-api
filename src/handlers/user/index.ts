@@ -20,3 +20,8 @@ export {
 export { 
   resetPasswordHandler, resetPasswordSchema
 } from './resetPassword';
+
+export {
+  sendEmailVerificationHandler, sendEmailVerificationSchema,
+  verifyEmailHandler, verifyEmailSchema,
+} from './emailVerification';

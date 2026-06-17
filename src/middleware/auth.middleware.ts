@@ -165,6 +165,16 @@ export function requireNonWhitelistedUserAuth(
   reply: FastifyReply,
   done: HookHandlerDoneFunction
 ): void {
+  if (request.isAdminToken) {
+    reply.code(403).send({ error: 'Forbidden: Admin token cannot be used for this operation' });
+    return done(new Error('Forbidden'));
+  }
+
+  if (request.isMobileApp) {
+    reply.code(403).send({ error: 'Forbidden: Mobile token cannot be used for this operation' });
+    return done(new Error('Forbidden'));
+  }
+
   if (request.authType !== 'user' || !request.user) {
     reply.code(401).send({ error: 'Unauthorized: User authentication required' });
     return done(new Error('Unauthorized'));

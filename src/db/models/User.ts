@@ -10,6 +10,7 @@ class User extends Model {
   declare isDeveloper: boolean;
   declare programId: number | null;
   declare isActive: boolean;
+  declare emailVerified: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -63,6 +64,12 @@ User.init(
       allowNull: false,
       defaultValue: true,
       field: 'is_active',
+    },
+    emailVerified: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'email_verified',
     },
   },
   {

@@ -7,7 +7,9 @@ import {
   getUsersHandler, getUsersSchema,
   modifyUserHandler, modifyUserSchema,
   getPermissionsHandler, getPermissionsSchema,
-  resetPasswordHandler, resetPasswordSchema
+  resetPasswordHandler, resetPasswordSchema,
+  sendEmailVerificationHandler, sendEmailVerificationSchema,
+  verifyEmailHandler, verifyEmailSchema,
 } from '../handlers/user';
 import { requireAdminAuth, requireNonWhitelistedUserAuth, requireUserAuth } from '../middleware/auth.middleware';
 
@@ -20,6 +22,18 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
     preHandler: [requireNonWhitelistedUserAuth],
     schema: getProfileSchema,
   }, getProfileHandler);
+
+  // Send email verification link to the current user
+  server.post('/email/send-verification', {
+    preHandler: [requireNonWhitelistedUserAuth],
+    schema: sendEmailVerificationSchema,
+  }, sendEmailVerificationHandler);
+
+  // Verify the current user's email with a token from the verification email
+  server.post('/email/verify', {
+    preHandler: [requireNonWhitelistedUserAuth],
+    schema: verifyEmailSchema,
+  }, verifyEmailHandler as any);
 
   // Get current user permissions (requires user authentication)
   server.get('/permissions', {

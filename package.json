@@ -43,6 +43,7 @@
     "fastify": "^5.3.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.6.5",
+    "nodemailer": "^9.0.1",
     "pino": "^8.16.2",
     "sequelize": "^6.35.1"
   },
@@ -51,6 +52,7 @@
     "@types/jest": "^30.0.0",
     "@types/mysql": "^2.15.24",
     "@types/node": "^20.10.0",
+    "@types/nodemailer": "^8.0.1",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
     "@typescript-eslint/parser": "^6.12.0",

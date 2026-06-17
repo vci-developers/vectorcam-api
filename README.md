@@ -59,6 +59,17 @@ VectorCam API is a comprehensive backend service designed to support mosquito su
    AWS_ACCESS_KEY_ID=your_dev_access_key
    AWS_SECRET_ACCESS_KEY=your_dev_secret_key
    S3_BUCKET_NAME=your-dev-bucket-name
+
+   # SMTP / Email Verification
+   SMTP_HOST=smtp.example.com
+   SMTP_PORT=587
+   SMTP_SECURE=false
+   SMTP_USER=your_smtp_username
+   SMTP_PASS=your_smtp_password
+   SMTP_FROM=noreply@vectorcam.org
+   EMAIL_VERIFICATION_JWT_SECRET=your_email_verification_jwt_secret
+   EMAIL_VERIFICATION_BASE_URL=https://app.vectorcam.org/verify-email
+   EMAIL_VERIFICATION_EXPIRES_IN=24h
    ```
 
    #### Test (.env.test)
