@@ -70,6 +70,9 @@ VectorCam API is a comprehensive backend service designed to support mosquito su
    EMAIL_VERIFICATION_JWT_SECRET=your_email_verification_jwt_secret
    EMAIL_VERIFICATION_BASE_URL=https://app.vectorcam.org/verify-email
    EMAIL_VERIFICATION_EXPIRES_IN=24h
+   PASSWORD_RESET_JWT_SECRET=your_password_reset_jwt_secret
+   PASSWORD_RESET_BASE_URL=https://app.vectorcam.org/reset-password
+   PASSWORD_RESET_EXPIRES_IN=1h
    ```
 
    #### Test (.env.test)

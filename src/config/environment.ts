@@ -73,6 +73,11 @@ const developmentConfig = {
     expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES_IN || '24h',
     baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL,
   },
+  passwordReset: {
+    secret: process.env.PASSWORD_RESET_JWT_SECRET || 'dev-password-reset-secret',
+    expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '1h',
+    baseUrl: process.env.PASSWORD_RESET_BASE_URL,
+  },
 };
 
 // Configuration for test environment
@@ -134,6 +139,11 @@ const testConfig = {
     expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES_IN || '24h',
     baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL,
   },
+  passwordReset: {
+    secret: process.env.PASSWORD_RESET_JWT_SECRET || 'test-password-reset-secret',
+    expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '1h',
+    baseUrl: process.env.PASSWORD_RESET_BASE_URL,
+  },
 };
 
 // Configuration for production environment
@@ -194,6 +204,11 @@ const productionConfig = {
     secret: process.env.EMAIL_VERIFICATION_JWT_SECRET!,
     expiresIn: process.env.EMAIL_VERIFICATION_EXPIRES_IN || '24h',
     baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL,
+  },
+  passwordReset: {
+    secret: process.env.PASSWORD_RESET_JWT_SECRET!,
+    expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '1h',
+    baseUrl: process.env.PASSWORD_RESET_BASE_URL,
   },
 };
 
