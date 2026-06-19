@@ -190,8 +190,10 @@ export async function submitSession(
       expectedSpecimens
     });
 
-    await assignCollectionCycleOnSessionUpload(session.id);
-    await session.reload();
+    if (type === 'SURVEILLANCE') {
+      await assignCollectionCycleOnSessionUpload(session.id);
+      await session.reload();
+    }
 
     // Mark site as having data
     if (!site.hasData) {
