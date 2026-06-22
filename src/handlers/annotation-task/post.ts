@@ -251,25 +251,22 @@ export default async function createAnnotationTasks(
       userSpecimenAssignments[user.id] = userSpecimens;
     }
     
-    // Second, add overlap specimens
+    // Second, add overlap specimens — the same specimens go to every annotator for inter-rater comparison
     if (overlapCount > 0 && shuffledSpecimens.length > maxSpecimensPerAdmin) {
-      // Select overlap specimens from the remaining pool or reshuffle some specimens
-      const overlapPool = specimenIndex < shuffledSpecimens.length 
-        ? shuffledSpecimens.slice(specimenIndex, specimenIndex + overlapCount * superAdminUsers.length)
-        : shuffleArray(shuffledSpecimens.slice(0, overlapCount * superAdminUsers.length));
-      
-      let overlapIndex = 0;
-      for (let userIndex = 0; userIndex < superAdminUsers.length; userIndex++) {
-        const user = superAdminUsers[userIndex];
-        
-        // Add overlap specimens to this user
-        for (let i = 0; i < overlapCount && overlapIndex < overlapPool.length; i++) {
-          userSpecimenAssignments[user.id].push(overlapPool[overlapIndex]);
-          overlapIndex++;
-          
-          // Reset index to create overlap (same specimens for multiple users)
-          if (overlapIndex >= overlapPool.length) {
-            overlapIndex = 0;
+      const remainingSpecimens = shuffledSpecimens.slice(specimenIndex);
+      const overlapSpecimens = remainingSpecimens.length >= overlapCount
+        ? remainingSpecimens.slice(0, overlapCount)
+        : shuffleArray(shuffledSpecimens.slice(0, overlapCount));
+
+      for (const user of superAdminUsers) {
+        const assignedIds = new Set(
+          userSpecimenAssignments[user.id].map(specimen => specimen.id)
+        );
+
+        for (const specimen of overlapSpecimens) {
+          if (!assignedIds.has(specimen.id)) {
+            userSpecimenAssignments[user.id].push(specimen);
+            assignedIds.add(specimen.id);
           }
         }
       }
