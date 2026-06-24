@@ -97,6 +97,9 @@ export async function exportSurveillanceFormsCSV(
       ...(district && { district }),
       hasData: true,
     };
+    if (programId) {
+      siteWhere.programId = parseInt(programId, 10);
+    }
     if (siteSubtreeWhere) {
       siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), siteSubtreeWhere];
     }
@@ -106,19 +109,18 @@ export async function exportSurveillanceFormsCSV(
       {
         model: Session,
         as: 'session',
+        required: true,
         include: [
           {
             model: Site,
             as: 'site',
-            where: Object.keys(siteWhere).length > 0 ? siteWhere : undefined,
+            required: true,
+            where: siteWhere,
             include: [
               {
                 model: Program,
                 as: 'program',
-                where: programId || programCountry ? {
-                  ...(programId && { id: parseInt(programId) }),
-                  ...(programCountry && { country: programCountry })
-                } : undefined
+                where: programCountry ? { country: programCountry } : undefined,
               }
             ]
           },

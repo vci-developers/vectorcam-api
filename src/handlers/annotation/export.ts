@@ -137,6 +137,9 @@ export async function exportAnnotationsCSV(
       ...(district && { district }),
       hasData: true,
     };
+    if (programId) {
+      siteWhere.programId = parseInt(programId, 10);
+    }
     if (siteSubtreeWhere) {
       siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), siteSubtreeWhere];
     }
@@ -188,7 +191,6 @@ export async function exportAnnotationsCSV(
                     {
                       model: Program,
                       as: 'program',
-                      where: programId ? { id: parseInt(programId) } : undefined
                     }
                   ]
                 }

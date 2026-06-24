@@ -116,30 +116,36 @@ export async function exportSpecimensCSV(
       ...(district && { district }),
       hasData: true,
     };
+    if (programId) {
+      siteWhere.programId = parseInt(programId, 10);
+    }
     if (siteSubtreeWhere) {
       siteWhere[Op.and] = [...((siteWhere[Op.and] as any[]) ?? []), siteSubtreeWhere];
     }
+
+    const sessionWhere = sessionId || sessionFrontendId || sessionType ? {
+      ...(sessionId && { id: parseInt(sessionId) }),
+      ...(sessionFrontendId && { frontendId: sessionFrontendId }),
+      ...(sessionType && { type: sessionType })
+    } : undefined;
 
     // Build include conditions with nested filtering
     const includeConditions = [
       {
         model: Session,
         as: 'session',
-        where: sessionId || sessionFrontendId || sessionType ? {
-          ...(sessionId && { id: parseInt(sessionId) }),
-          ...(sessionFrontendId && { frontendId: sessionFrontendId }),
-          ...(sessionType && { type: sessionType })
-        } : undefined,
+        required: true,
+        where: sessionWhere,
         include: [
           {
             model: Site,
             as: 'site',
-            where: Object.keys(siteWhere).length > 0 ? siteWhere : undefined,
+            required: true,
+            where: siteWhere,
             include: [
               {
                 model: Program,
                 as: 'program',
-                where: programId ? { id: parseInt(programId) } : undefined
               }
             ]
           },

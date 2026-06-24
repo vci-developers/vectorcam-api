@@ -97,25 +97,26 @@ export async function exportSessionsCSV(
       where.siteId = { [Op.in]: siteIdInSubtreeOfLiteral(parseInt(siteId, 10)) };
     }
 
-    const siteWhere = {
+    const siteWhere: any = {
       ...(district && { district }),
       hasData: true,
     };
+    if (programId) {
+      siteWhere.programId = parseInt(programId, 10);
+    }
 
     // Build include conditions with nested filtering
     const includeConditions = [
       { 
         model: Site, 
         as: 'site',
-        where: Object.keys(siteWhere).length > 0 ? siteWhere : undefined,
+        required: true,
+        where: siteWhere,
         include: [
           {
             model: Program,
             as: 'program',
-            where: programId || programCountry ? {
-              ...(programId && { id: parseInt(programId) }),
-              ...(programCountry && { country: programCountry })
-            } : undefined
+            where: programCountry ? { country: programCountry } : undefined,
           }
         ]
       },
