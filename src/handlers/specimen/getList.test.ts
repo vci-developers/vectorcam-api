@@ -52,7 +52,8 @@ describe('getSpecimenList hierarchy filtering', () => {
 
     expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([1]);
     const countInclude = (Specimen.count as jest.Mock).mock.calls[0][0].include;
-    const siteWhere = countInclude[0].include[0].where;
+    const sessionInclude = countInclude.find((entry: any) => entry.as === 'session');
+    const siteWhere = sessionInclude.include[0].where;
     expect(siteWhere.id[Op.in]).toEqual([1, 2]);
   });
 
@@ -77,5 +78,23 @@ describe('getSpecimenList hierarchy filtering', () => {
         }),
       })
     );
+  });
+
+  it('filters by sessionUnitId and collectionCycleId', async () => {
+    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
+
+    const request: any = {
+      query: { sessionUnitId: 42, collectionCycleId: 7 },
+      siteAccess: { userSites: [] },
+      log: { error: jest.fn() },
+    };
+    const reply = createReply();
+
+    await getSpecimenList(request, reply as any);
+
+    const countArgs = (Specimen.count as jest.Mock).mock.calls[0][0];
+    const sessionInclude = countArgs.include.find((entry: any) => entry.as === 'session');
+    expect(countArgs.where.sessionUnitId).toBe(42);
+    expect(sessionInclude.where.collectionCycleId).toBe(7);
   });
 });

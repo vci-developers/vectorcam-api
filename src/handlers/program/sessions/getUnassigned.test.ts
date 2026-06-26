@@ -61,6 +61,7 @@ describe('getUnassignedProgramSessions', () => {
       where: {
         siteId: { [Op.in]: [11] },
         collectionCycleId: null,
+        type: 'SURVEILLANCE',
       },
     });
   });

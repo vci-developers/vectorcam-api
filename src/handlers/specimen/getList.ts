@@ -21,6 +21,8 @@ export const schema = {
       sex: { type: 'string', description: 'Filter by sex from thumbnail image' },
       abdomenStatus: { type: 'string', description: 'Filter by abdomen status from thumbnail image' },
       sessionType: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'], description: 'Filter by session type' },
+      sessionUnitId: { type: 'number', description: 'Filter by session unit ID' },
+      collectionCycleId: { type: 'number', description: 'Filter by assigned collection cycle ID' },
       startDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date from this date (YYYY-MM-DD)' },
       endDate: { type: 'string', format: 'date', description: 'Filter specimens by session collection date to this date (YYYY-MM-DD)' },
       limit: { type: 'number', minimum: 1, maximum: 100, default: 20, description: 'Number of items per page' },
@@ -169,6 +171,8 @@ interface QueryParams {
   sex?: string;
   abdomenStatus?: string;
   sessionType?: string;
+  sessionUnitId?: number;
+  collectionCycleId?: number;
   startDate?: string;
   endDate?: string;
   limit?: number;
@@ -195,6 +199,8 @@ export async function getSpecimenList(
       sex,
       abdomenStatus,
       sessionType,
+      sessionUnitId,
+      collectionCycleId,
       startDate,
       endDate,
       limit = 20,
@@ -216,6 +222,9 @@ export async function getSpecimenList(
     }
     if (shouldProcessFurther !== undefined) {
       whereClause.shouldProcessFurther = shouldProcessFurther;
+    }
+    if (sessionUnitId !== undefined) {
+      whereClause.sessionUnitId = sessionUnitId;
     }
 
     include.push({
@@ -295,6 +304,10 @@ export async function getSpecimenList(
     // Handle session type filtering
     if (sessionType) {
       sessionInclude.where.type = sessionType;
+    }
+
+    if (collectionCycleId !== undefined) {
+      sessionInclude.where.collectionCycleId = collectionCycleId;
     }
 
     // Add site include with restrictions

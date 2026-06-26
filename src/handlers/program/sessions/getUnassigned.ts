@@ -11,7 +11,7 @@ interface QueryParams {
 
 export const schema = {
   tags: ['Collection Cycles'],
-  description: 'Get sessions in a program that are not assigned to a collection cycle',
+  description: 'Get unassigned SURVEILLANCE sessions in a program that are not assigned to a collection cycle',
   params: {
     type: 'object',
     required: ['program_id'],
@@ -86,6 +86,7 @@ export async function getUnassignedProgramSessions(
     const where = {
       siteId: { [Op.in]: siteIds },
       collectionCycleId: null,
+      type: 'SURVEILLANCE',
     };
 
     const [total, sessions] = await Promise.all([
