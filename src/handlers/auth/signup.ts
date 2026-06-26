@@ -4,6 +4,9 @@ import jwt from 'jsonwebtoken';
 import { User, UserWhitelist, Program } from '../../db/models';
 import { config } from '../../config/environment';
 import { validatePassword, validateEmail } from '../../utils/validation';
+import { UserAuthEventType } from '../../db/models/UserAuthEvent';
+import { logUserAuthEvent } from '../../services/userAuthEvent.service';
+import { updateUserLastActive } from '../../services/userActivity.service';
 
 interface SignupBody {
   email: string;
@@ -154,6 +157,15 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
     
     const accessToken = jwt.sign(tokenPayload, config.jwt.secret, { expiresIn: accessTokenExpiry } as any);
     const refreshToken = jwt.sign(tokenPayload, config.jwt.refreshSecret, { expiresIn: refreshTokenExpiry } as any);
+
+    await Promise.all([
+      logUserAuthEvent({
+        userId: user.id,
+        eventType: UserAuthEventType.SIGNUP,
+        request,
+      }),
+      updateUserLastActive(user.id),
+    ]);
 
     return reply.code(201).send({
       message: 'User created successfully',

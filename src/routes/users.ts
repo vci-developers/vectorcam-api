@@ -10,6 +10,8 @@ import {
   resetPasswordHandler, resetPasswordSchema,
   sendEmailVerificationHandler, sendEmailVerificationSchema,
   verifyEmailHandler, verifyEmailSchema,
+  getActiveUserMetricsHandler, getActiveUserMetricsSchema,
+  getUserAuthEventsHandler, getUserAuthEventsSchema,
 } from '../handlers/user';
 import { requireAdminAuth, requireNonWhitelistedUserAuth, requireUserAuth } from '../middleware/auth.middleware';
 
@@ -46,6 +48,18 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
     preHandler: [requireAdminAuth],
     schema: getUsersSchema,
   }, getUsersHandler);
+
+  // List active user metrics snapshots (requires admin token or developer user)
+  server.get('/active-metrics', {
+    preHandler: [requireAdminAuth],
+    schema: getActiveUserMetricsSchema,
+  }, getActiveUserMetricsHandler as any);
+
+  // List user auth events (requires admin token or developer user)
+  server.get('/auth-events', {
+    preHandler: [requireAdminAuth],
+    schema: getUserAuthEventsSchema,
+  }, getUserAuthEventsHandler as any);
 
   // Add email to whitelist (requires admin auth token)
   server.post('/whitelist', {

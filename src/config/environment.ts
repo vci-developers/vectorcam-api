@@ -78,6 +78,9 @@ const developmentConfig = {
     expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '1h',
     baseUrl: process.env.PASSWORD_RESET_BASE_URL,
   },
+  activeUserMetrics: {
+    cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 * * * *',
+  },
 };
 
 // Configuration for test environment
@@ -86,7 +89,7 @@ const testConfig = {
     port: parseInt(process.env.PORT || '8080', 10),
     nodeEnv: 'test',
     logLevel: 'error',
-    domain: process.env.DOMAIN || 'https://api.vectorcam.org',
+    domain: process.env.DOMAIN || 'https://test.api.vectorcam.org',
   },
   sentry: {
     enabled: process.env.SENTRY_ENABLED === 'true',
@@ -143,6 +146,9 @@ const testConfig = {
     secret: process.env.PASSWORD_RESET_JWT_SECRET || 'test-password-reset-secret',
     expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '1h',
     baseUrl: process.env.PASSWORD_RESET_BASE_URL,
+  },
+  activeUserMetrics: {
+    cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 0 * * *',
   },
 };
 
@@ -209,6 +215,9 @@ const productionConfig = {
     secret: process.env.PASSWORD_RESET_JWT_SECRET!,
     expiresIn: process.env.PASSWORD_RESET_EXPIRES_IN || '1h',
     baseUrl: process.env.PASSWORD_RESET_BASE_URL,
+  },
+  activeUserMetrics: {
+    cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 0 * * *',
   },
 };
 

@@ -11,6 +11,7 @@ import { sentryService } from './services/sentry.service';
 import { sentryMiddleware, sentryErrorHandler } from './middleware/sentry.middleware';
 import { SentryLogger } from './utils/sentry-logger';
 import { questionDefinitionSchema } from './handlers/program/form/common';
+import { startActiveUserMetricsJob, stopActiveUserMetricsJob } from './jobs/activeUserMetricsJob';
 
 // Create Fastify instance with built-in logger options
 const baseLogger = {
@@ -119,6 +120,8 @@ async function setupServer(): Promise<void> {
     });
 
     server.log.info(`Server started on port ${config.server.port} in ${config.server.nodeEnv} mode`);
+
+    startActiveUserMetricsJob(server.log);
   } catch (err) {
     console.log(err);
     server.log.error('Error starting server:', err);
@@ -130,6 +133,7 @@ async function setupServer(): Promise<void> {
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
   server.log.info('SIGINT received, shutting down gracefully');
+  stopActiveUserMetricsJob();
   await sentryService.flush(2000);
   await server.close();
   process.exit(0);
@@ -137,6 +141,7 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
   server.log.info('SIGTERM received, shutting down gracefully');
+  stopActiveUserMetricsJob();
   await sentryService.flush(2000);
   await server.close();
   process.exit(0);

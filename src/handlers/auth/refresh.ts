@@ -2,6 +2,9 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { User } from '../../db/models';
 import { config } from '../../config/environment';
+import { UserAuthEventType } from '../../db/models/UserAuthEvent';
+import { logUserAuthEvent } from '../../services/userAuthEvent.service';
+import { updateUserLastActive } from '../../services/userActivity.service';
 
 interface RefreshBody {
   refreshToken: string;
@@ -91,6 +94,15 @@ export async function refreshTokenHandler(request: FastifyRequest<{ Body: Refres
     const accessTokenExpiry = config.jwt.expiresIn;
     
     const accessToken = jwt.sign(tokenPayload, config.jwt.secret, { expiresIn: accessTokenExpiry } as any);
+
+    await Promise.all([
+      logUserAuthEvent({
+        userId: user.id,
+        eventType: UserAuthEventType.TOKEN_REFRESH,
+        request,
+      }),
+      updateUserLastActive(user.id),
+    ]);
 
     return reply.code(200).send({
       message: 'Token refreshed successfully',

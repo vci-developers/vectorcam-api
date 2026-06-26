@@ -3,6 +3,9 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { User } from '../../db/models';
 import { config } from '../../config/environment';
+import { UserAuthEventType } from '../../db/models/UserAuthEvent';
+import { logUserAuthEvent } from '../../services/userAuthEvent.service';
+import { updateUserLastActive } from '../../services/userActivity.service';
 
 interface LoginBody {
   email: string;
@@ -98,6 +101,15 @@ export async function loginHandler(request: FastifyRequest<{ Body: LoginBody }>,
     
     const accessToken = jwt.sign(tokenPayload, config.jwt.secret, { expiresIn: accessTokenExpiry } as any);
     const refreshToken = jwt.sign(tokenPayload, config.jwt.refreshSecret, { expiresIn: refreshTokenExpiry } as any);
+
+    await Promise.all([
+      logUserAuthEvent({
+        userId: user.id,
+        eventType: UserAuthEventType.LOGIN,
+        request,
+      }),
+      updateUserLastActive(user.id),
+    ]);
 
     return reply.code(200).send({
       message: 'Login successful',

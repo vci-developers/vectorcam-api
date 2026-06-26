@@ -11,6 +11,7 @@ class User extends Model {
   declare programId: number | null;
   declare isActive: boolean;
   declare emailVerified: boolean;
+  declare lastActiveAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -70,6 +71,11 @@ User.init(
       allowNull: false,
       defaultValue: false,
       field: 'email_verified',
+    },
+    lastActiveAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'last_active_at',
     },
   },
   {

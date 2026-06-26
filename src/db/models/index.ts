@@ -25,6 +25,8 @@ import ReviewActionLog from './ReviewActionLog';
 import CollectionSchedule from './CollectionSchedule';
 import CollectionCycle from './CollectionCycle';
 import SessionUnit from './SessionUnit';
+import UserAuthEvent from './UserAuthEvent';
+import ActiveUserMetric from './ActiveUserMetric';
 
 export {
   Program,
@@ -54,4 +56,6 @@ export {
   CollectionSchedule,
   CollectionCycle,
   SessionUnit,
+  UserAuthEvent,
+  ActiveUserMetric,
 };

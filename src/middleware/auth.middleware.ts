@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { HookHandlerDoneFunction } from 'fastify';
 import { UserWhitelist, User } from '../db/models';
+import { recordUserActivity } from '../services/userActivity.service';
 
 interface JwtPayload {
   userId: number;
@@ -92,6 +93,7 @@ export async function authMiddleware(
       
       request.user.isWhitelisted = !!userWhitelist;
       request.authType = 'user';
+      recordUserActivity(decoded.userId);
       return;
     } catch (dbError) {
       // If DB query fails, use token values as fallback

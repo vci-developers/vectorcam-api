@@ -25,3 +25,11 @@ export {
   sendEmailVerificationHandler, sendEmailVerificationSchema,
   verifyEmailHandler, verifyEmailSchema,
 } from './emailVerification';
+
+export {
+  getActiveUserMetricsHandler, getActiveUserMetricsSchema,
+} from './getActiveUserMetrics';
+
+export {
+  getUserAuthEventsHandler, getUserAuthEventsSchema,
+} from './getUserAuthEvents';
