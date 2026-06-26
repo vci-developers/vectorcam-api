@@ -79,7 +79,7 @@ const developmentConfig = {
     baseUrl: process.env.PASSWORD_RESET_BASE_URL,
   },
   activeUserMetrics: {
-    cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 * * * *',
+    cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 0 * * *',
   },
 };
 
