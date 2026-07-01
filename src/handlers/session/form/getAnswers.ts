@@ -84,7 +84,8 @@ export async function getSessionFormAnswers(
       request,
       reply,
       request.params.session_id,
-      version
+      version,
+      { preferLatestAnsweredVersion: version === undefined }
     );
     if (!context) return;
 

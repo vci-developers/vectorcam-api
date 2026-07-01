@@ -11,11 +11,37 @@ export interface FormAnswerInput {
   dataType?: string;
 }
 
+export interface LoadSessionAndFormOptions {
+  /** When no explicit version is given, prefer the latest form version that has answers for this session */
+  preferLatestAnsweredVersion?: boolean;
+}
+
+export async function findLatestFormWithAnswersForSession(
+  sessionId: number,
+  programId: number
+): Promise<Form | null> {
+  return Form.findOne({
+    where: {
+      programId,
+      version: { [Op.ne]: '' },
+    },
+    include: [{
+      model: FormAnswer,
+      as: 'answers',
+      where: { sessionId },
+      required: true,
+      attributes: [],
+    }],
+    order: [['updatedAt', 'DESC'], ['id', 'DESC']],
+  });
+}
+
 export async function loadSessionAndForm(
   request: FastifyRequest,
   reply: FastifyReply,
   sessionParam: string,
-  explicitVersion?: string
+  explicitVersion?: string,
+  options?: LoadSessionAndFormOptions
 ): Promise<{ session: Session; form: Form; siteProgramId: number } | null> {
   const session = await findSession(sessionParam, [
     {
@@ -70,7 +96,11 @@ export async function loadSessionAndForm(
       return null;
     }
   } else {
-    if (program.formVersion) {
+    if (options?.preferLatestAnsweredVersion) {
+      form = await findLatestFormWithAnswersForSession(session.id, program.id);
+    }
+
+    if (!form && program.formVersion) {
       form = await Form.findOne({ where: { programId: program.id, version: program.formVersion } });
       if (form?.version === '') {
         form = null;
