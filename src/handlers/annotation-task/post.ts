@@ -1,21 +1,31 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Transaction, Op } from 'sequelize';
 import sequelize from '../../db';
-import { AnnotationTask, Annotation, User, Specimen, Session, Site, Program } from '../../db/models';
+import {
+  AnnotationTask,
+  Annotation,
+  User,
+  Specimen,
+  Session,
+  Site,
+  Program,
+  CollectionCycle,
+} from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
 
 interface CreateAnnotationTasksBody {
   title?: string;
   description?: string;
   programId: number;
-  month: number;
-  year: number;
+  collectionCycleId: number;
+  duplicates?: number;
+  base?: number;
 }
 
 interface SpecimenWithAssociations extends Specimen {
   session: {
     id: number;
-    collectionDate: Date | null;
+    collectionCycleId: number | null;
     site: {
       id: number;
       programId: number;
@@ -29,18 +39,20 @@ interface CreateAnnotationTasksRequest extends FastifyRequest {
 
 export const schema = {
   tags: ['Annotations'],
-  summary: 'Create annotation tasks for specimens in a specific program/month/year',
-  description: 'Creates annotation tasks by assigning unassigned specimens from the given program and month/year to superadmins in the same program, with 15-20% overlap (requires admin token)',
+  summary: 'Create annotation tasks for specimens in a collection cycle',
+  description:
+    'Creates annotation tasks by assigning unassigned specimens from the given collection cycle to superadmins in the same program, with overlapping duplicate specimens and unique base specimens (requires admin token)',
   body: {
     type: 'object',
     properties: {
       title: { type: 'string', maxLength: 255 },
       description: { type: 'string' },
       programId: { type: 'number' },
-      month: { type: 'number', minimum: 1, maximum: 12 },
-      year: { type: 'number', minimum: 2000, maximum: 3000 }
+      collectionCycleId: { type: 'number' },
+      duplicates: { type: 'number', minimum: 0, default: 20 },
+      base: { type: 'number', minimum: 0, default: 50 },
     },
-    required: ['programId', 'month', 'year']
+    required: ['programId', 'collectionCycleId'],
   },
   response: {
     200: {
@@ -50,8 +62,8 @@ export const schema = {
         tasksCreated: { type: 'number' },
         specimensAvailable: { type: 'number' },
         totalSpecimensAssigned: { type: 'number' },
-        maxSpecimensPerAdmin: { type: 'number' },
-        overlapCount: { type: 'number' },
+        duplicateSpecimensCount: { type: 'number' },
+        baseSpecimensCount: { type: 'number' },
         tasks: {
           type: 'array',
           items: {
@@ -72,27 +84,27 @@ export const schema = {
                   name: { type: ['string', 'null'] },
                   privilege: { type: 'number' },
                   programId: { type: ['number', 'null'] },
-                  isActive: { type: 'boolean' }
-                }
-              }
-            }
-          }
-        }
-      }
+                  isActive: { type: 'boolean' },
+                },
+              },
+            },
+          },
+        },
+      },
     },
     400: {
       type: 'object',
       properties: {
-        error: { type: 'string' }
-      }
+        error: { type: 'string' },
+      },
     },
     500: {
       type: 'object',
       properties: {
-        error: { type: 'string' }
-      }
-    }
-  }
+        error: { type: 'string' },
+      },
+    },
+  },
 };
 
 /**
@@ -107,27 +119,43 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
+const DUPLICATE_WINDOW_SIZE = 3;
+
 export default async function createAnnotationTasks(
   request: CreateAnnotationTasksRequest,
   reply: FastifyReply
 ): Promise<void> {
   const transaction: Transaction = await sequelize.transaction();
-  
-  try {
-    const { title, description, programId, month, year } = request.body;
 
-    // Validate month and year
+  try {
+    const {
+      title,
+      description,
+      programId,
+      collectionCycleId,
+      duplicates = 20,
+      base = 50,
+    } = request.body;
+
     if (!Number.isInteger(programId) || programId <= 0) {
       await transaction.rollback();
       return reply.code(400).send({ error: 'programId must be a positive integer' });
     }
-    if (month < 1 || month > 12) {
+    if (!Number.isInteger(collectionCycleId) || collectionCycleId <= 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: 'Month must be between 1 and 12' });
+      return reply.code(400).send({ error: 'collectionCycleId must be a positive integer' });
     }
-    if (year < 2000 || year > 3000) {
+    if (!Number.isInteger(duplicates) || duplicates < 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: 'Year must be between 2000 and 3000' });
+      return reply.code(400).send({ error: 'duplicates must be a non-negative integer' });
+    }
+    if (!Number.isInteger(base) || base < 0) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: 'base must be a non-negative integer' });
+    }
+    if (duplicates + base === 0) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: 'At least one of duplicates or base must be greater than 0' });
     }
 
     const program = await Program.findByPk(programId, { transaction });
@@ -136,37 +164,49 @@ export default async function createAnnotationTasks(
       return reply.code(400).send({ error: `Program not found with ID: ${programId}` });
     }
 
-    // Get all annotation users (privilege >= 4) who are active in this program
+    const collectionCycle = await CollectionCycle.findByPk(collectionCycleId, { transaction });
+    if (!collectionCycle) {
+      await transaction.rollback();
+      return reply.code(400).send({ error: `Collection cycle not found with ID: ${collectionCycleId}` });
+    }
+    if (collectionCycle.programId !== programId) {
+      await transaction.rollback();
+      return reply.code(400).send({
+        error: `Collection cycle ${collectionCycleId} does not belong to program ${programId}`,
+      });
+    }
+
     const superAdminUsers = await User.findAll({
       where: {
         programId,
         privilege: {
-          [Op.gte]: 4
+          [Op.gte]: 4,
         },
-        isActive: true
+        isActive: true,
       },
-      order: [['id', 'ASC']]
+      order: [['id', 'ASC']],
+      transaction,
     });
 
     if (superAdminUsers.length === 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: `No active annotation users found for program ${programId} to assign tasks to` });
+      return reply.code(400).send({
+        error: `No active annotation users found for program ${programId} to assign tasks to`,
+      });
     }
 
-    // Calculate the date range for the specified month and year (using UTC)
-    const startDate = new Date(Date.UTC(year, month - 1, 1)); // month is 0-indexed in Date constructor
-    const endDate = new Date(Date.UTC(year, month, 0)); // Last day of the month
-    endDate.setUTCHours(23, 59, 59, 999); // Set to end of day in UTC
-
-    // Find all specimens in this program whose sessions were collected in the specified month/year
-    // and that are not already assigned to any annotation task
-    const availableSpecimens = await Specimen.findAll({
+    const availableSpecimens = (await Specimen.findAll({
       where: {
         id: {
           [Op.notIn]: sequelize.literal(
-            `(SELECT DISTINCT specimen_id FROM annotations WHERE specimen_id IS NOT NULL)`
-          )
-        }
+            `(SELECT DISTINCT a.specimen_id
+              FROM annotations a
+              INNER JOIN specimens sp ON sp.id = a.specimen_id
+              INNER JOIN sessions sess ON sess.id = sp.session_id
+              WHERE sess.collection_cycle_id = ${collectionCycleId}
+                AND a.specimen_id IS NOT NULL)`
+          ),
+        },
       },
       include: [
         {
@@ -174,10 +214,7 @@ export default async function createAnnotationTasks(
           as: 'session',
           required: true,
           where: {
-            collectionDate: {
-              [Op.gte]: startDate,
-              [Op.lte]: endDate
-            }
+            collectionCycleId,
           },
           include: [
             {
@@ -185,159 +222,140 @@ export default async function createAnnotationTasks(
               as: 'site',
               required: true,
               where: {
-                programId
-              }
-            }
-          ]
-        }
+                programId,
+              },
+            },
+          ],
+        },
       ],
       order: [['id', 'ASC']],
-      transaction
-    }) as SpecimenWithAssociations[];
+      transaction,
+    })) as SpecimenWithAssociations[];
 
     if (availableSpecimens.length === 0) {
       await transaction.rollback();
-      return reply.code(400).send({ error: `No unassigned specimens found for program ${programId} in ${month}/${year}` });
+      return reply.code(400).send({
+        error: `No unassigned specimens found for program ${programId} in collection cycle ${collectionCycleId}`,
+      });
     }
 
-    // Shuffle specimens to randomize assignment
     const shuffledSpecimens = shuffleArray(availableSpecimens);
-    
-    // Calculate maximum specimens per superadmin (200) and overlap (15-20%)
-    const maxSpecimensPerAdmin = Math.min(200, Math.floor(shuffledSpecimens.length / superAdminUsers.length));
-    const overlapPercentage = 0.2; // 20% (middle of 15-20% range)
-    const overlapCount = Math.floor(maxSpecimensPerAdmin * overlapPercentage);
-    
-    request.log.info(`Total specimens: ${shuffledSpecimens.length}, Max per admin: ${maxSpecimensPerAdmin}, Overlap: ${overlapCount}`);
-    
-    if (maxSpecimensPerAdmin < 1) {
-      await transaction.rollback();
-      return reply.code(400).send({ error: 'Not enough specimens available for assignment' });
-    }
-    
-    // Create tasks for each superadmin user
+    const duplicateCount = Math.min(duplicates, shuffledSpecimens.length);
+    const duplicateSpecimens = shuffledSpecimens.slice(0, duplicateCount);
+    const baseSpecimens = shuffledSpecimens.slice(duplicateCount, duplicateCount + base);
+
+    request.log.info(
+      `Collection cycle ${collectionCycleId}: ${availableSpecimens.length} eligible specimens, ` +
+        `${duplicateSpecimens.length} duplicates, ${baseSpecimens.length} base`
+    );
+
     const createdTasks: AnnotationTask[] = [];
     const userTasks: { [userId: number]: AnnotationTask } = {};
+    const userSpecimenAssignments: { [userId: number]: SpecimenWithAssociations[] } = {};
 
     for (const user of superAdminUsers) {
-      const task = await AnnotationTask.create({
-        userId: user.id,
-        title: title || `Annotation Task - ${new Date().toISOString().split('T')[0]}`,
-        description: description || `Assigned specimens for annotation by ${user.email}`,
-        status: 'PENDING'
-      }, { transaction });
+      userSpecimenAssignments[user.id] = [];
+
+      const task = await AnnotationTask.create(
+        {
+          userId: user.id,
+          title: title || `Annotation Task - ${new Date().toISOString().split('T')[0]}`,
+          description: description || `Assigned specimens for annotation by ${user.email}`,
+          status: 'PENDING',
+        },
+        { transaction }
+      );
 
       createdTasks.push(task);
       userTasks[user.id] = task;
     }
 
-    // Assign specimens to superadmin users with overlap
-    const annotations: any[] = [];
-    const userSpecimenAssignments: { [userId: number]: SpecimenWithAssociations[] } = {};
-    
-    // First, assign unique specimens to each user
-    let specimenIndex = 0;
-    for (let userIndex = 0; userIndex < superAdminUsers.length; userIndex++) {
-      const user = superAdminUsers[userIndex];
-      const userSpecimens: SpecimenWithAssociations[] = [];
-      
-      // Assign unique specimens (excluding overlap)
-      const uniqueSpecimensCount = maxSpecimensPerAdmin - overlapCount;
-      for (let i = 0; i < uniqueSpecimensCount && specimenIndex < shuffledSpecimens.length; i++) {
-        userSpecimens.push(shuffledSpecimens[specimenIndex]);
-        specimenIndex++;
-      }
-      
-      userSpecimenAssignments[user.id] = userSpecimens;
-    }
-    
-    // Second, add overlap specimens — the same specimens go to every annotator for inter-rater comparison
-    if (overlapCount > 0 && shuffledSpecimens.length > maxSpecimensPerAdmin) {
-      const remainingSpecimens = shuffledSpecimens.slice(specimenIndex);
-      const overlapSpecimens = remainingSpecimens.length >= overlapCount
-        ? remainingSpecimens.slice(0, overlapCount)
-        : shuffleArray(shuffledSpecimens.slice(0, overlapCount));
-
-      for (const user of superAdminUsers) {
-        const assignedIds = new Set(
-          userSpecimenAssignments[user.id].map(specimen => specimen.id)
-        );
-
-        for (const specimen of overlapSpecimens) {
-          if (!assignedIds.has(specimen.id)) {
-            userSpecimenAssignments[user.id].push(specimen);
-            assignedIds.add(specimen.id);
-          }
-        }
+    for (let specimenIndex = 0; specimenIndex < duplicateSpecimens.length; specimenIndex++) {
+      const specimen = duplicateSpecimens[specimenIndex];
+      for (let offset = 0; offset < DUPLICATE_WINDOW_SIZE; offset++) {
+        const adminIndex = (specimenIndex + offset) % superAdminUsers.length;
+        const user = superAdminUsers[adminIndex];
+        userSpecimenAssignments[user.id].push(specimen);
       }
     }
-    
-    // Create annotations for all assigned specimens
-    for (let userIndex = 0; userIndex < superAdminUsers.length; userIndex++) {
-      const user = superAdminUsers[userIndex];
+
+    const basePerAdmin = Math.floor(baseSpecimens.length / superAdminUsers.length);
+    const extraBaseCount = baseSpecimens.length % superAdminUsers.length;
+    let baseIndex = 0;
+    for (let adminIndex = 0; adminIndex < superAdminUsers.length; adminIndex++) {
+      const count = basePerAdmin + (adminIndex < extraBaseCount ? 1 : 0);
+      const user = superAdminUsers[adminIndex];
+      for (let j = 0; j < count; j++) {
+        userSpecimenAssignments[user.id].push(baseSpecimens[baseIndex]);
+        baseIndex++;
+      }
+    }
+
+    const annotations: Array<{
+      annotationTaskId: number;
+      annotatorId: number;
+      specimenId: number;
+      status: string;
+    }> = [];
+
+    for (const user of superAdminUsers) {
       const task = userTasks[user.id];
       const assignedSpecimens = userSpecimenAssignments[user.id];
-      
+
       if (!task) {
         request.log.warn(`No task found for user ${user.id}`);
         continue;
       }
-      
+
       for (const specimen of assignedSpecimens) {
-        if (specimen && specimen.id) {
-          annotations.push({
-            annotationTaskId: task.id,
-            annotatorId: user.id,
-            specimenId: specimen.id,
-            status: 'PENDING'
-          });
-        }
+        annotations.push({
+          annotationTaskId: task.id,
+          annotatorId: user.id,
+          specimenId: specimen.id,
+          status: 'PENDING',
+        });
       }
     }
 
-    // Bulk create all annotations if we have any
     if (annotations.length > 0) {
       await Annotation.bulkCreate(annotations, { transaction });
     }
 
-    // Fetch the created tasks with user details for response
     const tasksWithUsers = await AnnotationTask.findAll({
       where: {
-        id: createdTasks.map(task => task.id)
+        id: createdTasks.map((task) => task.id),
       },
       include: [
         {
           model: User,
-          as: 'user'
-        }
+          as: 'user',
+        },
       ],
-      transaction
+      transaction,
     });
 
     await transaction.commit();
 
-    // Format response
-    const formattedTasks = tasksWithUsers.map(task => formatAnnotationTaskResponse(task, true));
+    const formattedTasks = tasksWithUsers.map((task) => formatAnnotationTaskResponse(task, true));
 
-    // Calculate total specimens assigned
-    const totalSpecimensAssigned = Object.values(userSpecimenAssignments)
-      .reduce((total, specimens) => total + specimens.length, 0);
-    
+    const totalSpecimensAssigned = Object.values(userSpecimenAssignments).reduce(
+      (total, specimens) => total + specimens.length,
+      0
+    );
+
     return reply.send({
       message: 'Annotation tasks created successfully',
       tasksCreated: createdTasks.length,
-      specimensAvailable: shuffledSpecimens.length,
-      totalSpecimensAssigned: totalSpecimensAssigned,
-      maxSpecimensPerAdmin: maxSpecimensPerAdmin,
-      overlapCount: overlapCount,
-      tasks: formattedTasks
+      specimensAvailable: availableSpecimens.length,
+      totalSpecimensAssigned,
+      duplicateSpecimensCount: duplicateSpecimens.length,
+      baseSpecimensCount: baseSpecimens.length,
+      tasks: formattedTasks,
     });
-
   } catch (error: any) {
     await transaction.rollback();
     request.log.error(error);
-    
-    // Don't send response if already sent
+
     if (!reply.sent) {
       return reply.code(500).send({ error: 'Internal server error' });
     }
