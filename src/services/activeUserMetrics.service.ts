@@ -5,10 +5,6 @@ import {
   formatDateOnly,
 } from './userActivity.service';
 
-function getAsOfForSnapshotDate(snapshotDate: string): Date {
-  return new Date(`${snapshotDate}T23:59:59.999Z`);
-}
-
 async function upsertActiveUserMetric(
   snapshotDate: string,
   programId: number | null,
@@ -44,8 +40,12 @@ export async function computeActiveUserMetrics(snapshotDate?: string): Promise<{
   global: ActiveUserMetricCounts;
   programCount: number;
 }> {
-  const date = snapshotDate ?? formatDateOnly(new Date());
-  const asOf = getAsOfForSnapshotDate(date);
+  // Use the actual run time so rolling windows are correct when the cron fires
+  // (e.g. at 00:00 UTC, end-of-today asOf would exclude all of yesterday from A1).
+  const asOf = snapshotDate
+    ? new Date(`${snapshotDate}T23:59:59.999Z`)
+    : new Date();
+  const date = snapshotDate ?? formatDateOnly(asOf);
   const { global, byProgram } = await computeRollingActiveUserMetrics(asOf);
 
   await upsertActiveUserMetric(date, null, global);
