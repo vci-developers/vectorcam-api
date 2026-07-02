@@ -416,6 +416,111 @@ export function getCycleBoundsForDate(schedule: CollectionSchedule, date: Date) 
   return { cycleNumber, startDate, endDate };
 }
 
+interface ZonedDateParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  millisecond: number;
+}
+
+function getZonedDateParts(date: Date, timezone: string): ZonedDateParts {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = formatter.formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  return {
+    year: get('year'),
+    month: get('month') - 1,
+    day: get('day'),
+    hour: get('hour'),
+    minute: get('minute'),
+    second: get('second'),
+    millisecond: date.getUTCMilliseconds(),
+  };
+}
+
+function zonedTimeToUtc(parts: ZonedDateParts, timezone: string): Date {
+  const desiredLocalAsUtc = Date.UTC(
+    parts.year,
+    parts.month,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+    parts.millisecond
+  );
+  let utcGuess = desiredLocalAsUtc;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const zoned = getZonedDateParts(new Date(utcGuess), timezone);
+    const zonedAsUtc = Date.UTC(
+      zoned.year,
+      zoned.month,
+      zoned.day,
+      zoned.hour,
+      zoned.minute,
+      zoned.second,
+      zoned.millisecond
+    );
+    const diff = desiredLocalAsUtc - zonedAsUtc;
+    if (diff === 0) {
+      break;
+    }
+    utcGuess += diff;
+  }
+
+  return new Date(utcGuess);
+}
+
+function addMonthsToZonedParts(parts: ZonedDateParts, months: number): ZonedDateParts {
+  let { year, month, day } = parts;
+  month += months;
+
+  while (month > 11) {
+    month -= 12;
+    year += 1;
+  }
+  while (month < 0) {
+    month += 12;
+    year -= 1;
+  }
+
+  const maxDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  return {
+    ...parts,
+    year,
+    month,
+    day: Math.min(day, maxDay),
+  };
+}
+
+function addScheduleIntervalInTimezone(
+  date: Date,
+  schedule: CollectionSchedule,
+  timezone: string
+): Date {
+  const intervalCount = schedule.intervalCount ?? 0;
+  const parts = getZonedDateParts(date, timezone);
+  const monthsToAdd = schedule.intervalUnit === CollectionScheduleIntervalUnit.YEAR
+    ? intervalCount * 12
+    : intervalCount;
+
+  return zonedTimeToUtc(addMonthsToZonedParts(parts, monthsToAdd), timezone);
+}
+
 function addScheduleInterval(date: Date, schedule: CollectionSchedule): Date {
   const intervalCount = schedule.intervalCount ?? 0;
   const next = new Date(date);
@@ -428,10 +533,15 @@ function addScheduleInterval(date: Date, schedule: CollectionSchedule): Date {
       next.setUTCDate(next.getUTCDate() + intervalCount * 7);
       break;
     case CollectionScheduleIntervalUnit.MONTH:
-      next.setUTCMonth(next.getUTCMonth() + intervalCount);
-      break;
     case CollectionScheduleIntervalUnit.YEAR:
-      next.setUTCFullYear(next.getUTCFullYear() + intervalCount);
+      if (schedule.timezone) {
+        return addScheduleIntervalInTimezone(date, schedule, schedule.timezone);
+      }
+      if (schedule.intervalUnit === CollectionScheduleIntervalUnit.MONTH) {
+        next.setUTCMonth(next.getUTCMonth() + intervalCount);
+      } else {
+        next.setUTCFullYear(next.getUTCFullYear() + intervalCount);
+      }
       break;
     default:
       throw new Error('Recurring schedules require intervalUnit');
