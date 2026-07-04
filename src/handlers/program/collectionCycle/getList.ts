@@ -1,23 +1,17 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { CollectionCycle, CollectionSchedule } from '../../../db/models';
-import { CollectionScheduleCadenceType } from '../../../db/models/CollectionSchedule';
-import {
-  assertRecurringSchedule,
-  ensureRecurringCyclesExistThroughCycle,
-  formatCollectionCycleResponse,
-  getCycleBoundsForDate,
-  handleCollectionCycleError,
-  parseDate,
-} from './common';
+import { CollectionCycle } from '../../../db/models';
 import {
   GetCollectionCyclesQuery,
   collectionCycleResponseSchema,
+  formatCollectionCycleResponse,
+  handleCollectionCycleError,
+  parseDate,
 } from './common';
 
 export const schema = {
   tags: ['Collection Cycles'],
-  description: 'Get collection cycles for a bounded range, generating recurring cycles lazily',
+  description: 'Get collection cycles for a bounded date range',
   params: {
     type: 'object',
     required: ['program_id'],
@@ -66,32 +60,6 @@ export async function getCollectionCycleList(
 
     if (fromDate >= toDate) {
       throw new Error('fromDate must be before toDate');
-    }
-
-    const schedules = await CollectionSchedule.findAll({
-      where: {
-        programId: request.params.program_id,
-        cadenceType: CollectionScheduleCadenceType.RECURRING,
-        effectiveStartDate: { [Op.lt]: toDate },
-        [Op.or]: [
-          { effectiveEndDate: null },
-          { effectiveEndDate: { [Op.gt]: fromDate } },
-        ],
-      },
-      order: [['effectiveStartDate', 'ASC']],
-    });
-
-    for (const schedule of schedules) {
-      assertRecurringSchedule(schedule);
-      const scheduleEnd = schedule.effectiveEndDate && schedule.effectiveEndDate < toDate
-        ? schedule.effectiveEndDate
-        : toDate;
-      const targetDate = new Date(scheduleEnd.getTime() - 1);
-      if (targetDate < schedule.effectiveStartDate) {
-        continue;
-      }
-      const target = getCycleBoundsForDate(schedule, targetDate);
-      await ensureRecurringCyclesExistThroughCycle(schedule, target.cycleNumber);
     }
 
     const cycles = await CollectionCycle.findAll({
