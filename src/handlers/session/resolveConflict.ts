@@ -15,8 +15,12 @@ import { getChangedFields, logReviewAction } from '../../services/reviewActionLo
 
 interface ResolvedFormAnswer {
   questionId: number;
-  value: unknown;
+  value?: unknown | null;
   dataType?: string;
+}
+
+function isFormAnswerMissing(value: unknown): boolean {
+  return value === null || value === undefined;
 }
 
 interface ResolveConflictRequest {
@@ -53,14 +57,14 @@ interface ResolveConflictRequest {
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Resolve conflicts between multiple sessions or session units in the same site and collection cycle',
+  description: 'Resolve conflicts between sessions or session units, or apply resolved data to a single session',
   body: {
     type: 'object',
     properties: {
       sessionIds: {
         type: 'array',
         items: { type: 'number' },
-        minItems: 2,
+        minItems: 1,
       },
       sessionUnitIds: {
         type: 'array',
@@ -103,7 +107,7 @@ export const schema = {
         type: ['array', 'null'],
         items: {
           type: 'object',
-          required: ['questionId', 'value'],
+          required: ['questionId'],
           properties: {
             questionId: { type: 'number' },
             value: {},
@@ -168,10 +172,6 @@ export async function resolveConflict(
 
     if (hasSessionIds === hasSessionUnitIds) {
       return reply.code(400).send({ error: 'Provide either sessionIds or sessionUnitIds' });
-    }
-
-    if (hasSessionIds && requestedSessionIds!.length < 2) {
-      return reply.code(400).send({ error: 'At least 2 session IDs are required' });
     }
 
     if (hasSessionUnitIds && sessionUnitIds!.length < 2) {
@@ -343,6 +343,15 @@ export async function resolveConflict(
         }
 
         resolvedFormAnswersFormId = question.formId;
+      }
+
+      for (const answer of resolvedFormAnswers ?? []) {
+        const question = formQuestionsById.get(answer.questionId);
+        if (question?.required && isFormAnswerMissing(answer.value)) {
+          return reply.code(400).send({
+            error: `Question ${answer.questionId} is required but no answer was provided`,
+          });
+        }
       }
     }
 
@@ -536,6 +545,13 @@ export async function resolveConflict(
               questionId: answer.questionId,
             },
           });
+
+          if (isFormAnswerMissing(answer.value)) {
+            if (existing) {
+              await existing.destroy();
+            }
+            continue;
+          }
 
           if (existing) {
             await existing.update({

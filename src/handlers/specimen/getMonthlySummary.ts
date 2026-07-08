@@ -70,6 +70,7 @@ function addCountBySpecies(target: CountMapBySpecies, species: string, label: st
 // distributions as "UNKNOWN" even though those fields are N/A by definition.
 const NON_MOSQUITO_SPECIES = 'Non-Mosquito';
 const MALE_SEX = 'Male';
+const IMAGE_UPLOAD_PENDING = 'Image Upload Pending';
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -236,9 +237,18 @@ export async function getSpecimenMonthlySummary(
       `
         SELECT
           DATE_FORMAT(sess.collection_date, '%Y-%m-01') AS monthStart,
-          si.species AS species,
-          si.sex AS sex,
-          si.abdomen_status AS abdomenStatus,
+          CASE
+            WHEN sp.thumbnail_image_id IS NULL THEN '${IMAGE_UPLOAD_PENDING}'
+            ELSE si.species
+          END AS species,
+          CASE
+            WHEN sp.thumbnail_image_id IS NULL THEN '${IMAGE_UPLOAD_PENDING}'
+            ELSE si.sex
+          END AS sex,
+          CASE
+            WHEN sp.thumbnail_image_id IS NULL THEN '${IMAGE_UPLOAD_PENDING}'
+            ELSE si.abdomen_status
+          END AS abdomenStatus,
           COUNT(sp.id) AS count
         FROM specimens sp
         INNER JOIN sessions sess ON sp.session_id = sess.id
@@ -247,9 +257,18 @@ export async function getSpecimenMonthlySummary(
         WHERE ${whereClauses.join(' AND ')}
         GROUP BY
           DATE_FORMAT(sess.collection_date, '%Y-%m-01'),
-          si.species,
-          si.sex,
-          si.abdomen_status
+          CASE
+            WHEN sp.thumbnail_image_id IS NULL THEN '${IMAGE_UPLOAD_PENDING}'
+            ELSE si.species
+          END,
+          CASE
+            WHEN sp.thumbnail_image_id IS NULL THEN '${IMAGE_UPLOAD_PENDING}'
+            ELSE si.sex
+          END,
+          CASE
+            WHEN sp.thumbnail_image_id IS NULL THEN '${IMAGE_UPLOAD_PENDING}'
+            ELSE si.abdomen_status
+          END
         ORDER BY DATE_FORMAT(sess.collection_date, '%Y-%m-01') ASC
       `,
       { replacements, type: QueryTypes.SELECT }

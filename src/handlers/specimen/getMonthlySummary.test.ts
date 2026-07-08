@@ -95,8 +95,16 @@ describe('getSpecimenMonthlySummary', () => {
       { monthStart: '2026-01-01', species: 'Culex', sex: 'Male', abdomenStatus: null, count: 3 },
       // Female mosquito: all three counted
       { monthStart: '2026-01-01', species: 'Anopheles gambiae', sex: 'Female', abdomenStatus: 'Unfed', count: 2 },
-      // Mosquito with missing predictions: counted as UNKNOWN across the board
-      { monthStart: '2026-01-01', species: null, sex: null, abdomenStatus: null, count: 1 },
+      // Specimen with no image: counted as Image Upload Pending across the board
+      {
+        monthStart: '2026-01-01',
+        species: 'Image Upload Pending',
+        sex: 'Image Upload Pending',
+        abdomenStatus: 'Image Upload Pending',
+        count: 1,
+      },
+      // Mosquito with image but missing predictions: counted as UNKNOWN across the board
+      { monthStart: '2026-01-01', species: null, sex: null, abdomenStatus: null, count: 2 },
     ]);
 
     const request: any = {
@@ -112,30 +120,35 @@ describe('getSpecimenMonthlySummary', () => {
     expect(payload.data).toHaveLength(1);
     const bucket = payload.data[0];
 
-    expect(bucket.totalSpecimens).toBe(10);
+    expect(bucket.totalSpecimens).toBe(12);
     expect(bucket.species).toEqual({
       'Non-Mosquito': 4,
       Culex: 3,
       'Anopheles gambiae': 2,
-      UNKNOWN: 1,
+      'Image Upload Pending': 1,
+      UNKNOWN: 2,
     });
     expect(bucket.sex).toEqual({
       Male: 3,
       Female: 2,
-      UNKNOWN: 1,
+      'Image Upload Pending': 1,
+      UNKNOWN: 2,
     });
     expect(bucket.abdomenStatus).toEqual({
       Unfed: 2,
-      UNKNOWN: 1,
+      'Image Upload Pending': 1,
+      UNKNOWN: 2,
     });
     expect(bucket.sexBySpecies).toEqual({
       Culex: { Male: 3 },
       'Anopheles gambiae': { Female: 2 },
-      UNKNOWN: { UNKNOWN: 1 },
+      'Image Upload Pending': { 'Image Upload Pending': 1 },
+      UNKNOWN: { UNKNOWN: 2 },
     });
     expect(bucket.abdomenStatusBySpecies).toEqual({
       'Anopheles gambiae': { Unfed: 2 },
-      UNKNOWN: { UNKNOWN: 1 },
+      'Image Upload Pending': { 'Image Upload Pending': 1 },
+      UNKNOWN: { UNKNOWN: 2 },
     });
   });
 
