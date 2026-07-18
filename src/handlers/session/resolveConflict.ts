@@ -344,15 +344,6 @@ export async function resolveConflict(
 
         resolvedFormAnswersFormId = question.formId;
       }
-
-      for (const answer of resolvedFormAnswers ?? []) {
-        const question = formQuestionsById.get(answer.questionId);
-        if (question?.required && isFormAnswerMissing(answer.value)) {
-          return reply.code(400).send({
-            error: `Question ${answer.questionId} is required but no answer was provided`,
-          });
-        }
-      }
     }
 
     // Prepare before data
