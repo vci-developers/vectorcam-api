@@ -10,6 +10,7 @@ class Program extends Model {
   declare country: string;
   declare accessCode: string;
   declare formVersion: string | null;
+  declare modelVersion: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -39,6 +40,11 @@ Program.init(
       type: DataTypes.STRING(64),
       allowNull: true,
       field: 'form_version',
+    },
+    modelVersion: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      field: 'model_version',
     },
   },
   {

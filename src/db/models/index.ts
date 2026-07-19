@@ -27,6 +27,7 @@ import CollectionCycle from './CollectionCycle';
 import SessionUnit from './SessionUnit';
 import UserAuthEvent from './UserAuthEvent';
 import ActiveUserMetric from './ActiveUserMetric';
+import ProgramModel from './ProgramModel';
 
 export {
   Program,
@@ -58,4 +59,5 @@ export {
   SessionUnit,
   UserAuthEvent,
   ActiveUserMetric,
+  ProgramModel,
 };

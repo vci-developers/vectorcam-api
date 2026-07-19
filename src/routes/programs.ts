@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import fastifyMultipart from '@fastify/multipart';
 import {
   createProgram,
   getProgramDetails,
@@ -69,8 +70,29 @@ import { schema as getLocationTypeListSchema } from '../handlers/program/locatio
 import { schema as getLocationTypeSchema } from '../handlers/program/locationType/get';
 import { schema as updateLocationTypeSchema } from '../handlers/program/locationType/put';
 import { schema as deleteLocationTypeSchema } from '../handlers/program/locationType/delete';
+import {
+  getProgramModelCurrent,
+  getProgramModelList,
+  getProgramModel,
+  uploadProgramModel,
+  updateProgramModel,
+  downloadProgramModelCurrent,
+  downloadProgramModelVersion,
+} from '../handlers/program/model';
+import { schema as getProgramModelCurrentSchema } from '../handlers/program/model/getCurrent';
+import { schema as getProgramModelListSchema } from '../handlers/program/model/getList';
+import { schema as getProgramModelSchema } from '../handlers/program/model/get';
+import { schema as uploadProgramModelSchema } from '../handlers/program/model/post';
+import { schema as updateProgramModelSchema } from '../handlers/program/model/put';
+import {
+  schema as downloadProgramModelCurrentSchema,
+  versionDownloadSchema as downloadProgramModelVersionSchema,
+} from '../handlers/program/model/download';
+
+const MAX_MODEL_FILE_SIZE = 100 * 1024 * 1024;
 
 export default async function programRoutes(fastify: FastifyInstance) {
+  fastify.register(fastifyMultipart, { limits: { fileSize: MAX_MODEL_FILE_SIZE } });
   // Get all programs with filters
   fastify.get('/', {
     schema: getListSchema,
@@ -203,4 +225,39 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireSuperAdmin],
     schema: deleteProgramFormQuestionSchema,
   }, deleteProgramFormQuestion as any);
+
+  fastify.get('/:program_id/models/current', {
+    preHandler: [requireAdminOrMobileAuth],
+    schema: getProgramModelCurrentSchema,
+  }, getProgramModelCurrent as any);
+
+  fastify.get('/:program_id/models/current/download', {
+    preHandler: [requireAdminOrMobileAuth],
+    schema: downloadProgramModelCurrentSchema,
+  }, downloadProgramModelCurrent as any);
+
+  fastify.get('/:program_id/models/:version/download', {
+    preHandler: [requireAdminOrMobileAuth],
+    schema: downloadProgramModelVersionSchema,
+  }, downloadProgramModelVersion as any);
+
+  fastify.get('/:program_id/models', {
+    preHandler: [requireAdminAuth],
+    schema: getProgramModelListSchema,
+  }, getProgramModelList as any);
+
+  fastify.get('/:program_id/models/:version', {
+    preHandler: [requireAdminAuth],
+    schema: getProgramModelSchema,
+  }, getProgramModel as any);
+
+  fastify.post('/:program_id/models', {
+    preHandler: [requireAdminAuth],
+    schema: uploadProgramModelSchema,
+  }, uploadProgramModel as any);
+
+  fastify.put('/:program_id/models/:version', {
+    preHandler: [requireAdminAuth],
+    schema: updateProgramModelSchema,
+  }, updateProgramModel as any);
 } 

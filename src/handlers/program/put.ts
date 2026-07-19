@@ -1,11 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findProgramById, formatProgramResponse } from './common';
-import { Form } from '../../db/models';
+import { Form, ProgramModel } from '../../db/models';
 
 interface UpdateProgramRequest {
   name?: string;
   country?: string;
   formVersion?: string | null;
+  modelVersion?: string | null;
 }
 
 export const schema = {
@@ -23,6 +24,7 @@ export const schema = {
       name: { type: 'string' },
       country: { type: 'string' },
       formVersion: { type: ['string', 'null'] },
+      modelVersion: { type: ['string', 'null'] },
     },
   },
   response: {
@@ -38,6 +40,7 @@ export const schema = {
             country: { type: 'string' },
             accessCode: { type: 'string' },
             formVersion: { type: ['string', 'null'] },
+            modelVersion: { type: ['string', 'null'] },
           },
         },
       },
@@ -54,7 +57,7 @@ export async function updateProgram(
 ) {
   try {
     const { program_id } = request.params;
-    const { name, country, formVersion } = request.body;
+    const { name, country, formVersion, modelVersion } = request.body;
 
     const program = await findProgramById(program_id);
     if (!program) {
@@ -76,15 +79,35 @@ export async function updateProgram(
       }
     }
 
+    if (modelVersion !== undefined) {
+      if (modelVersion === '') {
+        return reply.code(400).send({ error: 'modelVersion cannot be empty string' });
+      }
+
+      if (modelVersion !== null) {
+        const model = await ProgramModel.findOne({
+          where: { programId: program.id, version: modelVersion },
+        });
+        if (!model) {
+          return reply.code(400).send({ error: 'modelVersion must point to an existing model version' });
+        }
+      }
+    }
+
     await program.update({
       name: name !== undefined ? name : program.name,
       country: country !== undefined ? country : program.country,
       formVersion: formVersion !== undefined ? formVersion : program.formVersion,
+      modelVersion: modelVersion !== undefined ? modelVersion : program.modelVersion,
     });
 
     return reply.code(200).send({
       message: 'Program updated successfully',
-      program: { ...formatProgramResponse(program, { includeAccessCode: true }), formVersion: program.formVersion },
+      program: {
+        ...formatProgramResponse(program, { includeAccessCode: true }),
+        formVersion: program.formVersion,
+        modelVersion: program.modelVersion,
+      },
     });
   } catch (error) {
     request.log.error(error);
