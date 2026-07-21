@@ -1,0 +1,1 @@
+export { signResourceUrlHandler } from './signUrl';

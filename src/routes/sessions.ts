@@ -61,7 +61,7 @@ import { schema as deleteSessionUnitSchema } from '../handlers/session/units/del
 import { schema as resolveConflictSchema } from '../handlers/session/resolveConflict';
 import { schema as getConflictLogsSchema } from '../handlers/session/getConflictLogs';
 import { schema as getReviewActionLogsSchema } from '../handlers/session/getReviewActionLogs';
-import { requireExportAuth } from '../middleware/signedUrl.middleware';
+import { requireSignedResourceAuth } from '../middleware/signedUrl.middleware';
 import { 
   siteAccessMiddleware,
   requireSiteReadAccess,
@@ -224,25 +224,25 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Export sessions as CSV
   fastify.get<ExportSessionsCSVRequest>('/export/csv', {
     schema: exportSessionsCSVSchema,
-    preHandler: [requireExportAuth],
+    preHandler: [requireSignedResourceAuth],
   }, exportSessionsCSV);
 
   // Export surveillance forms as CSV
   fastify.get<ExportSurveillanceFormsCSVRequest>('/export/surveillance-forms/csv', {
     schema: exportSurveillanceFormsCSVSchema,
-    preHandler: [requireExportAuth],
+    preHandler: [requireSignedResourceAuth],
   }, exportSurveillanceFormsCSV);
 
   // Export dynamic form answers as CSV
   fastify.get<ExportFormAnswersRequest>('/export/forms/csv', {
     schema: exportFormAnswersCSVSchema,
-    preHandler: [requireExportAuth],
+    preHandler: [requireSignedResourceAuth],
   }, exportFormAnswersCSV);
 
   // Export cleaned report as XLSX
   fastify.get<ExportSessionReportRequest>('/report', {
     schema: exportSessionReportSchema,
-    preHandler: [requireExportAuth],
+    preHandler: [requireSignedResourceAuth],
   }, exportSessionReport);
 
   // Resolve session conflicts (requires write access)

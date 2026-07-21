@@ -1,11 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { getFileStream } from '../../../services/s3.service';
+import { getFileStream, getPresignedDownloadUrl } from '../../../services/s3.service';
+import { getSignedUrlExpiresInSeconds } from '../../../services/signedUrl.service';
 import { handleError, findSpecimenImage } from '../common';
-import { Specimen, SpecimenImage } from '../../../db/models';
+import { Specimen } from '../../../db/models';
 
 export const schema = {
   tags: ['Specimen Images'],
-  description: 'Get a specimen image',
+  description: 'Get a specimen image. Requires read access to the specimen, or a valid signed URL (signature query param). Signed requests redirect to a presigned S3 URL instead of streaming through the API.',
   params: {
     type: 'object',
     properties: {
@@ -38,6 +39,21 @@ export async function getImage(
 
     if (!image) {
       return reply.code(404).send({ error: 'Image not found' });
+    }
+
+    const pathname = `/specimens/${specimen.id}/images/${image.id}`;
+
+    if (request.isSignedUrl) {
+      try {
+        const presignedUrl = await getPresignedDownloadUrl(
+          image.imageKey,
+          getSignedUrlExpiresInSeconds(pathname)
+        );
+        return reply.redirect(presignedUrl);
+      } catch (error) {
+        request.log.error(`Failed to generate presigned URL for S3 key: ${image.imageKey}`, error);
+        return reply.code(404).send({ error: 'Image not found in storage' });
+      }
     }
 
     try {

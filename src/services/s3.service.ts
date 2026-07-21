@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../config/environment';
 import pino from 'pino';
 import { Readable } from 'stream';
@@ -69,6 +70,23 @@ export const deleteFile = async (key: string): Promise<void> => {
     logger.info(`File deleted successfully: ${key}`);
   } catch (error) {
     logger.error('Error deleting file from S3:', error);
+    throw error;
+  }
+};
+
+export const getPresignedDownloadUrl = async (
+  key: string,
+  expiresInSeconds: number
+): Promise<string> => {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: config.aws.s3BucketName,
+      Key: key,
+    });
+
+    return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  } catch (error) {
+    logger.error('Error generating presigned download URL:', error);
     throw error;
   }
 };

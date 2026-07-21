@@ -27,7 +27,7 @@ async function checkSpecimenAccess(
   }
 
   // Extract specimen ID from request parameters
-  const specimenId = getSpecimenIdFromRequest(request);
+  const specimenId = getSpecimenIdFromRequestInternal(request);
   
   if (!specimenId) {
     reply.code(400).send({ error: 'Bad Request: Specimen ID not found in request' });
@@ -97,7 +97,7 @@ export async function requireSpecificSpecimenWriteAccess(
  * Helper function to extract specimen ID from request parameters
  * Supports specimen_id and specimenId parameter names
  */
-function getSpecimenIdFromRequest(request: FastifyRequest): number | null {
+export function getSpecimenIdFromRequest(request: FastifyRequest): number | null {
   const params = request.params as any;
   
   // Check for common specimen ID parameter names
@@ -109,5 +109,61 @@ function getSpecimenIdFromRequest(request: FastifyRequest): number | null {
   }
   
   return null;
+}
+
+export async function checkSpecimenReadAccessById(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  specimenId: number
+): Promise<boolean> {
+  const siteAccess = request.siteAccess;
+
+  if (!siteAccess?.canRead) {
+    reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access specimen data' });
+    return false;
+  }
+
+  if (siteAccess.userSites.length === 0) {
+    return true;
+  }
+
+  try {
+    const specimen = await Specimen.findByPk(specimenId, {
+      include: [{
+        model: Session,
+        as: 'session',
+        attributes: ['siteId'],
+      }],
+      attributes: ['id'],
+    });
+
+    if (!specimen) {
+      reply.code(404).send({ error: 'Specimen not found' });
+      return false;
+    }
+
+    const specimenData = specimen.get({ plain: true }) as any;
+    const sessionSiteId = specimenData.session?.siteId;
+
+    if (!sessionSiteId) {
+      reply.code(500).send({ error: 'Internal server error: Could not determine specimen site' });
+      return false;
+    }
+
+    if (!siteAccess.userSites.includes(sessionSiteId)) {
+      reply.code(403).send({ error: 'Forbidden: No access to specimens from this site' });
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    request.log.error(error);
+    reply.code(500).send({ error: 'Internal server error while checking specimen access' });
+    return false;
+  }
+}
+
+function getSpecimenIdFromRequestInternal(request: FastifyRequest): number | null {
+  return getSpecimenIdFromRequest(request);
 }
 

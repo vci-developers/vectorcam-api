@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { config } from '../config/environment';
 
-export const EXPORT_REPORT_PATHS = [
+export const STATIC_SIGNABLE_RESOURCE_PATHS = [
   '/sessions/export/csv',
   '/sessions/export/surveillance-forms/csv',
   '/sessions/export/forms/csv',
@@ -10,18 +10,48 @@ export const EXPORT_REPORT_PATHS = [
   '/annotations/export',
 ] as const;
 
-export type ExportReportPath = (typeof EXPORT_REPORT_PATHS)[number];
+export type StaticSignableResourcePath = (typeof STATIC_SIGNABLE_RESOURCE_PATHS)[number];
 
-export type ExportPathAuthRequirement = 'adminOrSuperAdmin' | 'siteRead' | 'annotation';
+export type ResourcePathAuthRequirement = 'adminOrSuperAdmin' | 'siteRead' | 'annotation' | 'specimenRead';
 
 const SIGNATURE_QUERY_PARAM = 'signature';
+const SPECIMEN_IMAGE_PATH_REGEX = /^\/specimens\/(\d+)\/images\/([^/]+)$/;
 
-export function isExportReportPath(pathname: string): pathname is ExportReportPath {
-  return (EXPORT_REPORT_PATHS as readonly string[]).includes(pathname);
+export function isStaticSignableResourcePath(pathname: string): pathname is StaticSignableResourcePath {
+  return (STATIC_SIGNABLE_RESOURCE_PATHS as readonly string[]).includes(pathname);
 }
 
-export function getExportPathAuthRequirement(pathname: string): ExportPathAuthRequirement | null {
-  if (!isExportReportPath(pathname)) {
+export function parseSpecimenImagePath(pathname: string): { specimenId: number; imageId: string } | null {
+  const match = pathname.match(SPECIMEN_IMAGE_PATH_REGEX);
+  if (!match) {
+    return null;
+  }
+
+  const specimenId = Number.parseInt(match[1], 10);
+  if (!Number.isFinite(specimenId)) {
+    return null;
+  }
+
+  return {
+    specimenId,
+    imageId: match[2],
+  };
+}
+
+export function isSpecimenImagePath(pathname: string): boolean {
+  return parseSpecimenImagePath(pathname) !== null;
+}
+
+export function isSignablePath(pathname: string): boolean {
+  return isStaticSignableResourcePath(pathname) || isSpecimenImagePath(pathname);
+}
+
+export function getResourcePathAuthRequirement(pathname: string): ResourcePathAuthRequirement | null {
+  if (isSpecimenImagePath(pathname)) {
+    return 'specimenRead';
+  }
+
+  if (!isStaticSignableResourcePath(pathname)) {
     return null;
   }
 
@@ -34,6 +64,14 @@ export function getExportPathAuthRequirement(pathname: string): ExportPathAuthRe
   }
 
   return 'adminOrSuperAdmin';
+}
+
+export function getSignedUrlExpiresInSeconds(pathname: string): number {
+  if (isSpecimenImagePath(pathname)) {
+    return config.signedUrl.imageExpiresInSeconds;
+  }
+
+  return config.signedUrl.expiresInSeconds;
 }
 
 export function isSignedUrlConfigured(): boolean {
@@ -118,7 +156,7 @@ function timingSafeEqualHex(left: string, right: string): boolean {
   }
 }
 
-export function parseExportPath(input: string): { pathname: string; query: Record<string, string> } {
+export function parseResourcePath(input: string): { pathname: string; query: Record<string, string> } {
   const trimmed = input.trim();
   const normalized = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   const url = new URL(normalized, 'http://signed-url.local');
@@ -144,17 +182,18 @@ export interface SignedUrlResult {
   signature: string;
 }
 
-export function signExportUrl(pathname: string, query: Record<string, string> = {}): SignedUrlResult {
+export function signResourceUrl(pathname: string, query: Record<string, string> = {}): SignedUrlResult {
   const secret = config.signedUrl.secret;
   if (!secret) {
     throw new Error('Signed URL signing is not configured');
   }
 
-  if (!isExportReportPath(pathname)) {
-    throw new Error('Path is not an allowed export or report endpoint');
+  if (!isSignablePath(pathname)) {
+    throw new Error('Path is not an allowed signable resource endpoint');
   }
 
-  const expiresAt = Math.floor(Date.now() / 1000) + config.signedUrl.expiresInSeconds;
+  const expiresInSeconds = getSignedUrlExpiresInSeconds(pathname);
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
   const hmac = createSignature(pathname, query, expiresAt, secret);
   const signature = formatSignatureToken(expiresAt, hmac);
 
@@ -187,9 +226,9 @@ export function buildAbsoluteSignedUrl(
   return `${domain}${relativeUrl}`;
 }
 
-export function verifySignedExportUrl(pathname: string, query: Record<string, unknown>): boolean {
+export function verifySignedResourceUrl(pathname: string, query: Record<string, unknown>): boolean {
   const secret = config.signedUrl.secret;
-  if (!secret || !isExportReportPath(pathname)) {
+  if (!secret || !isSignablePath(pathname)) {
     return false;
   }
 

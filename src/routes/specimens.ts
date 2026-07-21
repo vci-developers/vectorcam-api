@@ -36,7 +36,7 @@ import { schema as updateImageDataSchema } from '../handlers/specimen/images/dat
 import { schema as getImageListSchema } from '../handlers/specimen/images/data/getList';
 import { schema as getImageDataSchema } from '../handlers/specimen/images/data/get';
 import { ExportSpecimensCSVRequest, schema as exportSpecimensCSVSchema } from '../handlers/specimen/export';
-import { requireExportAuth } from '../middleware/signedUrl.middleware';
+import { requireSignedResourceAuth } from '../middleware/signedUrl.middleware';
 import { 
   siteAccessMiddleware,
   requireSiteReadAccess,
@@ -101,7 +101,7 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
   // Export specimens as CSV
   fastify.get<ExportSpecimensCSVRequest>('/export/csv', {
     schema: exportSpecimensCSVSchema,
-    preHandler: [requireExportAuth],
+    preHandler: [requireSignedResourceAuth],
   }, exportSpecimensCSV);
 
   // Upload specimen image (requires write access to specific specimen)
@@ -110,10 +110,11 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     schema: uploadImageSchema
   }, images.uploadImage as any);
 
-  // Get a specific specimen image by ID (skip access control)
+  // Get a specific specimen image by ID (requires read access, or valid signed URL)
   fastify.get('/:specimen_id/images/:image_id', {
+    preHandler: [requireSignedResourceAuth],
     schema: getImageSchema
-  }, images.getImage);
+  }, images.getImage as any);
 
   // Specimen image endpoints (requires read access to specific specimen)
   fastify.get('/:specimen_id/images', {

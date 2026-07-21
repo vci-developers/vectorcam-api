@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { signedUrlMiddleware } from '../middleware/signedUrl.middleware';
-import exportRoutes from './export';
+import resourceRoutes from './resources';
 import programRoutes from './programs';
 import siteRoutes from './sites';
 import deviceRoutes from './devices';
@@ -35,7 +35,7 @@ export default async function routes(server: FastifyInstance): Promise<void> {
   server.register(sessionRoutes, { prefix: '/sessions' });
   server.register(specimenRoutes, { prefix: '/specimens' });
   server.register(annotationRoutes, { prefix: '/annotations' });
-  server.register(exportRoutes, { prefix: '/export' });
+  server.register(resourceRoutes, { prefix: '/resources' });
   server.register(dhis2Routes, { prefix: '/dhis2' });
   server.register(vectorAiRoutes, { prefix: '/vector-ai' });
   

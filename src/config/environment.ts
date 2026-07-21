@@ -60,6 +60,7 @@ const developmentConfig = {
   signedUrl: {
     secret: process.env.SIGNED_URL_HMAC_SECRET || 'dev-signed-url-secret',
     expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
+    imageExpiresInSeconds: parseInt(process.env.SIGNED_URL_IMAGE_EXPIRES_IN_SECONDS || '3600', 10),
   },
   smtp: {
     host: process.env.SMTP_HOST,
@@ -130,6 +131,7 @@ const testConfig = {
   signedUrl: {
     secret: process.env.SIGNED_URL_HMAC_SECRET || 'test-signed-url-secret',
     expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
+    imageExpiresInSeconds: parseInt(process.env.SIGNED_URL_IMAGE_EXPIRES_IN_SECONDS || '3600', 10),
   },
   smtp: {
     host: process.env.SMTP_HOST,
@@ -200,6 +202,7 @@ const productionConfig = {
   signedUrl: {
     secret: process.env.SIGNED_URL_HMAC_SECRET,
     expiresInSeconds: parseInt(process.env.SIGNED_URL_EXPIRES_IN_SECONDS || '300', 10),
+    imageExpiresInSeconds: parseInt(process.env.SIGNED_URL_IMAGE_EXPIRES_IN_SECONDS || '3600', 10),
   },
   smtp: {
     host: process.env.SMTP_HOST,

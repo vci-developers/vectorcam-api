@@ -1,22 +1,24 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import {
   buildAbsoluteSignedUrl,
-  getExportPathAuthRequirement,
+  getResourcePathAuthRequirement,
   isSignedUrlConfigured,
-  parseExportPath,
-  signExportUrl,
+  parseResourcePath,
+  parseSpecimenImagePath,
+  signResourceUrl,
 } from '../../services/signedUrl.service';
+import { checkSpecimenReadAccessById } from '../../middleware/specimenAccess.middleware';
 
 export const schema = {
-  tags: ['Export'],
-  description: 'Sign an export or report URL for temporary unauthenticated access',
+  tags: ['Resources'],
+  description: 'Sign a resource URL for temporary unauthenticated access',
   body: {
     type: 'object',
     required: ['path'],
     properties: {
       path: {
         type: 'string',
-        description: 'Export or report path with optional query string, e.g. /sessions/export/csv?startDate=123',
+        description: 'Resource path with optional query string, e.g. /sessions/export/csv?startDate=123 or /specimens/1/images/456',
       },
     },
   },
@@ -55,7 +57,7 @@ export const schema = {
   },
 };
 
-export interface SignExportUrlRequest {
+export interface SignResourceUrlRequest {
   Body: {
     path: string;
   };
@@ -79,8 +81,8 @@ function hasSiteReadAccess(request: FastifyRequest): boolean {
   return Boolean(request.siteAccess?.canRead);
 }
 
-export async function signExportUrlHandler(
-  request: FastifyRequest<SignExportUrlRequest>,
+export async function signResourceUrlHandler(
+  request: FastifyRequest<SignResourceUrlRequest>,
   reply: FastifyReply
 ): Promise<void> {
   if (!isSignedUrlConfigured()) {
@@ -96,16 +98,16 @@ export async function signExportUrlHandler(
     return reply.code(400).send({ error: 'Path is required' });
   }
 
-  let parsedPath: ReturnType<typeof parseExportPath>;
+  let parsedPath: ReturnType<typeof parseResourcePath>;
   try {
-    parsedPath = parseExportPath(path);
+    parsedPath = parseResourcePath(path);
   } catch {
     return reply.code(400).send({ error: 'Invalid path format' });
   }
 
-  const authRequirement = getExportPathAuthRequirement(parsedPath.pathname);
+  const authRequirement = getResourcePathAuthRequirement(parsedPath.pathname);
   if (!authRequirement) {
-    return reply.code(400).send({ error: 'Path is not an allowed export or report endpoint' });
+    return reply.code(400).send({ error: 'Path is not an allowed signable resource endpoint' });
   }
 
   if (authRequirement === 'adminOrSuperAdmin' && !hasAdminOrSuperAdminAccess(request)) {
@@ -120,14 +122,26 @@ export async function signExportUrlHandler(
     return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to read site data' });
   }
 
+  if (authRequirement === 'specimenRead') {
+    const specimenImagePath = parseSpecimenImagePath(parsedPath.pathname);
+    if (!specimenImagePath) {
+      return reply.code(400).send({ error: 'Invalid specimen image path' });
+    }
+
+    const hasAccess = await checkSpecimenReadAccessById(request, reply, specimenImagePath.specimenId);
+    if (!hasAccess) {
+      return;
+    }
+  }
+
   try {
-    const signed = signExportUrl(parsedPath.pathname, parsedPath.query);
+    const signed = signResourceUrl(parsedPath.pathname, parsedPath.query);
     return reply.send({
       url: buildAbsoluteSignedUrl(signed.pathname, signed.query, signed.signature),
       expiresAt: signed.expiresAt,
     });
   } catch (error) {
     request.log.error(error);
-    return reply.code(500).send({ error: 'Failed to sign export URL' });
+    return reply.code(500).send({ error: 'Failed to sign resource URL' });
   }
 }

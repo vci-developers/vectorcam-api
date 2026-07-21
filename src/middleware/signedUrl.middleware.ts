@@ -1,11 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import {
-  getExportPathAuthRequirement,
-  isExportReportPath,
-  verifySignedExportUrl,
+  getResourcePathAuthRequirement,
+  isSignablePath,
+  verifySignedResourceUrl,
 } from '../services/signedUrl.service';
 import { requireAdminOrSuperAdminAuth, requireSuperAdmin } from './auth.middleware';
 import { requireSiteReadAccess } from './siteAccess.middleware';
+import { requireSpecificSpecimenReadAccess } from './specimenAccess.middleware';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -19,7 +20,7 @@ export async function signedUrlMiddleware(
 ): Promise<void> {
   const pathname = request.url.split('?')[0];
 
-  if (!isExportReportPath(pathname)) {
+  if (!isSignablePath(pathname)) {
     return;
   }
 
@@ -28,12 +29,12 @@ export async function signedUrlMiddleware(
     return;
   }
 
-  if (verifySignedExportUrl(pathname, signature)) {
+  if (verifySignedResourceUrl(pathname, signature)) {
     request.isSignedUrl = true;
   }
 }
 
-export async function requireExportAuth(
+export async function requireSignedResourceAuth(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
@@ -42,7 +43,11 @@ export async function requireExportAuth(
   }
 
   const pathname = request.url.split('?')[0];
-  const authRequirement = getExportPathAuthRequirement(pathname);
+  const authRequirement = getResourcePathAuthRequirement(pathname);
+
+  if (authRequirement === 'specimenRead') {
+    return requireSpecificSpecimenReadAccess(request, reply);
+  }
 
   if (authRequirement === 'siteRead') {
     return requireSiteReadAccess(request, reply);
