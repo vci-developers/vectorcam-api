@@ -49,8 +49,9 @@ async function setupServer(): Promise<void> {
 
     // Register Helmet for security headers
     await server.register(helmet, {
-      // Customize security options if needed
       contentSecurityPolicy: false,
+      // Allow cross-subdomain embedding of images and other subresources (e.g. frontend app loading signed image URLs from the API).
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
     });
 
     // Register Compression

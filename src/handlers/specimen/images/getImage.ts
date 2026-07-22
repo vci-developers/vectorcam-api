@@ -49,6 +49,7 @@ export async function getImage(
           image.imageKey,
           getSignedUrlExpiresInSeconds(pathname)
         );
+        reply.header('Cross-Origin-Resource-Policy', 'cross-origin');
         return reply.redirect(presignedUrl);
       } catch (error) {
         request.log.error(`Failed to generate presigned URL for S3 key: ${image.imageKey}`, error);
@@ -63,6 +64,7 @@ export async function getImage(
       // Set appropriate headers
       reply.header('Content-Type', contentType);
       reply.header('Cache-Control', 'public, max-age=3600');
+      reply.header('Cross-Origin-Resource-Policy', 'cross-origin');
       
       // Pipe the stream to the response using Fastify's send method
       return reply.send(stream);
