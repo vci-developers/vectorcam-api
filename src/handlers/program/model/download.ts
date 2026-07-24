@@ -1,14 +1,17 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { getFileStream } from '../../../services/s3.service';
+import { getPresignedDownloadUrl } from '../../../services/s3.service';
+import { config } from '../../../config/environment';
 import {
   ensureProgramExists,
   findProgramModelByVersion,
   resolveCurrentProgramModel,
+  TFLITE_CONTENT_TYPE,
 } from './common';
 
 export const schema = {
   tags: ['Program Models'],
-  description: 'Download the current ML model file for a program',
+  description:
+    'Download the current ML model file for a program. Returns HTTP 302 redirect to a presigned S3 URL (supports byte-range resume on the S3 URL).',
   params: {
     type: 'object',
     properties: {
@@ -38,7 +41,7 @@ export async function downloadProgramModelCurrent(
       return reply.code(404).send({ error: 'No model found for this program' });
     }
 
-    return streamProgramModelFile(request, reply, programModel.s3Key, programModel.version);
+    return redirectToProgramModelFile(request, reply, programModel.s3Key, programModel.version);
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to download program model' });
@@ -47,7 +50,8 @@ export async function downloadProgramModelCurrent(
 
 export const versionDownloadSchema = {
   tags: ['Program Models'],
-  description: 'Download a specific ML model version for a program',
+  description:
+    'Download a specific ML model version for a program. Returns HTTP 302 redirect to a presigned S3 URL (supports byte-range resume on the S3 URL).',
   params: {
     type: 'object',
     properties: {
@@ -78,27 +82,32 @@ export async function downloadProgramModelVersion(
       return reply.code(404).send({ error: 'Model version not found' });
     }
 
-    return streamProgramModelFile(request, reply, programModel.s3Key, programModel.version);
+    return redirectToProgramModelFile(request, reply, programModel.s3Key, programModel.version);
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to download program model' });
   }
 }
 
-async function streamProgramModelFile(
+async function redirectToProgramModelFile(
   request: FastifyRequest,
   reply: FastifyReply,
   s3Key: string,
   version: string
 ): Promise<void> {
   try {
-    const { stream, contentType } = await getFileStream(s3Key);
+    const filename = `${version}.tflite`;
+    const presignedUrl = await getPresignedDownloadUrl(
+      s3Key,
+      config.signedUrl.modelExpiresInSeconds,
+      {
+        responseContentDisposition: `attachment; filename="${filename}"`,
+        responseContentType: TFLITE_CONTENT_TYPE,
+      }
+    );
 
-    reply.header('Content-Type', contentType);
-    reply.header('Content-Disposition', `attachment; filename="${version}.tflite"`);
-    reply.header('Cache-Control', 'private, max-age=3600');
-
-    return reply.send(stream);
+    reply.header('Cache-Control', 'private, no-store');
+    return reply.redirect(presignedUrl);
   } catch (error) {
     request.log.error(`Failed to get model from S3: ${s3Key}`, error);
     return reply.code(404).send({ error: 'Model file not found in storage' });

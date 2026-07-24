@@ -74,14 +74,22 @@ export const deleteFile = async (key: string): Promise<void> => {
   }
 };
 
+export interface PresignedDownloadUrlOptions {
+  responseContentDisposition?: string;
+  responseContentType?: string;
+}
+
 export const getPresignedDownloadUrl = async (
   key: string,
-  expiresInSeconds: number
+  expiresInSeconds: number,
+  options: PresignedDownloadUrlOptions = {}
 ): Promise<string> => {
   try {
     const command = new GetObjectCommand({
       Bucket: config.aws.s3BucketName,
       Key: key,
+      ResponseContentDisposition: options.responseContentDisposition,
+      ResponseContentType: options.responseContentType,
     });
 
     return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
