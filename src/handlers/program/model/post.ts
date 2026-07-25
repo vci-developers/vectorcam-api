@@ -2,24 +2,24 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { createHash } from 'crypto';
 import { Readable } from 'stream';
 import sequelize from '../../../db/index';
-import { Program, ProgramModel } from '../../../db/models';
+import { ProgramModel } from '../../../db/models';
 import { uploadFileStream, deleteFile } from '../../../services/s3.service';
 import {
   buildProgramModelS3Key,
   ensureProgramExists,
   isValidTfliteUpload,
   MAX_MODEL_FILE_SIZE_BYTES,
+  modelIdAlreadyExists,
   parseModelClassesField,
   programModelResponseSchema,
   serializeProgramModelResponse,
   TFLITE_CONTENT_TYPE,
-  validateVersionString,
-  versionAlreadyExists,
+  validateModelIdString,
 } from './common';
 
 export const schema = {
   tags: ['Program Models'],
-  description: 'Upload a new ML model version for a program',
+  description: 'Upload a new ML model for a program. modelId is a uploader-chosen identifier unique within the program.',
   consumes: ['multipart/form-data'],
   params: {
     type: 'object',
@@ -40,9 +40,8 @@ export const schema = {
 };
 
 interface UploadFields {
-  version?: string;
+  modelId?: string;
   modelClasses?: string;
-  setAsCurrent?: string;
 }
 
 export async function uploadProgramModel(
@@ -81,12 +80,10 @@ export async function uploadProgramModel(
         continue;
       }
 
-      if (part.fieldname === 'version') {
-        fields.version = part.value as string;
+      if (part.fieldname === 'modelId') {
+        fields.modelId = part.value as string;
       } else if (part.fieldname === 'modelClasses') {
         fields.modelClasses = part.value as string;
-      } else if (part.fieldname === 'setAsCurrent') {
-        fields.setAsCurrent = part.value as string;
       }
     }
 
@@ -94,14 +91,14 @@ export async function uploadProgramModel(
       return reply.code(400).send({ error: 'No model file provided' });
     }
 
-    const version = fields.version?.trim();
-    if (!version) {
-      return reply.code(400).send({ error: 'version is required' });
+    const modelId = fields.modelId?.trim();
+    if (!modelId) {
+      return reply.code(400).send({ error: 'modelId is required' });
     }
 
-    const versionError = validateVersionString(version);
-    if (versionError) {
-      return reply.code(400).send({ error: versionError });
+    const modelIdError = validateModelIdString(modelId);
+    if (modelIdError) {
+      return reply.code(400).send({ error: modelIdError });
     }
 
     const modelClasses = parseModelClassesField(fields.modelClasses);
@@ -121,13 +118,12 @@ export async function uploadProgramModel(
       return reply.code(400).send({ error: 'Model file exceeds the 100MB size limit' });
     }
 
-    if (await versionAlreadyExists(programId, version)) {
-      return reply.code(409).send({ error: 'A model with this version already exists for this program' });
+    if (await modelIdAlreadyExists(programId, modelId)) {
+      return reply.code(409).send({ error: 'A model with this modelId already exists for this program' });
     }
 
     const fileMd5 = createHash('md5').update(fileBuffer).digest('hex');
-    const s3Key = buildProgramModelS3Key(programId, version);
-    const setAsCurrent = fields.setAsCurrent !== 'false';
+    const s3Key = buildProgramModelS3Key(programId, modelId);
 
     const transaction = await sequelize.transaction();
     try {
@@ -136,7 +132,7 @@ export async function uploadProgramModel(
       const programModel = await ProgramModel.create(
         {
           programId,
-          version,
+          modelId,
           s3Key,
           modelClasses,
           fileSize: fileBuffer.length,
@@ -144,10 +140,6 @@ export async function uploadProgramModel(
         },
         { transaction }
       );
-
-      if (setAsCurrent) {
-        await Program.update({ modelVersion: version }, { where: { id: programId }, transaction });
-      }
 
       await transaction.commit();
 

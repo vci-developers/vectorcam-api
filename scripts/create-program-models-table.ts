@@ -5,21 +5,25 @@ async function createProgramModelsTable() {
   const queryInterface = sequelize.getQueryInterface();
 
   try {
-    console.log('Adding model_version to programs table (if not exists)...');
+    console.log('Ensuring programs.config column exists (if not exists)...');
     const tables = await queryInterface.showAllTables();
     if (!tables.includes('programs')) {
       throw new Error('programs table does not exist; run base migrations first');
     }
 
     const programColumns = await queryInterface.describeTable('programs');
-    if (!programColumns['model_version']) {
-      await queryInterface.addColumn('programs', 'model_version', {
-        type: DataTypes.STRING(64),
+    if (!programColumns['config']) {
+      await queryInterface.addColumn('programs', 'config', {
+        type: DataTypes.JSON,
         allowNull: true,
       });
-      console.log('Added model_version column');
+      console.log('Added config column');
     } else {
-      console.log('model_version already exists, skipping addColumn');
+      console.log('config already exists, skipping addColumn');
+    }
+
+    if (programColumns['model_version']) {
+      console.log('Note: model_version still exists; run migrate-program-models-to-model-ids.ts to migrate and remove it');
     }
 
     if (!tables.includes('program_models')) {
@@ -39,7 +43,7 @@ async function createProgramModelsTable() {
           },
           onDelete: 'CASCADE',
         },
-        version: {
+        model_id: {
           type: DataTypes.STRING(64),
           allowNull: false,
         },
@@ -71,9 +75,9 @@ async function createProgramModelsTable() {
         },
       });
 
-      await queryInterface.addIndex('program_models', ['program_id', 'version'], {
+      await queryInterface.addIndex('program_models', ['program_id', 'model_id'], {
         unique: true,
-        name: 'program_models_program_version',
+        name: 'program_models_program_id_model_id',
       });
       console.log('Created program_models table');
     } else {

@@ -10,7 +10,7 @@ export const programModelResponseSchema = {
   properties: {
     id: { type: 'number' },
     programId: { type: 'number' },
-    version: { type: 'string' },
+    modelId: { type: 'string' },
     modelClasses: {
       type: 'array',
       items: { type: 'string' },
@@ -23,9 +23,9 @@ export const programModelResponseSchema = {
   },
 };
 
-export function buildProgramModelS3Key(programId: number, version: string): string {
-  const sanitizedVersion = version.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return `programs/${programId}/models/${sanitizedVersion}.tflite`;
+export function buildProgramModelS3Key(programId: number, modelId: string): string {
+  const sanitizedModelId = modelId.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return `programs/${programId}/models/${sanitizedModelId}.tflite`;
 }
 
 export function validateModelClasses(value: unknown): string[] | null {
@@ -60,7 +60,7 @@ export function serializeProgramModelResponse(
   const response: Record<string, unknown> = {
     id: programModel.id,
     programId: programModel.programId,
-    version: programModel.version,
+    modelId: programModel.modelId,
     modelClasses: programModel.modelClasses,
     fileSize: programModel.fileSize,
     fileMd5: programModel.fileMd5,
@@ -69,52 +69,23 @@ export function serializeProgramModelResponse(
   };
 
   if (options.includeDownloadUrl) {
-    response.downloadUrl = `/programs/${programModel.programId}/models/${encodeURIComponent(programModel.version)}/download`;
+    response.downloadUrl = `/programs/${programModel.programId}/models/${encodeURIComponent(programModel.modelId)}/download`;
   }
 
   return response;
 }
 
-export async function findProgramModelByVersion(
+export async function findProgramModelByModelId(
   programId: number,
-  version: string
+  modelId: string
 ): Promise<ProgramModel | null> {
   return ProgramModel.findOne({
-    where: { programId, version },
-  });
-}
-
-export async function resolveCurrentProgramModel(programId: number): Promise<ProgramModel | null> {
-  const program = await findProgramById(programId);
-  if (!program) {
-    return null;
-  }
-
-  if (program.modelVersion) {
-    return findProgramModelByVersion(programId, program.modelVersion);
-  }
-
-  return ProgramModel.findOne({
-    where: { programId },
-    order: [
-      ['updatedAt', 'DESC'],
-      ['id', 'DESC'],
-    ],
+    where: { programId, modelId },
   });
 }
 
 export async function ensureProgramExists(programId: number): Promise<Program | null> {
   return findProgramById(programId);
-}
-
-export async function validateModelVersionPointer(
-  programId: number,
-  modelVersion: string
-): Promise<boolean> {
-  const model = await ProgramModel.findOne({
-    where: { programId, version: modelVersion },
-  });
-  return !!model;
 }
 
 export function isValidTfliteUpload(
@@ -130,30 +101,28 @@ export function isValidTfliteUpload(
   return normalizedMime === TFLITE_CONTENT_TYPE || normalizedMime === 'application/x-tflite';
 }
 
-export function validateVersionString(version: string): string | null {
-  const trimmed = version.trim();
+export function validateModelIdString(modelId: string): string | null {
+  const trimmed = modelId.trim();
   if (!trimmed) {
-    return 'version is required';
+    return 'modelId is required';
   }
   if (trimmed.length > 64) {
-    return 'version must be 64 characters or fewer';
+    return 'modelId must be 64 characters or fewer';
   }
-  if (trimmed === 'current') {
-    return 'version cannot be "current"';
+  if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) {
+    return 'modelId may only contain letters, numbers, dots, underscores, and hyphens';
   }
   return null;
 }
 
-export async function findLatestProgramModelVersion(programId: number): Promise<string | null> {
-  const latest = await ProgramModel.findOne({
-    where: { programId },
-    order: [
-      ['updatedAt', 'DESC'],
-      ['id', 'DESC'],
-    ],
-    attributes: ['version'],
-  });
-  return latest?.version ?? null;
+export function validateProgramConfig(value: unknown): Record<string, unknown> | null | 'invalid' {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    return 'invalid';
+  }
+  return value as Record<string, unknown>;
 }
 
 export async function listProgramModels(programId: number): Promise<ProgramModel[]> {
@@ -166,11 +135,11 @@ export async function listProgramModels(programId: number): Promise<ProgramModel
   });
 }
 
-export async function versionAlreadyExists(programId: number, version: string): Promise<boolean> {
+export async function modelIdAlreadyExists(programId: number, modelId: string): Promise<boolean> {
   const existing = await ProgramModel.findOne({
     where: {
       programId,
-      version: { [Op.eq]: version },
+      modelId: { [Op.eq]: modelId },
     },
   });
   return !!existing;

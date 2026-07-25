@@ -18,6 +18,8 @@ export const schema = {
         name: { type: 'string' },
         country: { type: 'string' },
         accessCode: { type: 'string' },
+        formVersion: { type: ['string', 'null'] },
+        config: { type: ['object', 'null'], additionalProperties: true },
       },
     },
   },
@@ -35,7 +37,9 @@ export async function getProgramDetails(
       return reply.code(404).send({ error: 'Program not found' });
     }
 
-    return reply.code(200).send(formatProgramResponse(program, { includeAccessCode: true }));
+    return reply.code(200).send(
+      formatProgramResponse(program, { includeAccessCode: true, includeConfig: true })
+    );
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Internal Server Error' });

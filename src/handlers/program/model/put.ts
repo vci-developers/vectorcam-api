@@ -7,7 +7,7 @@ import { uploadFileStream, deleteFile } from '../../../services/s3.service';
 import {
   buildProgramModelS3Key,
   ensureProgramExists,
-  findProgramModelByVersion,
+  findProgramModelByModelId,
   isValidTfliteUpload,
   MAX_MODEL_FILE_SIZE_BYTES,
   parseModelClassesField,
@@ -19,14 +19,14 @@ import {
 
 export const schema = {
   tags: ['Program Models'],
-  description: 'Update model classes and optionally replace the model file for a version',
+  description: 'Update model classes and optionally replace the model file for a modelId',
   params: {
     type: 'object',
     properties: {
       program_id: { type: 'string' },
-      version: { type: 'string' },
+      model_id: { type: 'string' },
     },
-    required: ['program_id', 'version'],
+    required: ['program_id', 'model_id'],
   },
   body: {
     type: 'object',
@@ -54,7 +54,7 @@ interface UpdateFields {
 
 export async function updateProgramModel(
   request: FastifyRequest<{
-    Params: { program_id: string; version: string };
+    Params: { program_id: string; model_id: string };
     Body: { modelClasses?: string[] };
   }>,
   reply: FastifyReply
@@ -70,9 +70,9 @@ export async function updateProgramModel(
       return reply.code(404).send({ error: 'Program not found' });
     }
 
-    const programModel = await findProgramModelByVersion(programId, request.params.version);
+    const programModel = await findProgramModelByModelId(programId, request.params.model_id);
     if (!programModel) {
-      return reply.code(404).send({ error: 'Model version not found' });
+      return reply.code(404).send({ error: 'Model not found' });
     }
 
     let modelClasses: string[] | undefined;
@@ -136,7 +136,7 @@ export async function updateProgramModel(
         return reply.code(400).send({ error: 'Model file exceeds the 100MB size limit' });
       }
 
-      newS3Key = `${buildProgramModelS3Key(programId, programModel.version)}.${Date.now()}.tmp`;
+      newS3Key = `${buildProgramModelS3Key(programId, programModel.modelId)}.${Date.now()}.tmp`;
     }
 
     const transaction = await sequelize.transaction();

@@ -1,12 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findProgramById, formatProgramResponse } from './common';
-import { Form, ProgramModel } from '../../db/models';
+import { Form } from '../../db/models';
+import { validateProgramConfig } from './model/common';
 
 interface UpdateProgramRequest {
   name?: string;
   country?: string;
   formVersion?: string | null;
-  modelVersion?: string | null;
+  config?: Record<string, unknown> | null;
 }
 
 export const schema = {
@@ -24,7 +25,7 @@ export const schema = {
       name: { type: 'string' },
       country: { type: 'string' },
       formVersion: { type: ['string', 'null'] },
-      modelVersion: { type: ['string', 'null'] },
+      config: { type: ['object', 'null'], additionalProperties: true },
     },
   },
   response: {
@@ -40,7 +41,7 @@ export const schema = {
             country: { type: 'string' },
             accessCode: { type: 'string' },
             formVersion: { type: ['string', 'null'] },
-            modelVersion: { type: ['string', 'null'] },
+            config: { type: ['object', 'null'], additionalProperties: true },
           },
         },
       },
@@ -57,7 +58,7 @@ export async function updateProgram(
 ) {
   try {
     const { program_id } = request.params;
-    const { name, country, formVersion, modelVersion } = request.body;
+    const { name, country, formVersion, config: programConfig } = request.body;
 
     const program = await findProgramById(program_id);
     if (!program) {
@@ -79,18 +80,10 @@ export async function updateProgram(
       }
     }
 
-    if (modelVersion !== undefined) {
-      if (modelVersion === '') {
-        return reply.code(400).send({ error: 'modelVersion cannot be empty string' });
-      }
-
-      if (modelVersion !== null) {
-        const model = await ProgramModel.findOne({
-          where: { programId: program.id, version: modelVersion },
-        });
-        if (!model) {
-          return reply.code(400).send({ error: 'modelVersion must point to an existing model version' });
-        }
+    if (programConfig !== undefined) {
+      const validatedConfig = validateProgramConfig(programConfig);
+      if (validatedConfig === 'invalid') {
+        return reply.code(400).send({ error: 'config must be a JSON object or null' });
       }
     }
 
@@ -98,19 +91,15 @@ export async function updateProgram(
       name: name !== undefined ? name : program.name,
       country: country !== undefined ? country : program.country,
       formVersion: formVersion !== undefined ? formVersion : program.formVersion,
-      modelVersion: modelVersion !== undefined ? modelVersion : program.modelVersion,
+      config: programConfig !== undefined ? programConfig : program.config,
     });
 
     return reply.code(200).send({
       message: 'Program updated successfully',
-      program: {
-        ...formatProgramResponse(program, { includeAccessCode: true }),
-        formVersion: program.formVersion,
-        modelVersion: program.modelVersion,
-      },
+      program: formatProgramResponse(program, { includeAccessCode: true, includeConfig: true }),
     });
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Internal Server Error' });
   }
-} 
+}

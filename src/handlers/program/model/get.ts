@@ -1,21 +1,21 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import {
   ensureProgramExists,
-  findProgramModelByVersion,
+  findProgramModelByModelId,
   programModelResponseSchema,
   serializeProgramModelResponse,
 } from './common';
 
 export const schema = {
   tags: ['Program Models'],
-  description: 'Get ML model metadata for a specific version',
+  description: 'Get ML model metadata for a specific modelId',
   params: {
     type: 'object',
     properties: {
       program_id: { type: 'string' },
-      version: { type: 'string' },
+      model_id: { type: 'string' },
     },
-    required: ['program_id', 'version'],
+    required: ['program_id', 'model_id'],
   },
   response: {
     200: programModelResponseSchema,
@@ -23,7 +23,7 @@ export const schema = {
 };
 
 export async function getProgramModel(
-  request: FastifyRequest<{ Params: { program_id: string; version: string } }>,
+  request: FastifyRequest<{ Params: { program_id: string; model_id: string } }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
@@ -37,9 +37,9 @@ export async function getProgramModel(
       return reply.code(404).send({ error: 'Program not found' });
     }
 
-    const programModel = await findProgramModelByVersion(programId, request.params.version);
+    const programModel = await findProgramModelByModelId(programId, request.params.model_id);
     if (!programModel) {
-      return reply.code(404).send({ error: 'Model version not found' });
+      return reply.code(404).send({ error: 'Model not found' });
     }
 
     return reply.send(

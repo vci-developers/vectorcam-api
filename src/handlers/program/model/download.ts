@@ -3,26 +3,26 @@ import { getPresignedDownloadUrl } from '../../../services/s3.service';
 import { config } from '../../../config/environment';
 import {
   ensureProgramExists,
-  findProgramModelByVersion,
-  resolveCurrentProgramModel,
+  findProgramModelByModelId,
   TFLITE_CONTENT_TYPE,
 } from './common';
 
 export const schema = {
   tags: ['Program Models'],
   description:
-    'Download the current ML model file for a program. Returns HTTP 302 redirect to a presigned S3 URL (supports byte-range resume on the S3 URL).',
+    'Download an ML model file for a program by modelId. Returns HTTP 302 redirect to a presigned S3 URL (supports byte-range resume on the S3 URL).',
   params: {
     type: 'object',
     properties: {
       program_id: { type: 'string' },
+      model_id: { type: 'string' },
     },
-    required: ['program_id'],
+    required: ['program_id', 'model_id'],
   },
 };
 
-export async function downloadProgramModelCurrent(
-  request: FastifyRequest<{ Params: { program_id: string } }>,
+export async function downloadProgramModel(
+  request: FastifyRequest<{ Params: { program_id: string; model_id: string } }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
@@ -36,53 +36,12 @@ export async function downloadProgramModelCurrent(
       return reply.code(404).send({ error: 'Program not found' });
     }
 
-    const programModel = await resolveCurrentProgramModel(programId);
+    const programModel = await findProgramModelByModelId(programId, request.params.model_id);
     if (!programModel) {
-      return reply.code(404).send({ error: 'No model found for this program' });
+      return reply.code(404).send({ error: 'Model not found' });
     }
 
-    return redirectToProgramModelFile(request, reply, programModel.s3Key, programModel.version);
-  } catch (error) {
-    request.log.error(error);
-    return reply.code(500).send({ error: 'Failed to download program model' });
-  }
-}
-
-export const versionDownloadSchema = {
-  tags: ['Program Models'],
-  description:
-    'Download a specific ML model version for a program. Returns HTTP 302 redirect to a presigned S3 URL (supports byte-range resume on the S3 URL).',
-  params: {
-    type: 'object',
-    properties: {
-      program_id: { type: 'string' },
-      version: { type: 'string' },
-    },
-    required: ['program_id', 'version'],
-  },
-};
-
-export async function downloadProgramModelVersion(
-  request: FastifyRequest<{ Params: { program_id: string; version: string } }>,
-  reply: FastifyReply
-): Promise<void> {
-  try {
-    const programId = parseInt(request.params.program_id, 10);
-    if (isNaN(programId)) {
-      return reply.code(400).send({ error: 'Invalid program id' });
-    }
-
-    const program = await ensureProgramExists(programId);
-    if (!program) {
-      return reply.code(404).send({ error: 'Program not found' });
-    }
-
-    const programModel = await findProgramModelByVersion(programId, request.params.version);
-    if (!programModel) {
-      return reply.code(404).send({ error: 'Model version not found' });
-    }
-
-    return redirectToProgramModelFile(request, reply, programModel.s3Key, programModel.version);
+    return redirectToProgramModelFile(request, reply, programModel.s3Key, programModel.modelId);
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to download program model' });
@@ -93,10 +52,10 @@ async function redirectToProgramModelFile(
   request: FastifyRequest,
   reply: FastifyReply,
   s3Key: string,
-  version: string
+  modelId: string
 ): Promise<void> {
   try {
-    const filename = `${version}.tflite`;
+    const filename = `${modelId}.tflite`;
     const presignedUrl = await getPresignedDownloadUrl(
       s3Key,
       config.signedUrl.modelExpiresInSeconds,

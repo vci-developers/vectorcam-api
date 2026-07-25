@@ -8,7 +8,7 @@ import {
 
 export const schema = {
   tags: ['Program Models'],
-  description: 'List all ML model versions for a program',
+  description: 'List all ML models for a program',
   params: {
     type: 'object',
     properties: {

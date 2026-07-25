@@ -5,7 +5,7 @@ import Program from './Program';
 class ProgramModel extends Model {
   declare id: number;
   declare programId: number;
-  declare version: string;
+  declare modelId: string;
   declare s3Key: string;
   declare modelClasses: string[];
   declare fileSize: number;
@@ -30,9 +30,10 @@ ProgramModel.init(
       },
       field: 'program_id',
     },
-    version: {
+    modelId: {
       type: DataTypes.STRING(64),
       allowNull: false,
+      field: 'model_id',
     },
     s3Key: {
       type: DataTypes.STRING(512),
@@ -64,7 +65,7 @@ ProgramModel.init(
     indexes: [
       {
         unique: true,
-        fields: ['program_id', 'version'],
+        fields: ['program_id', 'model_id'],
       },
     ],
   }

@@ -8,9 +8,14 @@ export interface ProgramResponse {
   name: string;
   country: string;
   accessCode?: string;
+  formVersion?: string | null;
+  config?: Record<string, unknown> | null;
 }
 
-export function formatProgramResponse(program: Program, options: { includeAccessCode?: boolean } = {}): ProgramResponse {
+export function formatProgramResponse(
+  program: Program,
+  options: { includeAccessCode?: boolean; includeConfig?: boolean } = {}
+): ProgramResponse {
   const response: ProgramResponse = {
     programId: program.id,
     name: program.name,
@@ -19,6 +24,11 @@ export function formatProgramResponse(program: Program, options: { includeAccess
 
   if (options.includeAccessCode) {
     response.accessCode = program.accessCode;
+  }
+
+  if (options.includeConfig) {
+    response.formVersion = program.formVersion;
+    response.config = program.config;
   }
 
   return response;
