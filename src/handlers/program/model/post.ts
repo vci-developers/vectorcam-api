@@ -64,16 +64,16 @@ export async function uploadProgramModel(
     }
 
     const fields: UploadFields = {};
-    let filePart: {
-      filename: string;
-      mimetype: string;
-      toBuffer: () => Promise<Buffer>;
-    } | null = null;
+    let fileBuffer: Buffer | null = null;
+    let fileMeta: { filename: string; mimetype: string } | null = null;
 
     for await (const part of request.parts()) {
       if (part.type === 'file') {
         if (part.fieldname === 'file') {
-          filePart = part;
+          // Must consume the file stream inside the loop; deferring toBuffer()
+          // blocks the parser from reading subsequent multipart fields.
+          fileBuffer = await part.toBuffer();
+          fileMeta = { filename: part.filename, mimetype: part.mimetype };
         } else {
           part.file.resume();
         }
@@ -87,7 +87,7 @@ export async function uploadProgramModel(
       }
     }
 
-    if (!filePart) {
+    if (!fileBuffer || !fileMeta) {
       return reply.code(400).send({ error: 'No model file provided' });
     }
 
@@ -106,11 +106,10 @@ export async function uploadProgramModel(
       return reply.code(400).send({ error: 'modelClasses must be a JSON array of non-empty strings' });
     }
 
-    if (!isValidTfliteUpload(filePart.filename, filePart.mimetype)) {
+    if (!isValidTfliteUpload(fileMeta.filename, fileMeta.mimetype)) {
       return reply.code(400).send({ error: 'Only .tflite model files are allowed' });
     }
 
-    const fileBuffer = await filePart.toBuffer();
     if (fileBuffer.length === 0) {
       return reply.code(400).send({ error: 'Model file is empty' });
     }

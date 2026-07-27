@@ -76,11 +76,8 @@ export async function updateProgramModel(
     }
 
     let modelClasses: string[] | undefined;
-    let filePart: {
-      filename: string;
-      mimetype: string;
-      toBuffer: () => Promise<Buffer>;
-    } | null = null;
+    let fileBuffer: Buffer | null = null;
+    let fileMeta: { filename: string; mimetype: string } | null = null;
 
     if (request.isMultipart()) {
       const fields: UpdateFields = {};
@@ -88,7 +85,8 @@ export async function updateProgramModel(
       for await (const part of request.parts()) {
         if (part.type === 'file') {
           if (part.fieldname === 'file') {
-            filePart = part;
+            fileBuffer = await part.toBuffer();
+            fileMeta = { filename: part.filename, mimetype: part.mimetype };
           } else {
             part.file.resume();
           }
@@ -115,20 +113,18 @@ export async function updateProgramModel(
       modelClasses = parsed;
     }
 
-    if (!modelClasses && !filePart) {
+    if (!modelClasses && !fileBuffer) {
       return reply.code(400).send({ error: 'Provide modelClasses and/or a replacement model file' });
     }
 
-    let fileBuffer: Buffer | null = null;
     let newS3Key: string | null = null;
     const oldS3Key = programModel.s3Key;
 
-    if (filePart) {
-      if (!isValidTfliteUpload(filePart.filename, filePart.mimetype)) {
+    if (fileBuffer && fileMeta) {
+      if (!isValidTfliteUpload(fileMeta.filename, fileMeta.mimetype)) {
         return reply.code(400).send({ error: 'Only .tflite model files are allowed' });
       }
 
-      fileBuffer = await filePart.toBuffer();
       if (fileBuffer.length === 0) {
         return reply.code(400).send({ error: 'Model file is empty' });
       }
