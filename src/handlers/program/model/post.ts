@@ -10,6 +10,7 @@ import {
   isValidTfliteUpload,
   MAX_MODEL_FILE_SIZE_BYTES,
   modelIdAlreadyExists,
+  normalizeUploadFilename,
   parseModelClassesField,
   programModelResponseSchema,
   serializeProgramModelResponse,
@@ -123,6 +124,7 @@ export async function uploadProgramModel(
 
     const fileMd5 = createHash('md5').update(fileBuffer).digest('hex');
     const s3Key = buildProgramModelS3Key(programId, modelId);
+    const filename = normalizeUploadFilename(fileMeta.filename, modelId);
 
     const transaction = await sequelize.transaction();
     try {
@@ -132,6 +134,7 @@ export async function uploadProgramModel(
         {
           programId,
           modelId,
+          filename,
           s3Key,
           modelClasses,
           fileSize: fileBuffer.length,

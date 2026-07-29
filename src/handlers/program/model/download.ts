@@ -4,6 +4,7 @@ import { config } from '../../../config/environment';
 import {
   ensureProgramExists,
   findProgramModelByModelId,
+  formatContentDispositionFilename,
   TFLITE_CONTENT_TYPE,
 } from './common';
 
@@ -41,7 +42,12 @@ export async function downloadProgramModel(
       return reply.code(404).send({ error: 'Model not found' });
     }
 
-    return redirectToProgramModelFile(request, reply, programModel.s3Key, programModel.modelId);
+    return redirectToProgramModelFile(
+      request,
+      reply,
+      programModel.s3Key,
+      programModel.filename || `${programModel.modelId}.tflite`
+    );
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to download program model' });
@@ -52,15 +58,14 @@ async function redirectToProgramModelFile(
   request: FastifyRequest,
   reply: FastifyReply,
   s3Key: string,
-  modelId: string
+  filename: string
 ): Promise<void> {
   try {
-    const filename = `${modelId}.tflite`;
     const presignedUrl = await getPresignedDownloadUrl(
       s3Key,
       config.signedUrl.modelExpiresInSeconds,
       {
-        responseContentDisposition: `attachment; filename="${filename}"`,
+        responseContentDisposition: formatContentDispositionFilename(filename),
         responseContentType: TFLITE_CONTENT_TYPE,
       }
     );

@@ -11,6 +11,7 @@ export const programModelResponseSchema = {
     id: { type: 'number' },
     programId: { type: 'number' },
     modelId: { type: 'string' },
+    filename: { type: 'string' },
     modelClasses: {
       type: 'array',
       items: { type: 'string' },
@@ -26,6 +27,19 @@ export const programModelResponseSchema = {
 export function buildProgramModelS3Key(programId: number, modelId: string): string {
   const sanitizedModelId = modelId.replace(/[^a-zA-Z0-9._-]/g, '_');
   return `programs/${programId}/models/${sanitizedModelId}.tflite`;
+}
+
+export function normalizeUploadFilename(filename: string | undefined, modelId: string): string {
+  const trimmed = (filename || '').trim();
+  if (trimmed) {
+    return trimmed.slice(0, 255);
+  }
+  return `${modelId}.tflite`;
+}
+
+export function formatContentDispositionFilename(filename: string): string {
+  const sanitized = filename.replace(/[\r\n"]/g, '_');
+  return `attachment; filename="${sanitized}"`;
 }
 
 export function validateModelClasses(value: unknown): string[] | null {
@@ -61,6 +75,7 @@ export function serializeProgramModelResponse(
     id: programModel.id,
     programId: programModel.programId,
     modelId: programModel.modelId,
+    filename: programModel.filename,
     modelClasses: programModel.modelClasses,
     fileSize: programModel.fileSize,
     fileMd5: programModel.fileMd5,

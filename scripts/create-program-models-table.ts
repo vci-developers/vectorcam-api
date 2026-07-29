@@ -47,6 +47,10 @@ async function createProgramModelsTable() {
           type: DataTypes.STRING(64),
           allowNull: false,
         },
+        filename: {
+          type: DataTypes.STRING(255),
+          allowNull: false,
+        },
         s3_key: {
           type: DataTypes.STRING(512),
           allowNull: false,

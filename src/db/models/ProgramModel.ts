@@ -6,6 +6,7 @@ class ProgramModel extends Model {
   declare id: number;
   declare programId: number;
   declare modelId: string;
+  declare filename: string;
   declare s3Key: string;
   declare modelClasses: string[];
   declare fileSize: number;
@@ -34,6 +35,10 @@ ProgramModel.init(
       type: DataTypes.STRING(64),
       allowNull: false,
       field: 'model_id',
+    },
+    filename: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     s3Key: {
       type: DataTypes.STRING(512),

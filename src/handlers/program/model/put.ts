@@ -10,6 +10,7 @@ import {
   findProgramModelByModelId,
   isValidTfliteUpload,
   MAX_MODEL_FILE_SIZE_BYTES,
+  normalizeUploadFilename,
   parseModelClassesField,
   programModelResponseSchema,
   serializeProgramModelResponse,
@@ -148,6 +149,7 @@ export async function updateProgramModel(
         updates.s3Key = newS3Key;
         updates.fileSize = fileBuffer.length;
         updates.fileMd5 = createHash('md5').update(fileBuffer).digest('hex');
+        updates.filename = normalizeUploadFilename(fileMeta!.filename, programModel.modelId);
       }
 
       await programModel.update(updates, { transaction });
