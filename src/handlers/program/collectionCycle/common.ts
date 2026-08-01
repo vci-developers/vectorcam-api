@@ -46,8 +46,9 @@ export interface CreateManualCycleBody {
 }
 
 export interface GetCollectionCyclesQuery {
-  startDate: number | string;
-  endDate: number | string;
+  id?: number;
+  startDate?: number | string;
+  endDate?: number | string;
 }
 
 export const collectionScheduleResponseSchema = {

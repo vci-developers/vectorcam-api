@@ -11,7 +11,7 @@ import {
 
 export const schema = {
   tags: ['Collection Cycles'],
-  description: 'Get collection cycles for a bounded date range',
+  description: 'Get collection cycles by ID or for a bounded date range',
   params: {
     type: 'object',
     required: ['program_id'],
@@ -21,8 +21,8 @@ export const schema = {
   },
   querystring: {
     type: 'object',
-    required: ['startDate', 'endDate'],
     properties: {
+      id: { type: 'number' },
       startDate: {
         anyOf: [
           { type: 'number' },
@@ -36,6 +36,10 @@ export const schema = {
         ],
       },
     },
+    anyOf: [
+      { required: ['id'] },
+      { required: ['startDate', 'endDate'] },
+    ],
   },
   response: {
     200: {
@@ -55,19 +59,27 @@ export async function getCollectionCycleList(
   reply: FastifyReply
 ) {
   try {
-    const fromDate = parseDate(request.query.startDate);
-    const toDate = parseDate(request.query.endDate);
+    const { id, startDate, endDate } = request.query;
+    const where: Record<string | symbol, unknown> = {
+      programId: request.params.program_id,
+    };
 
-    if (fromDate >= toDate) {
-      throw new Error('fromDate must be before toDate');
+    if (id !== undefined) {
+      where.id = id;
+    } else {
+      const fromDate = parseDate(startDate!);
+      const toDate = parseDate(endDate!);
+
+      if (fromDate >= toDate) {
+        throw new Error('startDate must be before endDate');
+      }
+
+      where.startDate = { [Op.lt]: toDate };
+      where.endDate = { [Op.gt]: fromDate };
     }
 
     const cycles = await CollectionCycle.findAll({
-      where: {
-        programId: request.params.program_id,
-        startDate: { [Op.lt]: toDate },
-        endDate: { [Op.gt]: fromDate },
-      },
+      where,
       order: [['startDate', 'ASC'], ['cycleNumber', 'ASC']],
     });
 

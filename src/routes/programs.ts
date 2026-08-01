@@ -34,6 +34,7 @@ import {
 } from '../handlers/program/collectionSchedule';
 import {
   createCollectionCycle,
+  getCollectionCycle,
   getCollectionCycleList,
 } from '../handlers/program/collectionCycle';
 import { getUnassignedProgramSessions } from '../handlers/program/sessions';
@@ -48,6 +49,7 @@ import { schema as createCollectionScheduleSchema } from '../handlers/program/co
 import { schema as changeCollectionScheduleSchema } from '../handlers/program/collectionSchedule/change';
 import { schema as getCollectionScheduleListSchema } from '../handlers/program/collectionSchedule/getList';
 import { schema as createCollectionCycleSchema } from '../handlers/program/collectionCycle/post';
+import { schema as getCollectionCycleSchema } from '../handlers/program/collectionCycle/get';
 import { schema as getCollectionCycleListSchema } from '../handlers/program/collectionCycle/getList';
 import { schema as getUnassignedProgramSessionsSchema } from '../handlers/program/sessions/getUnassigned';
 import { schema as getProgramFormListSchema } from '../handlers/program/form/getList';
@@ -120,6 +122,11 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireAnyWhitelistedAuth],
     schema: getCollectionCycleListSchema,
   }, getCollectionCycleList as any);
+
+  fastify.get('/:program_id/collection-cycles/:cycle_id', {
+    preHandler: [requireAnyWhitelistedAuth],
+    schema: getCollectionCycleSchema,
+  }, getCollectionCycle as any);
 
   fastify.post('/:program_id/collection-cycles', {
     preHandler: [requireAdminAuth],
