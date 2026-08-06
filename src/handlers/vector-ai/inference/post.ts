@@ -16,40 +16,12 @@ export interface JsonInferenceRequest {
   confidence?: number;
 }
 
-const detectionSchema = {
-  type: 'object',
-  properties: {
-    box: {
-      type: 'object',
-      properties: {
-        x1: { type: 'number' },
-        y1: { type: 'number' },
-        x2: { type: 'number' },
-        y2: { type: 'number' },
-      },
-    },
-    yolo_label: { type: 'string' },
-    yolo_class_id: { type: 'integer' },
-    yolo_score: { type: 'number' },
-    tiny_cnn: {
-      type: 'object',
-      properties: {
-        label: { type: 'string' },
-        score: { type: 'number' },
-        probabilities: {
-          type: 'array',
-          items: { type: 'number' },
-        },
-      },
-    },
-  },
-};
-
 export const schema = {
   tags: ['Vector AI'],
   description:
-    'Run YOLO + tiny-CNN inference via the vector-ai-inference SageMaker endpoint. ' +
-    'Send JSON with a base64 image (optional confidence) or raw image bytes with an image/* Content-Type.',
+    'Transparent proxy to the vector-ai-inference SageMaker endpoint. ' +
+    'Send JSON with a base64 image (optional confidence) or raw image bytes with an image/* Content-Type. ' +
+    'The upstream response body is returned as-is.',
   consumes: [
     'application/json',
     'image/jpeg',
@@ -57,40 +29,6 @@ export const schema = {
     'image/webp',
     'application/octet-stream',
   ],
-  response: {
-    200: {
-      type: 'object',
-      properties: {
-        model: { type: 'string' },
-        image_size: {
-          type: 'array',
-          items: { type: 'integer' },
-        },
-        detections: {
-          type: 'array',
-          items: detectionSchema,
-        },
-      },
-    },
-    400: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-    415: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-    503: {
-      type: 'object',
-      properties: {
-        error: { type: 'string' },
-      },
-    },
-  },
 };
 
 function parseContentType(contentTypeHeader: string | undefined): string {

@@ -48,9 +48,14 @@ describe('invokeInference', () => {
     mockInvoke.mockResolvedValue({
       statusCode: 200,
       body: {
-        model: 'yolov8n+tiny-cnn-poc',
-        image_size: [100, 100],
-        detections: [],
+        status: 'success',
+        bounding_box: [10, 20, 30, 40],
+        detection_confidence: 0.79,
+        predicted_class: 'Anopheles funestus',
+        confidence: 0.89,
+        agreement: 10,
+        committee_size: 10,
+        probabilities: { 'Anopheles funestus': 0.89 },
       },
     });
 
@@ -72,9 +77,14 @@ describe('invokeInference', () => {
     });
     expect(reply.code).toHaveBeenCalledWith(200);
     expect(reply.send).toHaveBeenCalledWith({
-      model: 'yolov8n+tiny-cnn-poc',
-      image_size: [100, 100],
-      detections: [],
+      status: 'success',
+      bounding_box: [10, 20, 30, 40],
+      detection_confidence: 0.79,
+      predicted_class: 'Anopheles funestus',
+      confidence: 0.89,
+      agreement: 10,
+      committee_size: 10,
+      probabilities: { 'Anopheles funestus': 0.89 },
     });
   });
 
@@ -96,7 +106,16 @@ describe('invokeInference', () => {
   it('forwards binary image requests', async () => {
     mockInvoke.mockResolvedValue({
       statusCode: 200,
-      body: { model: 'yolov8n+tiny-cnn-poc', image_size: [10, 10], detections: [] },
+      body: {
+        status: 'success',
+        bounding_box: [1, 2, 3, 4],
+        detection_confidence: 0.5,
+        predicted_class: 'Culex',
+        confidence: 0.6,
+        agreement: 8,
+        committee_size: 10,
+        probabilities: { Culex: 0.6 },
+      },
     });
 
     const reply = createReply();
