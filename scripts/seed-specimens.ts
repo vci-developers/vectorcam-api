@@ -75,7 +75,7 @@ const SPECIES_OPTIONS = [
 ];
 
 const SEX_OPTIONS = ['Male', 'Female'];
-const ABDOMEN_STATUS_OPTIONS = ['Unfed', 'Full fed', 'Gravid'];
+const ABDOMEN_STATUS_OPTIONS = ['Unfed', 'Fully fed', 'Gravid'];
 
 // Surveillance form data options - fixed values
 const LLIN_TYPE = 'Pyrethroid + PBO';

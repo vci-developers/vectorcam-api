@@ -191,7 +191,7 @@ export async function getMetrics(
     const fedAnophelesQuery = `
       SELECT 
         COUNT(DISTINCT CASE 
-          WHEN si.abdomen_status IN ('Full fed') 
+          WHEN si.abdomen_status IN ('Fully fed') 
             AND si.species LIKE '%anopheles%'
           THEN sp.id 
         END) as totalFedAnopheles

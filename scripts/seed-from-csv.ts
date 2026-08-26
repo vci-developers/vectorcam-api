@@ -14,7 +14,7 @@
  * - Creates specimens matching EXACT counts from CSV:
  *   * Species: Anopheles gambiae, Anopheles funestus, Anopheles other, Culex, Aedes, Mansonia
  *   * Sex: Male (no abdomen status) or Female (with abdomen status)
- *   * Abdomen Status: Unfed (UF), Full fed (F), Gravid (G)
+ *   * Abdomen Status: Unfed (UF), Fully fed (F), Gravid (G)
  * - Maps CSV columns to specimen attributes:
  *   * anGambiaeUF → Anopheles gambiae, Female, Unfed
  *   * AnGambiaeMale → Anopheles gambiae, Male, null
@@ -316,9 +316,9 @@ function parseSpecimensFromCSVRow(csvRow: CSVRow): SpecimenAttributes[] {
     specimens.push({ species: 'Anopheles gambiae', sex: 'Female', abdomenStatus: 'Unfed' });
   }
   
-  // Anopheles gambiae - Full fed females
+  // Anopheles gambiae - Fully fed females
   for (let i = 0; i < csvRow.anGambiaeF; i++) {
-    specimens.push({ species: 'Anopheles gambiae', sex: 'Female', abdomenStatus: 'Full fed' });
+    specimens.push({ species: 'Anopheles gambiae', sex: 'Female', abdomenStatus: 'Fully fed' });
   }
   
   // Anopheles gambiae - Gravid females
@@ -336,9 +336,9 @@ function parseSpecimensFromCSVRow(csvRow: CSVRow): SpecimenAttributes[] {
     specimens.push({ species: 'Anopheles funestus', sex: 'Female', abdomenStatus: 'Unfed' });
   }
   
-  // Anopheles funestus - Full fed females
+  // Anopheles funestus - Fully fed females
   for (let i = 0; i < csvRow.anFunestusF; i++) {
-    specimens.push({ species: 'Anopheles funestus', sex: 'Female', abdomenStatus: 'Full fed' });
+    specimens.push({ species: 'Anopheles funestus', sex: 'Female', abdomenStatus: 'Fully fed' });
   }
   
   // Anopheles funestus - Gravid females
@@ -356,9 +356,9 @@ function parseSpecimensFromCSVRow(csvRow: CSVRow): SpecimenAttributes[] {
     specimens.push({ species: 'Anopheles other', sex: 'Female', abdomenStatus: 'Unfed' });
   }
   
-  // Anopheles other - Full fed females
+  // Anopheles other - Fully fed females
   for (let i = 0; i < csvRow.anOtherF; i++) {
-    specimens.push({ species: 'Anopheles other', sex: 'Female', abdomenStatus: 'Full fed' });
+    specimens.push({ species: 'Anopheles other', sex: 'Female', abdomenStatus: 'Fully fed' });
   }
   
   // Anopheles other - Gravid females
@@ -376,9 +376,9 @@ function parseSpecimensFromCSVRow(csvRow: CSVRow): SpecimenAttributes[] {
     specimens.push({ species: 'Culex', sex: 'Female', abdomenStatus: 'Unfed' });
   }
   
-  // Culex - Full fed females
+  // Culex - Fully fed females
   for (let i = 0; i < csvRow.CulexF; i++) {
-    specimens.push({ species: 'Culex', sex: 'Female', abdomenStatus: 'Full fed' });
+    specimens.push({ species: 'Culex', sex: 'Female', abdomenStatus: 'Fully fed' });
   }
   
   // Culex - Gravid females
@@ -396,9 +396,9 @@ function parseSpecimensFromCSVRow(csvRow: CSVRow): SpecimenAttributes[] {
     specimens.push({ species: 'Aedes', sex: 'Female', abdomenStatus: 'Unfed' });
   }
   
-  // Aedes - Full fed females
+  // Aedes - Fully fed females
   for (let i = 0; i < csvRow.AedesF; i++) {
-    specimens.push({ species: 'Aedes', sex: 'Female', abdomenStatus: 'Full fed' });
+    specimens.push({ species: 'Aedes', sex: 'Female', abdomenStatus: 'Fully fed' });
   }
   
   // Aedes - Gravid females
@@ -416,9 +416,9 @@ function parseSpecimensFromCSVRow(csvRow: CSVRow): SpecimenAttributes[] {
     specimens.push({ species: 'Mansonia', sex: 'Female', abdomenStatus: 'Unfed' });
   }
   
-  // Mansonia - Full fed females
+  // Mansonia - Fully fed females
   for (let i = 0; i < csvRow.MansoniaF; i++) {
-    specimens.push({ species: 'Mansonia', sex: 'Female', abdomenStatus: 'Full fed' });
+    specimens.push({ species: 'Mansonia', sex: 'Female', abdomenStatus: 'Fully fed' });
   }
   
   // Mansonia - Gravid females
