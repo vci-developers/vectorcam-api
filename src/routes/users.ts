@@ -47,7 +47,7 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
   server.get('/', {
     preHandler: [requireAdminAuth],
     schema: getUsersSchema,
-  }, getUsersHandler);
+  }, getUsersHandler as any);
 
   // List active user metrics snapshots (requires admin token or developer user)
   server.get('/active-metrics', {

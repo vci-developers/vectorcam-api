@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { UserAuthEvent } from '../../db/models';
+import { User, UserAuthEvent } from '../../db/models';
 import { UserAuthEventType } from '../../db/models/UserAuthEvent';
 
 const authEventResponseSchema = {
@@ -25,6 +25,7 @@ export const getUserAuthEventsSchema: any = {
     type: 'object',
     properties: {
       userId: { type: 'number', description: 'Filter by user ID' },
+      programId: { type: 'number', description: 'Filter by program ID' },
       eventType: {
         type: 'string',
         enum: Object.values(UserAuthEventType),
@@ -68,6 +69,7 @@ export const getUserAuthEventsSchema: any = {
 
 interface QueryParams {
   userId?: number;
+  programId?: number;
   eventType?: UserAuthEventType;
   startDate?: string;
   endDate?: string;
@@ -110,6 +112,7 @@ export async function getUserAuthEventsHandler(
   try {
     const {
       userId,
+      programId,
       eventType,
       startDate,
       endDate,
@@ -131,7 +134,33 @@ export async function getUserAuthEventsHandler(
 
     const where: Record<string, unknown> = {};
 
-    if (userId !== undefined) {
+    if (programId !== undefined) {
+      const userWhere: Record<string, unknown> = { programId };
+      if (userId !== undefined) {
+        userWhere.id = userId;
+      }
+
+      const matchingUserIds = (
+        await User.findAll({
+          attributes: ['id'],
+          where: userWhere,
+          raw: true,
+        })
+      ).map((user) => user.id);
+
+      if (matchingUserIds.length === 0) {
+        return reply.code(200).send({
+          message: 'User auth events retrieved successfully',
+          events: [],
+          total: 0,
+          limit,
+          offset,
+          hasMore: false,
+        });
+      }
+
+      where.userId = { [Op.in]: matchingUserIds };
+    } else if (userId !== undefined) {
       where.userId = userId;
     }
 

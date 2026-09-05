@@ -58,6 +58,12 @@ export const getUsersSchema: any = {
     },
     required: ['authorization'],
   },
+  querystring: {
+    type: 'object',
+    properties: {
+      programId: { type: 'number', description: 'Filter by program ID' },
+    },
+  },
   response: {
     200: {
       type: 'object',
@@ -76,6 +82,7 @@ export const getUsersSchema: any = {
               programId: { type: 'number', nullable: true },
               isActive: { type: 'boolean' },
               emailVerified: { type: 'boolean' },
+              lastActiveAt: { type: ['string', 'null'] },
               createdAt: { type: 'string' },
               updatedAt: { type: 'string' },
             },
@@ -140,20 +147,63 @@ export async function getProfileHandler(request: FastifyRequest, reply: FastifyR
   }
 }
 
+interface GetUsersQueryParams {
+  programId?: number;
+}
+
+function formatUserListItem(user: User) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name ?? null,
+    privilege: user.privilege,
+    isDeveloper: user.isDeveloper,
+    programId: user.programId,
+    isActive: user.isActive,
+    emailVerified: user.emailVerified,
+    lastActiveAt: user.lastActiveAt?.toISOString() ?? null,
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+  };
+}
+
 /**
  * Get all users handler
  * Requires admin privileges
  */
-export async function getUsersHandler(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+export async function getUsersHandler(
+  request: FastifyRequest<{ Querystring: GetUsersQueryParams }>,
+  reply: FastifyReply
+): Promise<void> {
   try {
+    const { programId } = request.query;
+
+    const where: Record<string, unknown> = {};
+    if (programId !== undefined) {
+      where.programId = programId;
+    }
+
     const users = await User.findAll({
-      attributes: ['id', 'email', 'name', 'privilege', 'programId', 'isActive', 'emailVerified', 'createdAt', 'updatedAt'],
+      attributes: [
+        'id',
+        'email',
+        'name',
+        'privilege',
+        'isDeveloper',
+        'programId',
+        'isActive',
+        'emailVerified',
+        'lastActiveAt',
+        'createdAt',
+        'updatedAt',
+      ],
+      where,
       order: [['createdAt', 'DESC']],
     });
 
     return reply.code(200).send({
       message: 'Users retrieved successfully',
-      users,
+      users: users.map(formatUserListItem),
     });
   } catch (error) {
     request.log.error(error);
