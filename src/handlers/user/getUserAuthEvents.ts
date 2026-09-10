@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { User, UserAuthEvent } from '../../db/models';
 import { UserAuthEventType } from '../../db/models/UserAuthEvent';
+import { queryUserLoginActivity, userLoginActivitySchema } from './userLoginActivity';
 
 const authEventResponseSchema = {
   type: 'object',
@@ -42,6 +43,8 @@ export const getUserAuthEventsSchema: any = {
       type: 'object',
       properties: {
         message: { type: 'string' },
+        distinctUserCount: { type: 'number' },
+        users: userLoginActivitySchema,
         events: {
           type: 'array',
           items: authEventResponseSchema,
@@ -92,6 +95,13 @@ function getDateRange(startDate?: string, endDate?: string): { [Op.gte]?: Date; 
   };
 }
 
+function getActivityDateBounds(startDate: string, endDate: string): { startAt: Date; endAt: Date } {
+  return {
+    startAt: new Date(`${startDate}T00:00:00.000Z`),
+    endAt: new Date(`${endDate}T23:59:59.999Z`),
+  };
+}
+
 function formatAuthEvent(event: UserAuthEvent) {
   return {
     id: event.id,
@@ -102,6 +112,19 @@ function formatAuthEvent(event: UserAuthEvent) {
     metadata: event.metadata,
     createdAt: event.createdAt.toISOString(),
     updatedAt: event.updatedAt.toISOString(),
+  };
+}
+
+function buildEmptyResponse(limit: number, offset: number) {
+  return {
+    message: 'User auth events retrieved successfully',
+    distinctUserCount: 0,
+    users: [],
+    events: [],
+    total: 0,
+    limit,
+    offset,
+    hasMore: false,
   };
 }
 
@@ -149,14 +172,7 @@ export async function getUserAuthEventsHandler(
       ).map((user) => user.id);
 
       if (matchingUserIds.length === 0) {
-        return reply.code(200).send({
-          message: 'User auth events retrieved successfully',
-          events: [],
-          total: 0,
-          limit,
-          offset,
-          hasMore: false,
-        });
+        return reply.code(200).send(buildEmptyResponse(limit, offset));
       }
 
       where.userId = { [Op.in]: matchingUserIds };
@@ -173,15 +189,29 @@ export async function getUserAuthEventsHandler(
       where.createdAt = createdAtRange;
     }
 
-    const { rows, count } = await UserAuthEvent.findAndCountAll({
-      where,
-      order: [['createdAt', 'DESC']],
-      limit,
-      offset,
-    });
+    const includeLoginActivity = startDate !== undefined && endDate !== undefined;
+    const loginActivityPromise = includeLoginActivity
+      ? queryUserLoginActivity({
+          ...getActivityDateBounds(startDate, endDate),
+          programId,
+          userId,
+        })
+      : Promise.resolve([]);
+
+    const [{ rows, count }, users] = await Promise.all([
+      UserAuthEvent.findAndCountAll({
+        where,
+        order: [['createdAt', 'DESC']],
+        limit,
+        offset,
+      }),
+      loginActivityPromise,
+    ]);
 
     return reply.code(200).send({
       message: 'User auth events retrieved successfully',
+      distinctUserCount: users.length,
+      users,
       events: rows.map(formatAuthEvent),
       total: count,
       limit,
