@@ -41,7 +41,7 @@ export const schema = {
   tags: ['Annotations'],
   summary: 'Create annotation tasks for specimens in a collection cycle',
   description:
-    'Creates annotation tasks by assigning unassigned specimens from the given collection cycle to superadmins in the same program, with overlapping duplicate specimens and unique base specimens (requires admin token)',
+    'Creates annotation tasks by assigning unassigned specimens from the given collection cycle to superadmins in the same program, with overlapping duplicate specimens and unique base specimens per annotator (requires admin token)',
   body: {
     type: 'object',
     properties: {
@@ -50,7 +50,12 @@ export const schema = {
       programId: { type: 'number' },
       collectionCycleId: { type: 'number' },
       duplicates: { type: 'number', minimum: 0, default: 20 },
-      base: { type: 'number', minimum: 0, default: 50 },
+      base: {
+        type: 'number',
+        minimum: 0,
+        default: 50,
+        description: 'Unique base specimens per annotator (remaining pool split evenly if insufficient)',
+      },
     },
     required: ['programId', 'collectionCycleId'],
   },
@@ -239,14 +244,19 @@ export default async function createAnnotationTasks(
       });
     }
 
+    const annotatorCount = superAdminUsers.length;
     const shuffledSpecimens = shuffleArray(availableSpecimens);
     const duplicateCount = Math.min(duplicates, shuffledSpecimens.length);
     const duplicateSpecimens = shuffledSpecimens.slice(0, duplicateCount);
-    const baseSpecimens = shuffledSpecimens.slice(duplicateCount, duplicateCount + base);
+    const remainingAfterDuplicates = shuffledSpecimens.length - duplicateCount;
+    const baseTargetTotal = base * annotatorCount;
+    const baseTakeCount = Math.min(baseTargetTotal, remainingAfterDuplicates);
+    const baseSpecimens = shuffledSpecimens.slice(duplicateCount, duplicateCount + baseTakeCount);
 
     request.log.info(
       `Collection cycle ${collectionCycleId}: ${availableSpecimens.length} eligible specimens, ` +
-        `${duplicateSpecimens.length} duplicates, ${baseSpecimens.length} base`
+        `${duplicateSpecimens.length} duplicates, ${baseSpecimens.length} base ` +
+        `(requested ${base} per annotator × ${annotatorCount})`
     );
 
     const createdTasks: AnnotationTask[] = [];

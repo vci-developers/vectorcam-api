@@ -278,7 +278,8 @@ describe('createAnnotationTasks', () => {
     const users = Array.from({ length: 6 }, (_, index) => makeUser(index + 1));
     const specimenCount = 100;
     const duplicateCount = 20;
-    const baseCount = 50;
+    const basePerAnnotator = 50;
+    const baseSpecimensAssigned = specimenCount - duplicateCount;
 
     (User.findAll as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue(
@@ -293,7 +294,7 @@ describe('createAnnotationTasks', () => {
         programId: 1,
         collectionCycleId: 7,
         duplicates: duplicateCount,
-        base: baseCount,
+        base: basePerAnnotator,
       }) as any,
       reply as any
     );
@@ -304,8 +305,8 @@ describe('createAnnotationTasks', () => {
         tasksCreated: 6,
         specimensAvailable: specimenCount,
         duplicateSpecimensCount: duplicateCount,
-        baseSpecimensCount: baseCount,
-        totalSpecimensAssigned: duplicateCount * 3 + baseCount,
+        baseSpecimensCount: baseSpecimensAssigned,
+        totalSpecimensAssigned: duplicateCount * 3 + baseSpecimensAssigned,
       })
     );
 
@@ -329,9 +330,9 @@ describe('createAnnotationTasks', () => {
     const baseSpecimenIds = new Set(
       rows.filter((row) => row.specimenId > duplicateCount).map((row) => row.specimenId)
     );
-    expect(baseSpecimenIds.size).toBe(baseCount);
+    expect(baseSpecimenIds.size).toBe(baseSpecimensAssigned);
     expect([...baseSpecimenIds].sort((a, b) => a - b)).toEqual(
-      Array.from({ length: baseCount }, (_, index) => duplicateCount + index + 1)
+      Array.from({ length: baseSpecimensAssigned }, (_, index) => duplicateCount + index + 1)
     );
 
     for (const specimenId of baseSpecimenIds) {
@@ -344,8 +345,37 @@ describe('createAnnotationTasks', () => {
       return specimenIds.filter((id) => id > duplicateCount).length;
     });
     expect(baseCounts.sort((a, b) => a - b)).toEqual(
-      getExpectedBaseCounts(baseCount, users.length).sort((a, b) => a - b)
+      getExpectedBaseCounts(baseSpecimensAssigned, users.length).sort((a, b) => a - b)
     );
+  });
+
+  it('assigns base per annotator when enough specimens remain after duplicates', async () => {
+    setupSuccessfulLookup();
+    const users = [makeUser(1), makeUser(2)];
+    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (Specimen.findAll as jest.Mock).mockResolvedValue(
+      Array.from({ length: 10 }, (_, index) => makeSpecimen(index + 1))
+    );
+    mockTaskCreation(users);
+    (Annotation.bulkCreate as jest.Mock).mockResolvedValue([]);
+
+    const reply = createReply();
+    await createAnnotationTasks(
+      createRequest({ programId: 1, collectionCycleId: 7, duplicates: 2, base: 3 }) as any,
+      reply as any
+    );
+
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        duplicateSpecimensCount: 2,
+        baseSpecimensCount: 6,
+        totalSpecimensAssigned: 2 * 3 + 6,
+      })
+    );
+
+    const byUser = getAnnotationsByUser(Annotation.bulkCreate as jest.Mock);
+    expect(byUser.get(1)?.filter((id) => id > 2)).toHaveLength(3);
+    expect(byUser.get(2)?.filter((id) => id > 2)).toHaveLength(3);
   });
 
   it('uses all available specimens as duplicates first when not enough for duplicates and base', async () => {
