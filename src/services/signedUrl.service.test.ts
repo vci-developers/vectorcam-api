@@ -62,6 +62,21 @@ describe('signedUrl.service', () => {
     expect(verifySignedResourceUrl('/annotations/export', query)).toBe(false);
   });
 
+  it('signs and verifies user auth events report URLs', () => {
+    const signed = signResourceUrl('/users/auth-events/report', {
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      programId: '3',
+    });
+    const url = buildSignedUrl(signed.pathname, signed.query, signed.signature);
+
+    const parsed = new URL(url, 'http://localhost');
+    const query = Object.fromEntries(parsed.searchParams.entries());
+
+    expect(verifySignedResourceUrl('/users/auth-events/report', query)).toBe(true);
+    expect(verifySignedResourceUrl('/users/auth-events/report', { ...query, programId: '99' })).toBe(false);
+  });
+
   it('signs and verifies specimen image URLs with a longer expiry', () => {
     const signed = signResourceUrl('/specimens/42/images/abc-123', {});
     const url = buildSignedUrl(signed.pathname, signed.query, signed.signature);

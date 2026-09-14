@@ -22,6 +22,53 @@ export interface UserLoginActivity {
   dailyLogins: DailyLoginCount[];
 }
 
+export function isValidDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export function getActivityDateBounds(startDate: string, endDate: string): { startAt: Date; endAt: Date } {
+  return {
+    startAt: new Date(`${startDate}T00:00:00.000Z`),
+    endAt: new Date(`${endDate}T23:59:59.999Z`),
+  };
+}
+
+export function getDatesInRange(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const cursor = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+
+  while (cursor <= end) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return dates;
+}
+
+export function buildUniqueUsersSheetRows(users: UserLoginActivity[]): Array<Array<string | number>> {
+  const rows: Array<Array<string | number>> = [['Name', 'Email', 'Total Logins']];
+  for (const user of users) {
+    rows.push([user.name ?? '', user.email, user.totalLogins]);
+  }
+  return rows;
+}
+
+export function buildDailyLoginsSheetRows(
+  users: UserLoginActivity[],
+  dates: string[]
+): Array<Array<string | number>> {
+  const rows: Array<Array<string | number>> = [['Name', 'Email', ...dates, 'Total Logins']];
+
+  for (const user of users) {
+    const dailyByDate = new Map(user.dailyLogins.map((entry) => [entry.date, entry.count]));
+    const dayCounts = dates.map((date) => dailyByDate.get(date) ?? 0);
+    rows.push([user.name ?? '', user.email, ...dayCounts, user.totalLogins]);
+  }
+
+  return rows;
+}
+
 export const userLoginActivitySchema = {
   type: 'array',
   items: {

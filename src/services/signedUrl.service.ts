@@ -6,6 +6,7 @@ export const STATIC_SIGNABLE_RESOURCE_PATHS = [
   '/sessions/export/surveillance-forms/csv',
   '/sessions/export/forms/csv',
   '/sessions/report',
+  '/users/auth-events/report',
   '/specimens/export/csv',
   '/annotations/export',
 ] as const;

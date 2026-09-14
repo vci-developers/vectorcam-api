@@ -13,6 +13,7 @@ jest.mock('../../db/models', () => ({
 }));
 
 jest.mock('./userLoginActivity', () => ({
+  ...jest.requireActual('./userLoginActivity'),
   queryUserLoginActivity: jest.fn(),
 }));
 

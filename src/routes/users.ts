@@ -12,8 +12,10 @@ import {
   verifyEmailHandler, verifyEmailSchema,
   getActiveUserMetricsHandler, getActiveUserMetricsSchema,
   getUserAuthEventsHandler, getUserAuthEventsSchema,
+  exportUserAuthEventsReportHandler, exportUserAuthEventsReportSchema,
 } from '../handlers/user';
 import { requireAdminAuth, requireNonWhitelistedUserAuth, requireUserAuth } from '../middleware/auth.middleware';
+import { requireSignedResourceAuth } from '../middleware/signedUrl.middleware';
 
 /**
  * User management routes
@@ -54,6 +56,12 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
     preHandler: [requireAdminAuth],
     schema: getActiveUserMetricsSchema,
   }, getActiveUserMetricsHandler as any);
+
+  // Export user login activity report as XLSX (admin/developer/program-wide user or signed URL)
+  server.get('/auth-events/report', {
+    preHandler: [requireSignedResourceAuth],
+    schema: exportUserAuthEventsReportSchema,
+  }, exportUserAuthEventsReportHandler as any);
 
   // List user auth events (requires admin token or developer user)
   server.get('/auth-events', {

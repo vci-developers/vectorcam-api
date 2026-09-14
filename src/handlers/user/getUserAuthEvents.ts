@@ -2,7 +2,12 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { User, UserAuthEvent } from '../../db/models';
 import { UserAuthEventType } from '../../db/models/UserAuthEvent';
-import { queryUserLoginActivity, userLoginActivitySchema } from './userLoginActivity';
+import {
+  getActivityDateBounds,
+  isValidDateOnly,
+  queryUserLoginActivity,
+  userLoginActivitySchema,
+} from './userLoginActivity';
 
 const authEventResponseSchema = {
   type: 'object',
@@ -80,10 +85,6 @@ interface QueryParams {
   offset?: number;
 }
 
-function isValidDateOnly(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
 function getDateRange(startDate?: string, endDate?: string): { [Op.gte]?: Date; [Op.lte]?: Date } | undefined {
   if (!startDate && !endDate) {
     return undefined;
@@ -92,13 +93,6 @@ function getDateRange(startDate?: string, endDate?: string): { [Op.gte]?: Date; 
   return {
     ...(startDate ? { [Op.gte]: new Date(`${startDate}T00:00:00.000Z`) } : {}),
     ...(endDate ? { [Op.lte]: new Date(`${endDate}T23:59:59.999Z`) } : {}),
-  };
-}
-
-function getActivityDateBounds(startDate: string, endDate: string): { startAt: Date; endAt: Date } {
-  return {
-    startAt: new Date(`${startDate}T00:00:00.000Z`),
-    endAt: new Date(`${endDate}T23:59:59.999Z`),
   };
 }
 

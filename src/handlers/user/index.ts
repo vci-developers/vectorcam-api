@@ -33,3 +33,7 @@ export {
 export {
   getUserAuthEventsHandler, getUserAuthEventsSchema,
 } from './getUserAuthEvents';
+
+export {
+  exportUserAuthEventsReportHandler, exportUserAuthEventsReportSchema,
+} from './exportUserAuthEventsReport';
