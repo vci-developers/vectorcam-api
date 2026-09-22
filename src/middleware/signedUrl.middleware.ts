@@ -4,7 +4,7 @@ import {
   isSignablePath,
   verifySignedResourceUrl,
 } from '../services/signedUrl.service';
-import { requireAdminOrSuperAdminAuth, requireSuperAdmin } from './auth.middleware';
+import { requireAdminAuth, requireAdminOrSuperAdminAuth, requireSuperAdmin } from './auth.middleware';
 import { requireSiteReadAccess } from './siteAccess.middleware';
 import { requireSpecificSpecimenReadAccess } from './specimenAccess.middleware';
 
@@ -56,6 +56,13 @@ export async function requireSignedResourceAuth(
   if (authRequirement === 'annotation') {
     await new Promise<void>((resolve) => {
       requireSuperAdmin(request, reply, () => resolve());
+    });
+    return;
+  }
+
+  if (authRequirement === 'adminOrDeveloper') {
+    await new Promise<void>((resolve) => {
+      requireAdminAuth(request, reply, () => resolve());
     });
     return;
   }

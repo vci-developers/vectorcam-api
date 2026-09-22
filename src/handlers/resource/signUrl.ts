@@ -63,6 +63,12 @@ export interface SignResourceUrlRequest {
   };
 }
 
+function hasAdminOrDeveloperAccess(request: FastifyRequest): boolean {
+  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
+
+  return Boolean(request.isAdminToken || isDeveloperUser);
+}
+
 function hasAdminOrSuperAdminAccess(request: FastifyRequest): boolean {
   const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
   const isProgramWideUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
@@ -108,6 +114,10 @@ export async function signResourceUrlHandler(
   const authRequirement = getResourcePathAuthRequirement(parsedPath.pathname);
   if (!authRequirement) {
     return reply.code(400).send({ error: 'Path is not an allowed signable resource endpoint' });
+  }
+
+  if (authRequirement === 'adminOrDeveloper' && !hasAdminOrDeveloperAccess(request)) {
+    return reply.code(403).send({ error: 'Forbidden: Admin token or developer user authentication required' });
   }
 
   if (authRequirement === 'adminOrSuperAdmin' && !hasAdminOrSuperAdminAccess(request)) {

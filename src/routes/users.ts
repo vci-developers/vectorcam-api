@@ -57,7 +57,7 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
     schema: getActiveUserMetricsSchema,
   }, getActiveUserMetricsHandler as any);
 
-  // Export user login activity report as XLSX (admin/developer/program-wide user or signed URL)
+  // Export user login activity report as XLSX (admin token, developer user, or signed URL)
   server.get('/auth-events/report', {
     preHandler: [requireSignedResourceAuth],
     schema: exportUserAuthEventsReportSchema,

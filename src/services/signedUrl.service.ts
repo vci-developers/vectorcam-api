@@ -13,7 +13,12 @@ export const STATIC_SIGNABLE_RESOURCE_PATHS = [
 
 export type StaticSignableResourcePath = (typeof STATIC_SIGNABLE_RESOURCE_PATHS)[number];
 
-export type ResourcePathAuthRequirement = 'adminOrSuperAdmin' | 'siteRead' | 'annotation' | 'specimenRead';
+export type ResourcePathAuthRequirement =
+  | 'adminOrSuperAdmin'
+  | 'adminOrDeveloper'
+  | 'siteRead'
+  | 'annotation'
+  | 'specimenRead';
 
 const SIGNATURE_QUERY_PARAM = 'signature';
 const SPECIMEN_IMAGE_PATH_REGEX = /^\/specimens\/(\d+)\/images\/([^/]+)$/;
@@ -62,6 +67,10 @@ export function getResourcePathAuthRequirement(pathname: string): ResourcePathAu
 
   if (pathname === '/annotations/export') {
     return 'annotation';
+  }
+
+  if (pathname === '/users/auth-events/report') {
+    return 'adminOrDeveloper';
   }
 
   return 'adminOrSuperAdmin';
