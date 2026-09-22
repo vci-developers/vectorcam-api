@@ -34,6 +34,61 @@ export interface Event {
 
 interface DHIS2RequestOptions {
   signal?: AbortSignal;
+  bypassCache?: boolean;
+}
+
+function isDhis2ConflictDoesNotExistError(error: unknown, entityLabel: string): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message;
+  return (
+    (message.includes('409') || message.includes('Conflict')) &&
+    message.includes(entityLabel) &&
+    message.includes('does not exist')
+  );
+}
+
+export function isStaleTrackedEntityInstanceError(error: unknown): boolean {
+  return isDhis2ConflictDoesNotExistError(error, 'Tracked entity instance');
+}
+
+export function isStaleOrganisationUnitError(error: unknown): boolean {
+  return (
+    isDhis2ConflictDoesNotExistError(error, 'Organisation unit') ||
+    isDhis2ConflictDoesNotExistError(error, 'Organization unit')
+  );
+}
+
+export function isStaleDhis2EntityReferenceError(error: unknown): boolean {
+  return isStaleTrackedEntityInstanceError(error) || isStaleOrganisationUnitError(error);
+}
+
+async function throwDhis2HttpError(response: Response, action: string): Promise<never> {
+  const bodyText = (await response.text()).trim();
+  const statusPart = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+
+  let detail = bodyText;
+  if (bodyText) {
+    try {
+      const parsed = JSON.parse(bodyText) as {
+        message?: string;
+        httpStatusCode?: number;
+        status?: string;
+      };
+      if (parsed.message) {
+        const codePrefix =
+          parsed.httpStatusCode != null ? `[${parsed.httpStatusCode}] ` : '';
+        const statusSuffix = parsed.status ? ` (${parsed.status})` : '';
+        detail = `${codePrefix}${parsed.message}${statusSuffix}`;
+      }
+    } catch {
+      // use raw body
+    }
+  }
+
+  const suffix = detail ? ` — ${detail}` : '';
+  throw new Error(`Failed to ${action}: ${statusPart}${suffix}`);
 }
 
 class DHIS2Service {
@@ -107,10 +162,11 @@ class DHIS2Service {
   ): Promise<string | null> {
     options.signal?.throwIfAborted();
 
-    // Check cache first
-    const cached = await this.getFromCache<string>('orgUnit', healthCenterName);
-    if (cached) {
-      return cached;
+    if (!options.bypassCache) {
+      const cached = await this.getFromCache<string>('orgUnit', healthCenterName);
+      if (cached) {
+        return cached;
+      }
     }
 
     // Fetch from DHIS2
@@ -144,6 +200,40 @@ class DHIS2Service {
   }
 
   /**
+   * Drop cached org unit for a health center so the next lookup hits DHIS2.
+   */
+  async invalidateOrgUnitCache(healthCenterName: string): Promise<void> {
+    try {
+      await Dhis2Cache.destroy({
+        where: {
+          programStageId: this.programStageId,
+          cacheType: 'orgUnit',
+          cacheKey: healthCenterName,
+        },
+      });
+    } catch (error) {
+      console.error('Error invalidating org unit cache:', error);
+    }
+  }
+
+  /**
+   * Drop cached TEI for a household so the next lookup hits DHIS2.
+   */
+  async invalidateTeiCache(houseNumber: string): Promise<void> {
+    try {
+      await Dhis2Cache.destroy({
+        where: {
+          programStageId: this.programStageId,
+          cacheType: 'tei',
+          cacheKey: houseNumber,
+        },
+      });
+    } catch (error) {
+      console.error('Error invalidating TEI cache:', error);
+    }
+  }
+
+  /**
    * Search for Tracked Entity Instances by organization unit and attribute filter (with database caching)
    */
   async searchTrackedEntityInstances(
@@ -154,10 +244,11 @@ class DHIS2Service {
     try {
       options.signal?.throwIfAborted();
 
-      // Check cache first - cache key is house number only
-      const cached = await this.getFromCache<TrackedEntityInstance>('tei', houseNumber);
-      if (cached) {
-        return cached;
+      if (!options.bypassCache) {
+        const cached = await this.getFromCache<TrackedEntityInstance>('tei', houseNumber);
+        if (cached) {
+          return cached;
+        }
       }
 
       // Get organization unit ID (uses cache internally)
@@ -215,7 +306,6 @@ class DHIS2Service {
 
       const tei = teiData.trackedEntityInstances[0];
 
-      // Save to cache - use house number as key
       await this.saveToCache('tei', houseNumber, tei);
 
       return tei;
@@ -310,8 +400,7 @@ class DHIS2Service {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to create event: ${response.statusText} - ${errorText}`);
+        await throwDhis2HttpError(response, 'create event');
       }
 
       return await response.json();
@@ -344,7 +433,7 @@ class DHIS2Service {
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch existing events: ${response.statusText}`);
+        await throwDhis2HttpError(response, 'fetch existing events');
       }
 
       const data = await response.json() as any;
@@ -385,8 +474,7 @@ class DHIS2Service {
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to update event: ${response.statusText} - ${errorText}`);
+        await throwDhis2HttpError(response, 'update event');
       }
 
       return await response.json();

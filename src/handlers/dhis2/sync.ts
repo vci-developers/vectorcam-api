@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
 import { FastifyBaseLogger, FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { dhis2Service } from '../../services/dhis2.service';
+import { dhis2Service, TrackedEntityInstance } from '../../services/dhis2.service';
+import { runWithTeiConflictRetry } from './teiConflictRetry';
 import { dhis2AggregationService } from '../../services/dhis2-aggregation.service';
 import { dhis2MappingService } from '../../services/dhis2-mapping.service';
 import { config } from '../../config/environment';
@@ -573,6 +574,10 @@ async function performDhis2Sync(
                 continue;
             }
 
+            const healthCenter = site.healthCenter;
+            const houseNumber = site.houseNumber;
+            const teiSiteRef = { id: site.id, healthCenter, houseNumber };
+
             if (dryRun) {
                 const latestSession = sessions.sort(
                     (a, b) => new Date(b.collectionDate!).getTime() - new Date(a.collectionDate!).getTime()
@@ -600,23 +605,25 @@ async function performDhis2Sync(
                 continue;
             }
 
-            const tei = await dhis2Service.searchTrackedEntityInstances(
-                site.healthCenter,
-                site.houseNumber,
+            const teiLookup = await dhis2Service.searchTrackedEntityInstances(
+                healthCenter,
+                houseNumber,
                 { signal }
             );
 
-            if (!tei) {
+            if (!teiLookup) {
                 skippedHouseholds++;
                 results.push({
                     siteId: site.id,
                     houseNumber: site.houseNumber,
                     healthCenter: site.healthCenter,
                     status: 'skipped',
-                    message: `No tracked entity instance found in DHIS2 for health center "${site.healthCenter}" and house number "${site.houseNumber}"`,
+                    message: `No tracked entity instance found in DHIS2 for health center "${healthCenter}" and house number "${houseNumber}"`,
                 });
                 continue;
             }
+
+            let tei: TrackedEntityInstance = teiLookup;
 
             const latestSession = sessions.sort(
                 (a, b) => new Date(b.collectionDate!).getTime() - new Date(a.collectionDate!).getTime()
@@ -644,23 +651,40 @@ async function performDhis2Sync(
             let eventId: string | null = null;
             let message: string;
 
+            const setTei = (freshTei: TrackedEntityInstance) => {
+                tei = freshTei;
+            };
+
             if (existingSyncEvent) {
                 log.info(`Re-syncing: Updating existing event ${existingSyncEvent.eventId} for site ${site.id}`);
-                eventResult = await dhis2Service.updateEvent(existingSyncEvent.eventId, {
-                    program: config.dhis2.programId,
-                    programStage: config.dhis2.programStageId,
-                    orgUnit: tei.orgUnit,
-                    trackedEntityInstance: tei.trackedEntityInstance,
-                    eventDate,
-                    dataValues,
-                    status: 'COMPLETED',
-                }, { signal });
+                eventResult = await runWithTeiConflictRetry(
+                    teiSiteRef,
+                    setTei,
+                    () =>
+                        dhis2Service.updateEvent(
+                            existingSyncEvent.eventId,
+                            {
+                                program: config.dhis2.programId,
+                                programStage: config.dhis2.programStageId,
+                                orgUnit: tei.orgUnit,
+                                trackedEntityInstance: tei.trackedEntityInstance,
+                                eventDate,
+                                dataValues,
+                                status: 'COMPLETED',
+                            },
+                            { signal }
+                        ),
+                    log,
+                    signal
+                );
 
                 eventId = existingSyncEvent.eventId;
                 message = 'Event updated successfully (re-sync)';
 
                 await existingSyncEvent.update({
                     lastSyncedAt: new Date(),
+                    trackedEntityInstanceId: tei.trackedEntityInstance,
+                    organizationUnitId: tei.orgUnit,
                 });
             } else {
                 log.info(`No local record found for site ${site.id}, checking DHIS2 for existing event...`);
@@ -672,15 +696,26 @@ async function performDhis2Sync(
 
                 if (dhis2Event) {
                     log.info(`Found orphaned event ${dhis2Event.event} in DHIS2, updating and saving to local database`);
-                    eventResult = await dhis2Service.updateEvent(dhis2Event.event, {
-                        program: config.dhis2.programId,
-                        programStage: config.dhis2.programStageId,
-                        orgUnit: tei.orgUnit,
-                        trackedEntityInstance: tei.trackedEntityInstance,
-                        eventDate,
-                        dataValues,
-                        status: 'COMPLETED',
-                    }, { signal });
+                    eventResult = await runWithTeiConflictRetry(
+                        teiSiteRef,
+                        setTei,
+                        () =>
+                            dhis2Service.updateEvent(
+                                dhis2Event.event,
+                                {
+                                    program: config.dhis2.programId,
+                                    programStage: config.dhis2.programStageId,
+                                    orgUnit: tei.orgUnit,
+                                    trackedEntityInstance: tei.trackedEntityInstance,
+                                    eventDate,
+                                    dataValues,
+                                    status: 'COMPLETED',
+                                },
+                                { signal }
+                            ),
+                        log,
+                        signal
+                    );
 
                     eventId = dhis2Event.event;
                     message = 'Event updated successfully (recovered from DHIS2)';
@@ -698,15 +733,25 @@ async function performDhis2Sync(
                     });
                 } else {
                     log.info(`First sync: Creating new event for site ${site.id}`);
-                    eventResult = await dhis2Service.createEvent({
-                        program: config.dhis2.programId,
-                        programStage: config.dhis2.programStageId,
-                        orgUnit: tei.orgUnit,
-                        trackedEntityInstance: tei.trackedEntityInstance,
-                        eventDate,
-                        status: 'COMPLETED',
-                        dataValues,
-                    }, { signal });
+                    eventResult = await runWithTeiConflictRetry(
+                        teiSiteRef,
+                        setTei,
+                        () =>
+                            dhis2Service.createEvent(
+                                {
+                                    program: config.dhis2.programId,
+                                    programStage: config.dhis2.programStageId,
+                                    orgUnit: tei.orgUnit,
+                                    trackedEntityInstance: tei.trackedEntityInstance,
+                                    eventDate,
+                                    status: 'COMPLETED',
+                                    dataValues,
+                                },
+                                { signal }
+                            ),
+                        log,
+                        signal
+                    );
 
                     eventId = eventResult.response?.importSummaries?.[0]?.reference || null;
                     message = 'Event created successfully (first sync)';
