@@ -427,6 +427,21 @@ interface ZonedDateParts {
   millisecond: number;
 }
 
+/** Calendar year and month (1–12) for an instant, using cycle timezone or UTC when omitted. */
+export function getYearMonthInTimezone(
+  date: Date,
+  timezone: string | null | undefined
+): { year: number; month: number } {
+  if (!timezone) {
+    return {
+      year: date.getUTCFullYear(),
+      month: date.getUTCMonth() + 1,
+    };
+  }
+  const parts = getZonedDateParts(date, timezone);
+  return { year: parts.year, month: parts.month + 1 };
+}
+
 function getZonedDateParts(date: Date, timezone: string): ZonedDateParts {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,

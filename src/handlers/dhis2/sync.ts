@@ -8,6 +8,7 @@ import { dhis2MappingService } from '../../services/dhis2-mapping.service';
 import { config } from '../../config/environment';
 import { CollectionCycle, Dhis2SyncEvent, Dhis2SyncTask, Site, Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
+import { getYearMonthInTimezone } from '../program/collectionCycle/common';
 import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
 
 const DHIS2_SYNC_TIMEOUT_SECONDS = 300;
@@ -349,10 +350,11 @@ async function buildSyncTaskInput(
         }
 
         const cycleStartDate = new Date(cycle.startDate);
+        const { year, month } = getYearMonthInTimezone(cycleStartDate, cycle.timezone);
 
         return {
-            year: cycleStartDate.getUTCFullYear(),
-            month: cycleStartDate.getUTCMonth() + 1,
+            year,
+            month,
             district: site.district,
             requestedSiteIds: [siteId],
             allowedSiteIds: [siteId],

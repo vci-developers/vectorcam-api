@@ -50,6 +50,7 @@ import {
   assignCollectionCycleOnSessionUpload,
   findOrCreateGeneratedCollectionCycle,
   getCycleBoundsForDate,
+  getYearMonthInTimezone,
   reassignSessionCollectionCycle,
 } from './common';
 import { CollectionCycle, CollectionSchedule, Session, Site } from '../../../db/models';
@@ -195,5 +196,13 @@ describe('collection cycle handler common logic', () => {
     expect(bounds.cycleNumber).toBe(4);
     expect(bounds.startDate).toEqual(new Date('2026-04-01T00:00:00.000Z'));
     expect(bounds.endDate).toEqual(new Date('2026-05-01T00:00:00.000Z'));
+  });
+});
+
+describe('getYearMonthInTimezone', () => {
+  it('uses the cycle timezone for calendar month boundaries', () => {
+    const instant = new Date('2026-02-28T16:00:00.000Z');
+    expect(getYearMonthInTimezone(instant, 'Asia/Shanghai')).toEqual({ year: 2026, month: 3 });
+    expect(getYearMonthInTimezone(instant, null)).toEqual({ year: 2026, month: 2 });
   });
 });
