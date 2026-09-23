@@ -64,6 +64,19 @@ export function isStaleDhis2EntityReferenceError(error: unknown): boolean {
   return isStaleTrackedEntityInstanceError(error) || isStaleOrganisationUnitError(error);
 }
 
+export function isDhis2EventNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const message = error.message;
+  if (message.includes('Event not found for ID')) {
+    return true;
+  }
+  const isEventRequest =
+    message.includes('Failed to update event') || message.includes('Failed to fetch event');
+  return isEventRequest && (message.includes('HTTP 404') || message.includes('[404]'));
+}
+
 async function throwDhis2HttpError(response: Response, action: string): Promise<never> {
   const bodyText = (await response.text()).trim();
   const statusPart = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
@@ -447,6 +460,35 @@ class DHIS2Service {
       console.error('Error fetching existing event:', error);
       throw error;
     }
+  }
+
+  /**
+   * Returns false when DHIS2 responds with event-not-found (404), e.g.
+   * { "httpStatusCode": 404, "message": "Event not found for ID …" }.
+   */
+  async eventExists(eventId: string, options: DHIS2RequestOptions = {}): Promise<boolean> {
+    options.signal?.throwIfAborted();
+
+    const response = await fetch(
+      `${this.baseUrl}/api/events/${encodeURIComponent(eventId)}.json?fields=event`,
+      {
+        headers: {
+          Authorization: this.authHeader,
+          'Content-Type': 'application/json',
+        },
+        signal: options.signal,
+      }
+    );
+
+    if (response.status === 404) {
+      return false;
+    }
+
+    if (!response.ok) {
+      await throwDhis2HttpError(response, 'fetch event');
+    }
+
+    return true;
   }
 
   /**

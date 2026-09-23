@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import { createHash } from 'crypto';
+import { readFile, writeFile } from 'fs/promises';
+import { join } from 'path';
 import sequelize from '../src/db';
 import { Dhis2SyncEvent, Site } from '../src/db/models';
 
@@ -28,6 +30,23 @@ interface MigrationArgs {
   month?: number;
   siteId?: number;
   limit?: number;
+  logFile?: string;
+}
+
+interface MigrationLedgerEntry {
+  sourceEventId: string;
+  finalEventId: string | null;
+  migratedAt: string;
+  outcome?: 'success' | 'not_found_on_test';
+}
+
+interface MigrationLedgerFile {
+  setup: {
+    sourceBaseUrl: string;
+    targetBaseUrl: string;
+    programStageId: string;
+  };
+  migrations: Record<string, MigrationLedgerEntry>;
 }
 
 function requiredEnv(name: string): string {
@@ -79,13 +98,100 @@ function parseArgs(argv: string[]): MigrationArgs {
     throw new Error('--month must be between 1 and 12');
   }
 
+  const logFile = values.get('--log-file')?.trim();
+
   return {
     execute,
     year: parsePositiveInteger(values.get('--year'), '--year'),
     month,
     siteId: parsePositiveInteger(values.get('--site-id'), '--site-id'),
     limit: parsePositiveInteger(values.get('--limit'), '--limit'),
+    logFile: logFile === '' ? undefined : logFile,
   };
+}
+
+function migrationLedgerKey(siteId: number, year: number, month: number): string {
+  return `${siteId}:${year}:${month}`;
+}
+
+function migrationSetupFingerprint(source: Dhis2Config, target: Dhis2Config): string {
+  return createHash('sha256')
+    .update(`${source.baseUrl}|${target.baseUrl}|${source.programStageId}`)
+    .digest('hex')
+    .slice(0, 16);
+}
+
+function defaultMigrationLogPath(fingerprint: string): string {
+  return join(__dirname, `.dhis2-events-migrated-${fingerprint}.json`);
+}
+
+function currentSetup(source: Dhis2Config, target: Dhis2Config): MigrationLedgerFile['setup'] {
+  return {
+    sourceBaseUrl: source.baseUrl,
+    targetBaseUrl: target.baseUrl,
+    programStageId: source.programStageId,
+  };
+}
+
+function setupsMatch(
+  a: MigrationLedgerFile['setup'],
+  b: MigrationLedgerFile['setup']
+): boolean {
+  return (
+    a.sourceBaseUrl === b.sourceBaseUrl &&
+    a.targetBaseUrl === b.targetBaseUrl &&
+    a.programStageId === b.programStageId
+  );
+}
+
+async function loadMigrationLedger(
+  logPath: string,
+  setup: MigrationLedgerFile['setup']
+): Promise<MigrationLedgerFile> {
+  try {
+    const raw = await readFile(logPath, 'utf8');
+    const parsed = JSON.parse(raw) as MigrationLedgerFile;
+    if (!parsed.migrations || typeof parsed.migrations !== 'object') {
+      throw new Error('invalid migrations object');
+    }
+    if (!setupsMatch(parsed.setup, setup)) {
+      throw new Error(
+        'log file setup does not match current SOURCE_/TARGET_ env (source URL, target URL, program stage)'
+      );
+    }
+    return parsed;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { setup, migrations: {} };
+    }
+    throw error;
+  }
+}
+
+async function saveMigrationLedger(
+  logPath: string,
+  ledger: MigrationLedgerFile
+): Promise<void> {
+  await writeFile(logPath, `${JSON.stringify(ledger, null, 2)}\n`, 'utf8');
+}
+
+async function recordLedgerEntry(
+  logPath: string,
+  ledger: MigrationLedgerFile,
+  siteId: number,
+  year: number,
+  month: number,
+  sourceEventId: string,
+  finalEventId: string | null,
+  outcome: MigrationLedgerEntry['outcome'] = 'success'
+): Promise<void> {
+  ledger.migrations[migrationLedgerKey(siteId, year, month)] = {
+    sourceEventId,
+    finalEventId,
+    migratedAt: new Date().toISOString(),
+    outcome,
+  };
+  await saveMigrationLedger(logPath, ledger);
 }
 
 class Dhis2Client {
@@ -95,6 +201,10 @@ class Dhis2Client {
     this.authHeader = `Basic ${Buffer.from(
       `${config.username}:${config.password}`
     ).toString('base64')}`;
+  }
+
+  private dhis2Error(message: string): Error {
+    return new Error(`[${this.config.baseUrl}] ${message}`);
   }
 
   private async request<T>(
@@ -112,16 +222,12 @@ class Dhis2Client {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(
+      throw this.dhis2Error(
         `${options.method ?? 'GET'} ${path} failed (${response.status}): ${body}`
       );
     }
 
     return response.json() as Promise<T>;
-  }
-
-  async verifyAccess(): Promise<void> {
-    await this.request('/api/me.json?fields=id');
   }
 
   async getEvent(eventId: string): Promise<SourceEvent | null> {
@@ -138,8 +244,8 @@ class Dhis2Client {
 
     if (response.status === 404) return null;
     if (!response.ok) {
-      throw new Error(
-        `GET source event ${eventId} failed (${response.status}): ${await response.text()}`
+      throw this.dhis2Error(
+        `GET event ${eventId} failed (${response.status}): ${await response.text()}`
       );
     }
     return response.json() as Promise<SourceEvent>;
@@ -152,8 +258,8 @@ class Dhis2Client {
     );
     if (response.status === 404) return false;
     if (!response.ok) {
-      throw new Error(
-        `Checking target event ${eventId} failed (${response.status}): ${await response.text()}`
+      throw this.dhis2Error(
+        `GET event ${eventId} (exists check) failed (${response.status}): ${await response.text()}`
       );
     }
     return true;
@@ -179,7 +285,7 @@ class Dhis2Client {
         '&fields=id,name&paging=false'
     );
     if (data.organisationUnits.length > 1) {
-      throw new Error(`Multiple target organisation units have the name "${name}"`);
+      throw this.dhis2Error(`Multiple organisation units have the name "${name}"`);
     }
     return data.organisationUnits[0] ?? null;
   }
@@ -198,7 +304,7 @@ class Dhis2Client {
       (item) => item.displayName === 'MAL 001-ER05. House Number'
     ) ?? attributeData.trackedEntityAttributes[0];
     if (!attribute) {
-      throw new Error('House Number tracked entity attribute not found in target DHIS2');
+      throw this.dhis2Error('House Number tracked entity attribute not found');
     }
 
     const data = await this.request<{
@@ -213,32 +319,36 @@ class Dhis2Client {
         '&fields=trackedEntityInstance,orgUnit&paging=false'
     );
     if (data.trackedEntityInstances.length > 1) {
-      throw new Error(
-        `Multiple target TEIs found for org unit ${orgUnitId}, house ${houseNumber}`
+      throw this.dhis2Error(
+        `Multiple TEIs found for org unit ${orgUnitId}, house ${houseNumber}`
       );
     }
     return data.trackedEntityInstances[0] ?? null;
   }
 
-  async createEvent(payload: Record<string, unknown>): Promise<void> {
-    await this.request('/api/events', { method: 'POST', body: payload });
+  async getExistingEvent(
+    teiId: string,
+    eventDate: string
+  ): Promise<{ event: string; eventDate: string } | null> {
+    const data = await this.request<{ events?: Array<{ event: string; eventDate: string }> }>(
+      `/api/events.json?trackedEntityInstance=${encodeURIComponent(teiId)}` +
+        `&programStage=${encodeURIComponent(this.config.programStageId)}` +
+        `&startDate=${encodeURIComponent(eventDate)}&endDate=${encodeURIComponent(eventDate)}` +
+        '&fields=event,eventDate&paging=false'
+    );
+    return data.events?.[0] ?? null;
   }
-}
 
-function makeTargetKey(config: Dhis2Config): string {
-  return createHash('sha256')
-    .update(`${config.baseUrl}|${config.programId}|${config.programStageId}`)
-    .digest('hex');
-}
-
-function makeEventUid(targetKey: string, sourceEventId: string): string {
-  const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const digest = createHash('sha256').update(`${targetKey}|${sourceEventId}`).digest();
-  let uid = String.fromCharCode(65 + (digest[0] % 26));
-  for (let index = 1; index < 11; index++) {
-    uid += alphabet[digest[index] % alphabet.length];
+  async createEvent(payload: Record<string, unknown>): Promise<string> {
+    const data = await this.request<{
+      response?: { importSummaries?: Array<{ reference?: string }> };
+    }>('/api/events', { method: 'POST', body: payload });
+    const eventId = data.response?.importSummaries?.[0]?.reference;
+    if (!eventId) {
+      throw this.dhis2Error('POST /api/events succeeded but response had no event id');
+    }
+    return eventId;
   }
-  return uid;
 }
 
 async function main(): Promise<void> {
@@ -247,19 +357,12 @@ async function main(): Promise<void> {
   const targetConfig = readConfig('TARGET');
   const source = new Dhis2Client(sourceConfig);
   const target = new Dhis2Client(targetConfig);
-  const targetKey = makeTargetKey(targetConfig);
 
   if (sourceConfig.baseUrl === targetConfig.baseUrl) {
     throw new Error('Source and target DHIS2 URLs must be different');
   }
-  if (sourceConfig.programStageId === targetConfig.programStageId) {
-    throw new Error(
-      'Source and target program-stage IDs must differ so both sync records can coexist'
-    );
-  }
 
   await sequelize.authenticate();
-  await Promise.all([source.verifyAccess(), target.verifyAccess()]);
 
   const [sourceElements, targetElements] = await Promise.all([
     source.getDataElements(),
@@ -285,49 +388,84 @@ async function main(): Promise<void> {
     limit: args.limit,
   });
 
+  const setup = currentSetup(sourceConfig, targetConfig);
+  const logPath =
+    args.logFile ?? defaultMigrationLogPath(migrationSetupFingerprint(sourceConfig, targetConfig));
+  const ledger = await loadMigrationLedger(logPath, setup);
+  const ledgerCount = Object.keys(ledger.migrations).length;
+
   console.log(
-    `${args.execute ? 'EXECUTE' : 'DRY RUN'}: ${syncEvents.length} source sync records selected`
+    `${args.execute ? 'EXECUTE' : 'DRY RUN'}: ${syncEvents.length} sync records selected, ${ledgerCount} in local log (${logPath})`
   );
 
   let migrated = 0;
   let skipped = 0;
+  let notRetriable = 0;
   let failed = 0;
 
   for (const syncEvent of syncEvents) {
-    const label = `site=${syncEvent.siteId} period=${syncEvent.year}-${syncEvent.month} source=${syncEvent.eventId}`;
+    const label = `site=${syncEvent.siteId} period=${syncEvent.year}-${syncEvent.month} dbEvent=${syncEvent.eventId}`;
     try {
-      const targetSyncEvent = await Dhis2SyncEvent.findOne({
-        where: {
-          programStageId: targetConfig.programStageId,
-          siteId: syncEvent.siteId,
-          year: syncEvent.year,
-          month: syncEvent.month,
-        },
-      });
-      if (targetSyncEvent) {
+      const ledgerEntry =
+        ledger.migrations[migrationLedgerKey(syncEvent.siteId, syncEvent.year, syncEvent.month)];
+      if (ledgerEntry) {
+        if (ledgerEntry.outcome === 'not_found_on_test') {
+          console.log(
+            `SKIP ${label}: not retriable (recorded), test event ${ledgerEntry.sourceEventId} not on test DHIS2`
+          );
+        } else {
+          console.log(
+            `SKIP ${label} finalEvent=${ledgerEntry.finalEventId}: in local migration log (source was ${ledgerEntry.sourceEventId})`
+          );
+        }
+        skipped++;
+        continue;
+      }
+
+      const dbEventId = syncEvent.eventId;
+      const [dbOnTest, dbOnLive] = await Promise.all([
+        source.eventExists(dbEventId),
+        target.eventExists(dbEventId),
+      ]);
+
+      if (dbOnLive) {
+        await recordLedgerEntry(
+          logPath,
+          ledger,
+          syncEvent.siteId,
+          syncEvent.year,
+          syncEvent.month,
+          dbEventId,
+          dbEventId
+        );
         console.log(
-          `SKIP ${label}: live sync record already exists (${targetSyncEvent.eventId})`
+          `SKIP ${label} test=${dbOnTest} live=${dbOnLive} finalEvent=${dbEventId}: db event id already on live DHIS2`
         );
         skipped++;
+        continue;
+      }
+
+      if (!dbOnTest && !dbOnLive) {
+        await recordLedgerEntry(
+          logPath,
+          ledger,
+          syncEvent.siteId,
+          syncEvent.year,
+          syncEvent.month,
+          dbEventId,
+          null,
+          'not_found_on_test'
+        );
+        console.log(
+          `NOT_RETRIABLE ${label}: db event id ${dbEventId} not found on test or live DHIS2 (recorded, will not retry)`
+        );
+        notRetriable++;
         continue;
       }
 
       const site = await Site.findByPk(syncEvent.siteId);
       if (!site?.healthCenter || !site.houseNumber) {
         throw new Error('site is missing healthCenter or houseNumber');
-      }
-
-      const sourceEvent = await source.getEvent(syncEvent.eventId);
-      if (!sourceEvent) {
-        throw new Error('source event no longer exists');
-      }
-      if (sourceEvent.programStage !== sourceConfig.programStageId) {
-        throw new Error(
-          `source event belongs to unexpected program stage ${sourceEvent.programStage}`
-        );
-      }
-      if (sourceEvent.program !== sourceConfig.programId) {
-        throw new Error(`source event belongs to unexpected program ${sourceEvent.program}`);
       }
 
       const targetOrgUnit = await target.findOrgUnit(site.healthCenter);
@@ -339,6 +477,104 @@ async function main(): Promise<void> {
         throw new Error(
           `target TEI not found for "${site.healthCenter}", house "${site.houseNumber}"`
         );
+      }
+
+      let sourceEvent: SourceEvent | null = null;
+      if (dbOnTest) {
+        sourceEvent = await source.getEvent(dbEventId);
+        if (!sourceEvent) {
+          await recordLedgerEntry(
+            logPath,
+            ledger,
+            syncEvent.siteId,
+            syncEvent.year,
+            syncEvent.month,
+            dbEventId,
+            null,
+            'not_found_on_test'
+          );
+          console.log(
+            `NOT_RETRIABLE ${label}: test event ${dbEventId} no longer on test DHIS2 (recorded, will not retry)`
+          );
+          notRetriable++;
+          continue;
+        }
+        if (sourceEvent.programStage !== sourceConfig.programStageId) {
+          throw new Error(
+            `test event belongs to unexpected program stage ${sourceEvent.programStage}`
+          );
+        }
+        if (sourceEvent.program !== sourceConfig.programId) {
+          throw new Error(`test event belongs to unexpected program ${sourceEvent.program}`);
+        }
+      }
+
+      const eventDate = sourceEvent?.eventDate ?? syncEvent.eventDate;
+      const existingLive = await target.getExistingEvent(
+        targetTei.trackedEntityInstance,
+        eventDate
+      );
+
+      if (existingLive) {
+        const liveEventId = existingLive.event;
+        if (syncEvent.eventId === liveEventId) {
+          await recordLedgerEntry(
+            logPath,
+            ledger,
+            syncEvent.siteId,
+            syncEvent.year,
+            syncEvent.month,
+            dbEventId,
+            liveEventId
+          );
+          console.log(`SKIP ${label} finalEvent=${liveEventId}: db already points at live event`);
+          skipped++;
+          continue;
+        }
+
+        console.log(
+          `${args.execute ? 'UPDATE' : 'VALID'} ${label} finalEvent=${liveEventId}: live event exists for TEI/date, update db`
+        );
+        if (!args.execute) continue;
+
+        const sourceEventIdForLog = dbOnTest ? dbEventId : syncEvent.eventId;
+        await syncEvent.update({
+          eventId: liveEventId,
+          trackedEntityInstanceId: targetTei.trackedEntityInstance,
+          organizationUnitId: targetTei.orgUnit,
+          eventDate,
+          lastSyncedAt: new Date(),
+        });
+        await recordLedgerEntry(
+          logPath,
+          ledger,
+          syncEvent.siteId,
+          syncEvent.year,
+          syncEvent.month,
+          sourceEventIdForLog,
+          liveEventId
+        );
+        console.log(`UPDATE ${label} finalEvent=${liveEventId}: db updated`);
+        migrated++;
+        continue;
+      }
+
+      if (!sourceEvent) {
+        await recordLedgerEntry(
+          logPath,
+          ledger,
+          syncEvent.siteId,
+          syncEvent.year,
+          syncEvent.month,
+          dbEventId,
+          null,
+          'not_found_on_test'
+        );
+        console.log(
+          `NOT_RETRIABLE ${label}: db event id ${dbEventId} not found on test DHIS2 (recorded, will not retry)`
+        );
+        notRetriable++;
+        continue;
       }
 
       const missingNames: string[] = [];
@@ -357,44 +593,56 @@ async function main(): Promise<void> {
         throw new Error(`target stage is missing data elements: ${missingNames.join(', ')}`);
       }
 
-      const targetEventId = makeEventUid(targetKey, sourceEvent.event);
-      console.log(
-        `${args.execute ? 'MIGRATE' : 'VALID'} ${label} -> target=${targetEventId}, values=${dataValues.length}`
-      );
-      if (!args.execute) continue;
-
-      if (!await target.eventExists(targetEventId)) {
-        await target.createEvent({
-          event: targetEventId,
-          program: targetConfig.programId,
-          programStage: targetConfig.programStageId,
-          orgUnit: targetTei.orgUnit,
-          trackedEntityInstance: targetTei.trackedEntityInstance,
-          eventDate: sourceEvent.eventDate,
-          status: sourceEvent.status,
-          dataValues,
-        });
+      if (!args.execute) {
+        console.log(
+          `VALID ${label} finalEvent=(assigned by live DHIS2 on execute): copy test event to live, values=${dataValues.length}`
+        );
+        continue;
       }
 
-      await Dhis2SyncEvent.create({
-        programStageId: targetConfig.programStageId,
-        siteId: syncEvent.siteId,
-        year: syncEvent.year,
-        month: syncEvent.month,
-        eventId: targetEventId,
+      const liveEventId = await target.createEvent({
+        program: targetConfig.programId,
+        programStage: targetConfig.programStageId,
+        orgUnit: targetTei.orgUnit,
+        trackedEntityInstance: targetTei.trackedEntityInstance,
+        eventDate: sourceEvent.eventDate,
+        status: sourceEvent.status,
+        dataValues,
+      });
+
+      await syncEvent.update({
+        eventId: liveEventId,
         trackedEntityInstanceId: targetTei.trackedEntityInstance,
         organizationUnitId: targetTei.orgUnit,
         eventDate: sourceEvent.eventDate,
         lastSyncedAt: new Date(),
       });
+      await recordLedgerEntry(
+        logPath,
+        ledger,
+        syncEvent.siteId,
+        syncEvent.year,
+        syncEvent.month,
+        dbEventId,
+        liveEventId
+      );
+      console.log(
+        `MIGRATE ${label} finalEvent=${liveEventId}: created on live and db updated, values=${dataValues.length}`
+      );
       migrated++;
     } catch (error) {
       failed++;
-      console.error(`FAIL ${label}: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(
+        `FAIL ${label} (source=${sourceConfig.baseUrl}, target=${targetConfig.baseUrl}): ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
-  console.log(`Finished: migrated=${migrated}, skipped=${skipped}, failed=${failed}`);
+  console.log(
+    `Finished: migrated=${migrated}, skipped=${skipped}, notRetriable=${notRetriable}, failed=${failed}`
+  );
   if (failed > 0) process.exitCode = 1;
 }
 

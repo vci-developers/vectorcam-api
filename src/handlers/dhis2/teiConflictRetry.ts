@@ -5,7 +5,7 @@ import {
     TrackedEntityInstance,
 } from '../../services/dhis2.service';
 
-async function refreshSiteDhis2ReferencesFromDhis2(
+export async function refreshSiteDhis2ReferencesFromDhis2(
     healthCenter: string,
     houseNumber: string,
     signal: AbortSignal

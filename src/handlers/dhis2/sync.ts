@@ -1,7 +1,11 @@
 import { randomUUID } from 'crypto';
 import { FastifyBaseLogger, FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { dhis2Service, TrackedEntityInstance } from '../../services/dhis2.service';
+import {
+    dhis2Service,
+    isDhis2EventNotFoundError,
+    TrackedEntityInstance,
+} from '../../services/dhis2.service';
 import { runWithTeiConflictRetry } from './teiConflictRetry';
 import { dhis2AggregationService } from '../../services/dhis2-aggregation.service';
 import { dhis2MappingService } from '../../services/dhis2-mapping.service';
@@ -651,43 +655,116 @@ async function performDhis2Sync(
 
             let eventResult;
             let eventId: string | null = null;
-            let message: string;
+            let message = '';
 
             const setTei = (freshTei: TrackedEntityInstance) => {
                 tei = freshTei;
             };
 
-            if (existingSyncEvent) {
-                log.info(`Re-syncing: Updating existing event ${existingSyncEvent.eventId} for site ${site.id}`);
-                eventResult = await runWithTeiConflictRetry(
+            const buildEventUpdatePayload = () => ({
+                program: config.dhis2.programId,
+                programStage: config.dhis2.programStageId,
+                orgUnit: tei.orgUnit,
+                trackedEntityInstance: tei.trackedEntityInstance,
+                eventDate,
+                dataValues,
+                status: 'COMPLETED' as const,
+            });
+
+            const updateDhis2Event = (targetEventId: string) =>
+                runWithTeiConflictRetry(
                     teiSiteRef,
                     setTei,
                     () =>
-                        dhis2Service.updateEvent(
-                            existingSyncEvent.eventId,
-                            {
-                                program: config.dhis2.programId,
-                                programStage: config.dhis2.programStageId,
-                                orgUnit: tei.orgUnit,
-                                trackedEntityInstance: tei.trackedEntityInstance,
-                                eventDate,
-                                dataValues,
-                                status: 'COMPLETED',
-                            },
-                            { signal }
-                        ),
+                        dhis2Service.updateEvent(targetEventId, buildEventUpdatePayload(), {
+                            signal,
+                        }),
                     log,
                     signal
                 );
 
-                eventId = existingSyncEvent.eventId;
-                message = 'Event updated successfully (re-sync)';
+            const createDhis2Event = () =>
+                runWithTeiConflictRetry(
+                    teiSiteRef,
+                    setTei,
+                    () => {
+                        const payload = buildEventUpdatePayload();
+                        return dhis2Service.createEvent(
+                            {
+                                program: payload.program,
+                                programStage: payload.programStage,
+                                orgUnit: payload.orgUnit,
+                                trackedEntityInstance: payload.trackedEntityInstance,
+                                eventDate: payload.eventDate,
+                                status: 'COMPLETED',
+                                dataValues: payload.dataValues,
+                            },
+                            { signal }
+                        );
+                    },
+                    log,
+                    signal
+                );
 
-                await existingSyncEvent.update({
+            const selfHealMissingStoredEvent = async () => {
+                log.warn(
+                    `Stored event ${existingSyncEvent!.eventId} not found on DHIS2; self-healing site ${site.id}`
+                );
+                const dhis2Event = await dhis2Service.getExistingEvent(
+                    tei.trackedEntityInstance,
+                    eventDate,
+                    { signal }
+                );
+
+                if (dhis2Event) {
+                    eventResult = await updateDhis2Event(dhis2Event.event);
+                    eventId = dhis2Event.event;
+                    message = 'Event updated successfully (self-heal: relinked to DHIS2 event)';
+                } else {
+                    eventResult = await createDhis2Event();
+                    eventId = eventResult.response?.importSummaries?.[0]?.reference || null;
+                    if (!eventId) {
+                        throw new Error('DHIS2 create event succeeded but returned no event id');
+                    }
+                    message = 'Event created successfully (self-heal: replaced missing event)';
+                }
+
+                await existingSyncEvent!.update({
+                    eventId: eventId!,
+                    eventDate,
                     lastSyncedAt: new Date(),
                     trackedEntityInstanceId: tei.trackedEntityInstance,
                     organizationUnitId: tei.orgUnit,
                 });
+            };
+
+            if (existingSyncEvent) {
+                const storedEventOnDhis2 = await dhis2Service.eventExists(existingSyncEvent.eventId, {
+                    signal,
+                });
+
+                if (storedEventOnDhis2) {
+                    log.info(
+                        `Re-syncing: Updating existing event ${existingSyncEvent.eventId} for site ${site.id}`
+                    );
+                    try {
+                        eventResult = await updateDhis2Event(existingSyncEvent.eventId);
+                        eventId = existingSyncEvent.eventId;
+                        message = 'Event updated successfully (re-sync)';
+                        await existingSyncEvent.update({
+                            lastSyncedAt: new Date(),
+                            trackedEntityInstanceId: tei.trackedEntityInstance,
+                            organizationUnitId: tei.orgUnit,
+                        });
+                    } catch (error) {
+                        if (!isDhis2EventNotFoundError(error)) {
+                            throw error;
+                        }
+                        await selfHealMissingStoredEvent();
+                    }
+                } else {
+                    await selfHealMissingStoredEvent();
+                }
             } else {
                 log.info(`No local record found for site ${site.id}, checking DHIS2 for existing event...`);
                 const dhis2Event = await dhis2Service.getExistingEvent(
@@ -698,26 +775,7 @@ async function performDhis2Sync(
 
                 if (dhis2Event) {
                     log.info(`Found orphaned event ${dhis2Event.event} in DHIS2, updating and saving to local database`);
-                    eventResult = await runWithTeiConflictRetry(
-                        teiSiteRef,
-                        setTei,
-                        () =>
-                            dhis2Service.updateEvent(
-                                dhis2Event.event,
-                                {
-                                    program: config.dhis2.programId,
-                                    programStage: config.dhis2.programStageId,
-                                    orgUnit: tei.orgUnit,
-                                    trackedEntityInstance: tei.trackedEntityInstance,
-                                    eventDate,
-                                    dataValues,
-                                    status: 'COMPLETED',
-                                },
-                                { signal }
-                            ),
-                        log,
-                        signal
-                    );
+                    eventResult = await updateDhis2Event(dhis2Event.event);
 
                     eventId = dhis2Event.event;
                     message = 'Event updated successfully (recovered from DHIS2)';
@@ -735,25 +793,7 @@ async function performDhis2Sync(
                     });
                 } else {
                     log.info(`First sync: Creating new event for site ${site.id}`);
-                    eventResult = await runWithTeiConflictRetry(
-                        teiSiteRef,
-                        setTei,
-                        () =>
-                            dhis2Service.createEvent(
-                                {
-                                    program: config.dhis2.programId,
-                                    programStage: config.dhis2.programStageId,
-                                    orgUnit: tei.orgUnit,
-                                    trackedEntityInstance: tei.trackedEntityInstance,
-                                    eventDate,
-                                    status: 'COMPLETED',
-                                    dataValues,
-                                },
-                                { signal }
-                            ),
-                        log,
-                        signal
-                    );
+                    eventResult = await createDhis2Event();
 
                     eventId = eventResult.response?.importSummaries?.[0]?.reference || null;
                     message = 'Event created successfully (first sync)';
