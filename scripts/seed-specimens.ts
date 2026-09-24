@@ -704,9 +704,9 @@ async function seedSpecimens() {
                 species: species,
                 sex: sex,
                 abdomenStatus: abdomenStatus,
-                originalSpecies: species,
-                originalSex: sex,
-                originalAbdomenStatus: abdomenStatus,
+                appSpecies: species,
+                appSex: sex,
+                appAbdomenStatus: abdomenStatus,
                 capturedAt: specimenTimestamp,
                 createdAt: specimenTimestamp,
                 updatedAt: specimenTimestamp

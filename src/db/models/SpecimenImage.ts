@@ -11,9 +11,9 @@ class SpecimenImage extends Model {
   declare species: string | null;
   declare sex: string | null;
   declare abdomenStatus: string | null;
-  declare originalSpecies: string | null;
-  declare originalSex: string | null;
-  declare originalAbdomenStatus: string | null;
+  declare appSpecies: string | null;
+  declare appSex: string | null;
+  declare appAbdomenStatus: string | null;
   declare capturedAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -61,20 +61,20 @@ SpecimenImage.init(
       allowNull: true,
       field: 'abdomen_status',
     },
-    originalSpecies: {
+    appSpecies: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      field: 'original_species',
+      field: 'app_species',
     },
-    originalSex: {
+    appSex: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      field: 'original_sex',
+      field: 'app_sex',
     },
-    originalAbdomenStatus: {
+    appAbdomenStatus: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      field: 'original_abdomen_status',
+      field: 'app_abdomen_status',
     },
     capturedAt: {
       type: DataTypes.DATE,

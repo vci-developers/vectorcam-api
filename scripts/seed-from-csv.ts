@@ -701,9 +701,9 @@ async function seedFromCSV() {
                 species: specimenAttrs.species,
                 sex: specimenAttrs.sex,
                 abdomenStatus: specimenAttrs.abdomenStatus,
-                originalSpecies: specimenAttrs.species,
-                originalSex: specimenAttrs.sex,
-                originalAbdomenStatus: specimenAttrs.abdomenStatus,
+                appSpecies: specimenAttrs.species,
+                appSex: specimenAttrs.sex,
+                appAbdomenStatus: specimenAttrs.abdomenStatus,
                 capturedAt: specimenTimestamp,
                 createdAt: specimenTimestamp,
                 updatedAt: specimenTimestamp

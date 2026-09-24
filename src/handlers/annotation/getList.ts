@@ -120,9 +120,9 @@ export const schema = {
                       species: { type: ['string', 'null'] },
                       sex: { type: ['string', 'null'] },
                       abdomenStatus: { type: ['string', 'null'] },
-                      originalSpecies: { type: ['string', 'null'] },
-                      originalSex: { type: ['string', 'null'] },
-                      originalAbdomenStatus: { type: ['string', 'null'] },
+                      appSpecies: { type: ['string', 'null'] },
+                      appSex: { type: ['string', 'null'] },
+                      appAbdomenStatus: { type: ['string', 'null'] },
                     },
                   },
                   session: {
