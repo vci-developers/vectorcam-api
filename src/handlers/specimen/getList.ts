@@ -75,6 +75,9 @@ export const schema = {
                     species: { type: ['string', 'null'] },
                     sex: { type: ['string', 'null'] },
                     abdomenStatus: { type: ['string', 'null'] },
+                    originalSpecies: { type: ['string', 'null'] },
+                    originalSex: { type: ['string', 'null'] },
+                    originalAbdomenStatus: { type: ['string', 'null'] },
                     capturedAt: { type: ['number', 'null'] },
                     submittedAt: { type: 'number' },
                     inferenceResult: {
@@ -116,6 +119,9 @@ export const schema = {
                       species: { type: ['string', 'null'] },
                       sex: { type: ['string', 'null'] },
                       abdomenStatus: { type: ['string', 'null'] },
+                      originalSpecies: { type: ['string', 'null'] },
+                      originalSex: { type: ['string', 'null'] },
+                      originalAbdomenStatus: { type: ['string', 'null'] },
                       capturedAt: { type: ['number', 'null'] },
                       submittedAt: { type: 'number' },
                       inferenceResult: {

@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen, Session } from '../../../db/models';
-import { handleError, findSpecimenImage, parseProbabilityString } from '../common';
+import { handleError, findSpecimenImage, formatImageResponse } from '../common';
 import { uploadFileStream } from '../../../services/s3.service';
 import { createHash } from 'crypto';
 import { Readable } from 'stream';
@@ -32,6 +32,9 @@ export const schema = {
             species: { type: ['string', 'null'] },
             sex: { type: ['string', 'null'] },
             abdomenStatus: { type: ['string', 'null'] },
+            originalSpecies: { type: ['string', 'null'] },
+            originalSex: { type: ['string', 'null'] },
+            originalAbdomenStatus: { type: ['string', 'null'] },
             capturedAt: { type: ['number', 'null'] },
             submittedAt: { type: 'number' },
             inferenceResult: {
@@ -189,32 +192,11 @@ export async function putImage(
     let result = await InferenceResult.findOne({ where: { specimenImageId: image.id } });
 
     // Build the updated image object for response
+    (image as SpecimenImage & { inferenceResult?: InferenceResult | null }).inferenceResult =
+      result ?? null;
     const updatedImage = {
-      id: image.id,
-      url: `/specimens/${specimen.id}/images/${image.id}`,
-      metadata: image.metadata ?? null,
-      species: image.species,
-      sex: image.sex,
-      abdomenStatus: image.abdomenStatus,
-      capturedAt: image.capturedAt ? image.capturedAt.getTime() : null,
-      submittedAt: image.createdAt.getTime(),
-      inferenceResult: result ? {
-        id: result.id,
-        bboxTopLeftX: result.bboxTopLeftX,
-        bboxTopLeftY: result.bboxTopLeftY,
-        bboxWidth: result.bboxWidth,
-        bboxHeight: result.bboxHeight,
-        bboxConfidence: result.bboxConfidence,
-        bboxClassId: result.bboxClassId,
-        speciesLogits: parseProbabilityString(result.speciesLogits),
-        sexLogits: parseProbabilityString(result.sexLogits),
-        abdomenStatusLogits: parseProbabilityString(result.abdomenStatusLogits),
-        speciesInferenceDuration: result.speciesInferenceDuration,
-        sexInferenceDuration: result.sexInferenceDuration,
-        abdomenStatusInferenceDuration: result.abdomenStatusInferenceDuration,
-        bboxDetectionDuration: result.bboxDetectionDuration
-      } : null,
-      filemd5: image.filemd5
+      ...formatImageResponse(specimen.id, image),
+      filemd5: image.filemd5,
     };
 
     return reply.send({ message: 'Image file replaced successfully', image: updatedImage });

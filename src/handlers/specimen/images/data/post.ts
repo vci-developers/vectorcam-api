@@ -1,6 +1,11 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models';
-import { handleError, parseProbabilityString } from '../../common';
+import {
+  handleError,
+  parseProbabilityString,
+  specimenImagePredictionCreateFields,
+  specimenImagePredictionSchemaProperties,
+} from '../../common';
 
 interface CreateImageDataRequestBody {
   metadata?: Record<string, unknown> | null;
@@ -78,9 +83,7 @@ export const schema = {
             id: { type: 'number' },
             url: { type: 'string' },
             metadata: { type: ['object', 'null'], additionalProperties: true },
-            species: { type: ['string', 'null'] },
-            sex: { type: ['string', 'null'] },
-            abdomenStatus: { type: ['string', 'null'] },
+            ...specimenImagePredictionSchemaProperties,
             capturedAt: { type: ['number', 'null'] },
             submittedAt: { type: 'number' },
             filemd5: { type: 'string' },
@@ -139,9 +142,7 @@ export async function createImageData(
     const newImage = await SpecimenImage.create({
       specimenId: specimen.id,
       metadata: metadata ?? null,
-      species,
-      sex,
-      abdomenStatus,
+      ...specimenImagePredictionCreateFields({ species, sex, abdomenStatus }),
       capturedAt: capturedAt ? new Date(capturedAt) : null,
       imageKey: '', // Placeholder, as imageKey is required in the model but not provided here
       filemd5 // Now required
@@ -175,6 +176,9 @@ export async function createImageData(
       species: newImage.species ?? null,
       sex: newImage.sex ?? null,
       abdomenStatus: newImage.abdomenStatus ?? null,
+      originalSpecies: newImage.originalSpecies ?? null,
+      originalSex: newImage.originalSex ?? null,
+      originalAbdomenStatus: newImage.originalAbdomenStatus ?? null,
       capturedAt: newImage.capturedAt ? newImage.capturedAt.getTime() : null,
       submittedAt: newImage.createdAt.getTime(),
       filemd5: newImage.filemd5,

@@ -2,12 +2,16 @@ import {
   Annotation, 
   AnnotationTask, 
   User,
-  SpecimenImage, 
-  InferenceResult,
+  SpecimenImage,
 } from '../../db/models';
 import { formatUserResponse, UserResponse } from '../user/common';
 import { formatAnnotationTaskResponse, AnnotationTaskResponse } from '../annotation-task/common';
-import { SpecimenResponse, ImageResponse, formatSessionUnitResponse } from '../specimen/common';
+import {
+  SpecimenResponse,
+  ImageResponse,
+  formatImageResponse,
+  formatSessionUnitResponse,
+} from '../specimen/common';
 import { formatSessionResponse, SessionResponse } from '../session/common';
 import { formatSiteResponse, SiteResponse } from '../site/common';
 
@@ -129,38 +133,10 @@ export async function formatAnnotationResponse(
 
 // Helper to format specimen image data
 export function formatSpecimenImageResponse(image: SpecimenImage, specimenId?: number): SpecimenImageResponse {
-  const response: SpecimenImageResponse = {
-    id: image.id,
-    url: specimenId ? `/specimens/${specimenId}/images/${image.id}` : `/images/${image.id}`,
-    metadata: image.metadata ?? null,
-    species: image.species ?? null,
-    sex: image.sex ?? null,
-    abdomenStatus: image.abdomenStatus ?? null,
-    capturedAt: image.capturedAt ? image.capturedAt.getTime() : null,
-    submittedAt: image.createdAt.getTime(),
-    inferenceResult: null
-  };
-
-  // Include inference result if available
-  if (image.get('inferenceResult')) {
-    const inferenceResult = image.get('inferenceResult') as InferenceResult;
-    response.inferenceResult = {
-      id: inferenceResult.id,
-      bboxTopLeftX: inferenceResult.bboxTopLeftX,
-      bboxTopLeftY: inferenceResult.bboxTopLeftY,
-      bboxWidth: inferenceResult.bboxWidth,
-      bboxHeight: inferenceResult.bboxHeight,
-      bboxConfidence: inferenceResult.bboxConfidence,
-      bboxClassId: inferenceResult.bboxClassId,
-      speciesLogits: inferenceResult.speciesLogits ? JSON.parse(inferenceResult.speciesLogits) : [],
-      sexLogits: inferenceResult.sexLogits ? JSON.parse(inferenceResult.sexLogits) : [],
-      abdomenStatusLogits: inferenceResult.abdomenStatusLogits ? JSON.parse(inferenceResult.abdomenStatusLogits) : [],
-      speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
-      sexInferenceDuration: inferenceResult.sexInferenceDuration,
-      abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
-      bboxDetectionDuration: inferenceResult.bboxDetectionDuration
-    };
+  const resolvedSpecimenId = specimenId ?? image.specimenId;
+  const response = formatImageResponse(resolvedSpecimenId, image);
+  if (!specimenId) {
+    response.url = `/images/${image.id}`;
   }
-
   return response;
 }

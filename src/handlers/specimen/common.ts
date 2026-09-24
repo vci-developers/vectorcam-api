@@ -8,6 +8,9 @@ export interface ImageResponse {
   species: string | null;
   sex: string | null;
   abdomenStatus: string | null;
+  originalSpecies: string | null;
+  originalSex: string | null;
+  originalAbdomenStatus: string | null;
   capturedAt: number | null;
   submittedAt: number; // Add this field
   inferenceResult: {
@@ -52,6 +55,32 @@ export interface SpecimenResponse {
   thumbnailImage: ImageResponse | null;
 }
 
+/** JSON Schema properties for current and original mobile prediction fields on specimen images. */
+export const specimenImagePredictionSchemaProperties = {
+  species: { type: ['string', 'null'] },
+  sex: { type: ['string', 'null'] },
+  abdomenStatus: { type: ['string', 'null'] },
+  originalSpecies: { type: ['string', 'null'] },
+  originalSex: { type: ['string', 'null'] },
+  originalAbdomenStatus: { type: ['string', 'null'] },
+} as const;
+
+export function specimenImagePredictionCreateFields(input: {
+  species?: string;
+  sex?: string;
+  abdomenStatus?: string;
+}) {
+  const { species, sex, abdomenStatus } = input;
+  return {
+    species,
+    sex,
+    abdomenStatus,
+    originalSpecies: species,
+    originalSex: sex,
+    originalAbdomenStatus: abdomenStatus,
+  };
+}
+
 // Helper function to parse probability string to array
 export function parseProbabilityString(str: string | null): number[] {
   if (!str) {
@@ -75,6 +104,9 @@ export function formatImageResponse(specimenId: number, img: SpecimenImage): Ima
     species: img.species,
     sex: img.sex,
     abdomenStatus: img.abdomenStatus,
+    originalSpecies: img.originalSpecies ?? null,
+    originalSex: img.originalSex ?? null,
+    originalAbdomenStatus: img.originalAbdomenStatus ?? null,
     capturedAt: img.capturedAt ? img.capturedAt.getTime() : null,
     submittedAt: img.createdAt.getTime(),
     inferenceResult: inferenceResult ? {

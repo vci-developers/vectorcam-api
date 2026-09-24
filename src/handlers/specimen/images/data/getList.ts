@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import SpecimenImage from '../../../../db/models/SpecimenImage';
 import { InferenceResult, Specimen } from '../../../../db/models';
-import { parseProbabilityString } from '../../common';
+import { formatImageResponse } from '../../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -27,6 +27,9 @@ export const schema = {
               species: { type: ['string', 'null'] },
               sex: { type: ['string', 'null'] },
               abdomenStatus: { type: ['string', 'null'] },
+              originalSpecies: { type: ['string', 'null'] },
+              originalSex: { type: ['string', 'null'] },
+              originalAbdomenStatus: { type: ['string', 'null'] },
               capturedAt: { type: ['number', 'null'] },
               submittedAt: { type: 'number' },
               inferenceResult: {
@@ -95,32 +98,11 @@ export async function getImageList(
       const inferenceResult = await InferenceResult.findOne({
         where: { specimenImageId: img.id }
       });
+      (img as SpecimenImage & { inferenceResult?: InferenceResult | null }).inferenceResult =
+        inferenceResult ?? null;
       return {
-        id: img.id,
-        url: `/specimens/${specimen.id}/images/${img.id}`,
-        metadata: img.metadata ?? null,
-        species: img.species,
-        sex: img.sex,
-        abdomenStatus: img.abdomenStatus,
-        capturedAt: img.capturedAt ? img.capturedAt.getTime() : null,
-        submittedAt: img.createdAt.getTime(),
-        inferenceResult: inferenceResult ? {
-          id: inferenceResult.id,
-          bboxTopLeftX: inferenceResult.bboxTopLeftX,
-          bboxTopLeftY: inferenceResult.bboxTopLeftY,
-          bboxWidth: inferenceResult.bboxWidth,
-          bboxHeight: inferenceResult.bboxHeight,
-          bboxConfidence: inferenceResult.bboxConfidence,
-          bboxClassId: inferenceResult.bboxClassId,
-          speciesLogits: parseProbabilityString(inferenceResult.speciesLogits),
-          sexLogits: parseProbabilityString(inferenceResult.sexLogits),
-          abdomenStatusLogits: parseProbabilityString(inferenceResult.abdomenStatusLogits),
-          speciesInferenceDuration: inferenceResult.speciesInferenceDuration,
-          sexInferenceDuration: inferenceResult.sexInferenceDuration,
-          abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
-          bboxDetectionDuration: inferenceResult.bboxDetectionDuration
-        } : null,
-        filemd5: img.filemd5
+        ...formatImageResponse(specimen.id, img),
+        filemd5: img.filemd5,
       };
     }));
 
