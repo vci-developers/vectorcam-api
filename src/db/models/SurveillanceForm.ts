@@ -11,6 +11,8 @@ class SurveillanceForm extends Model {
   declare llinType: string | null;
   declare llinBrand: string | null;
   declare numPeopleSleptUnderLlin: number | null;
+  declare numChildrenUnder5: number | null;
+  declare hasPregnantWoman: boolean | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -67,6 +69,16 @@ SurveillanceForm.init(
       type: DataTypes.INTEGER,
       allowNull: true,
       field: 'num_people_slept_under_llin',
+    },
+    numChildrenUnder5: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'num_children_under_5',
+    },
+    hasPregnantWoman: {
+      type: DataTypes.BOOLEAN,
+      allowNull: true,
+      field: 'has_pregnant_woman',
     },
   },
   {

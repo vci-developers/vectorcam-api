@@ -41,6 +41,8 @@ class SessionConflictResolution extends Model {
       llinType: string | null;
       llinBrand: string | null;
       numPeopleSleptUnderLlin: number | null;
+      numChildrenUnder5: number | null;
+      hasPregnantWoman: boolean | null;
     }[];
   };
   declare afterData: {
@@ -67,6 +69,8 @@ class SessionConflictResolution extends Model {
       llinType: string | null;
       llinBrand: string | null;
       numPeopleSleptUnderLlin: number | null;
+      numChildrenUnder5: number | null;
+      hasPregnantWoman: boolean | null;
     } | null;
   };
   declare createdAt: Date;

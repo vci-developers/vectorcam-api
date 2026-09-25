@@ -10,6 +10,8 @@ interface CreateSurveyRequest {
   llinType?: string;
   llinBrand?: string;
   numPeopleSleptUnderLlin?: number;
+  numChildrenUnder5?: number;
+  hasPregnantWoman?: boolean;
 }
 
 export const schema = {
@@ -24,7 +26,9 @@ export const schema = {
       numLlinsAvailable: { type: 'number' },
       llinType: { type: 'string' },
       llinBrand: { type: 'string' },
-      numPeopleSleptUnderLlin: { type: 'number' }
+      numPeopleSleptUnderLlin: { type: 'number' },
+      numChildrenUnder5: { type: 'number' },
+      hasPregnantWoman: { type: 'boolean' }
     }
   },
   response: {
@@ -44,6 +48,8 @@ export const schema = {
             llinType: { type: ['string', 'null'] },
             llinBrand: { type: ['string', 'null'] },
             numPeopleSleptUnderLlin: { type: ['number', 'null'] },
+            numChildrenUnder5: { type: ['number', 'null'] },
+            hasPregnantWoman: { type: ['boolean', 'null'] },
             submittedAt: { type: 'number' },
           }
         }
@@ -64,7 +70,9 @@ export async function createSurvey(
       numLlinsAvailable,
       llinType,
       llinBrand,
-      numPeopleSleptUnderLlin
+      numPeopleSleptUnderLlin,
+      numChildrenUnder5,
+      hasPregnantWoman
     } = request.body;
 
     const { session_id } = request.params;
@@ -92,7 +100,9 @@ export async function createSurvey(
       numLlinsAvailable,
       llinType,
       llinBrand,
-      numPeopleSleptUnderLlin
+      numPeopleSleptUnderLlin,
+      numChildrenUnder5,
+      hasPregnantWoman
     });
 
     return reply.code(201).send({
@@ -107,7 +117,9 @@ export async function createSurvey(
         numLlinsAvailable: form.numLlinsAvailable,
         llinType: form.llinType,
         llinBrand: form.llinBrand,
-        numPeopleSleptUnderLlin: form.numPeopleSleptUnderLlin
+        numPeopleSleptUnderLlin: form.numPeopleSleptUnderLlin,
+        numChildrenUnder5: form.numChildrenUnder5,
+        hasPregnantWoman: form.hasPregnantWoman
       }
     });
   } catch (error) {

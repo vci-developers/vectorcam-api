@@ -102,6 +102,8 @@ const SURVEILLANCE_FIELD_LABELS: Array<{ key: string; label: string }> = [
   { key: 'llinType', label: 'LLIN Type' },
   { key: 'llinBrand', label: 'LLIN Brand' },
   { key: 'numPeopleSleptUnderLlin', label: 'Num People Slept Under LLIN' },
+  { key: 'numChildrenUnder5', label: 'Num Children Under 5' },
+  { key: 'hasPregnantWoman', label: 'Has Pregnant Woman' },
 ];
 
 export const schema = {

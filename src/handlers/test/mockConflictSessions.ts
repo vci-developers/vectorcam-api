@@ -35,6 +35,8 @@ interface SurveillanceFormValues {
   llinType: string | null;
   llinBrand: string | null;
   numPeopleSleptUnderLlin: number | null;
+  numChildrenUnder5: number;
+  hasPregnantWoman: boolean;
 }
 
 interface FormAnswerValue {
@@ -98,6 +100,8 @@ function generateSurveillanceFormValues(): SurveillanceFormValues {
     numPeopleSleptUnderLlin: numLlinsAvailable > 0
       ? randomIntBetween(1, numPeopleSleptInHouse)
       : null,
+    numChildrenUnder5: randomIntBetween(0, Math.min(5, numPeopleSleptInHouse)),
+    hasPregnantWoman: Math.random() < 0.3,
   };
 }
 
@@ -163,6 +167,12 @@ function pickSurveillanceFormValues(base: SurveillanceFormValues): SurveillanceF
     numPeopleSleptUnderLlin: numLlinsAvailable > 0
       ? randomIntBetween(1, numPeopleSleptInHouse)
       : null,
+    numChildrenUnder5: pickMaybeDifferent(
+      base.numChildrenUnder5,
+      () => randomIntBetween(0, Math.min(5, numPeopleSleptInHouse)),
+      shouldDiffer()
+    ),
+    hasPregnantWoman: pickMaybeDifferent(base.hasPregnantWoman, () => Math.random() < 0.3, shouldDiffer()),
   };
 }
 

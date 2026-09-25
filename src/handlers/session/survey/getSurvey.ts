@@ -24,7 +24,9 @@ export const schema = {
         numLlinsAvailable: { type: ['number', 'null'] },
         llinType: { type: ['string', 'null'] },
         llinBrand: { type: ['string', 'null'] },
-        numPeopleSleptUnderLlin: { type: ['number', 'null'] }
+        numPeopleSleptUnderLlin: { type: ['number', 'null'] },
+        numChildrenUnder5: { type: ['number', 'null'] },
+        hasPregnantWoman: { type: ['boolean', 'null'] }
       }
     }
   }
@@ -61,7 +63,9 @@ export async function getSessionSurvey(
       numLlinsAvailable: surveillanceForm.numLlinsAvailable,
       llinType: surveillanceForm.llinType,
       llinBrand: surveillanceForm.llinBrand,
-      numPeopleSleptUnderLlin: surveillanceForm.numPeopleSleptUnderLlin
+      numPeopleSleptUnderLlin: surveillanceForm.numPeopleSleptUnderLlin,
+      numChildrenUnder5: surveillanceForm.numChildrenUnder5,
+      hasPregnantWoman: surveillanceForm.hasPregnantWoman
     });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to get session surveillance form');

@@ -51,6 +51,8 @@ interface ResolveConflictRequest {
     llinType?: string | null;
     llinBrand?: string | null;
     numPeopleSleptUnderLlin?: number | null;
+    numChildrenUnder5?: number | null;
+    hasPregnantWoman?: boolean | null;
   } | null;
   resolvedFormAnswers?: ResolvedFormAnswer[] | null;
 }
@@ -101,6 +103,8 @@ export const schema = {
           llinType: { type: ['string', 'null'] },
           llinBrand: { type: ['string', 'null'] },
           numPeopleSleptUnderLlin: { type: ['number', 'null'] },
+          numChildrenUnder5: { type: ['number', 'null'] },
+          hasPregnantWoman: { type: ['boolean', 'null'] },
         },
       },
       resolvedFormAnswers: {
@@ -399,6 +403,8 @@ export async function resolveConflict(
           llinType: form.llinType,
           llinBrand: form.llinBrand,
           numPeopleSleptUnderLlin: form.numPeopleSleptUnderLlin,
+          numChildrenUnder5: form.numChildrenUnder5,
+          hasPregnantWoman: form.hasPregnantWoman,
         });
       }
     }
@@ -503,6 +509,12 @@ export async function resolveConflict(
       }
       if (resolvedSurveillanceForm.numPeopleSleptUnderLlin !== undefined) {
         formUpdateData.numPeopleSleptUnderLlin = resolvedSurveillanceForm.numPeopleSleptUnderLlin;
+      }
+      if (resolvedSurveillanceForm.numChildrenUnder5 !== undefined) {
+        formUpdateData.numChildrenUnder5 = resolvedSurveillanceForm.numChildrenUnder5;
+      }
+      if (resolvedSurveillanceForm.hasPregnantWoman !== undefined) {
+        formUpdateData.hasPregnantWoman = resolvedSurveillanceForm.hasPregnantWoman;
       }
 
       if (Object.keys(formUpdateData).length > 0) {

@@ -297,7 +297,9 @@ function generateSurveillanceFormData() {
     llinType: numLlinsAvailable > 0 ? LLIN_TYPE : null,
     llinBrand: numLlinsAvailable > 0 ? LLIN_BRAND : null,
     // If nets are available, numPeopleSleptUnderLlin is REQUIRED (at least 1, up to number of people)
-    numPeopleSleptUnderLlin: numLlinsAvailable > 0 ? randomIntBetween(1, numPeopleSleptInHouse) : null
+    numPeopleSleptUnderLlin: numLlinsAvailable > 0 ? randomIntBetween(1, numPeopleSleptInHouse) : null,
+    numChildrenUnder5: randomIntBetween(0, Math.min(5, numPeopleSleptInHouse)),
+    hasPregnantWoman: Math.random() < 0.3
   };
 }
 
@@ -665,6 +667,8 @@ async function seedSpecimens() {
               llinType: surveillanceFormData.llinType,
               llinBrand: surveillanceFormData.llinBrand,
               numPeopleSleptUnderLlin: surveillanceFormData.numPeopleSleptUnderLlin,
+              numChildrenUnder5: surveillanceFormData.numChildrenUnder5,
+              hasPregnantWoman: surveillanceFormData.hasPregnantWoman,
               createdAt: sessionCollectionDate,
               updatedAt: sessionCollectionDate
             }, { transaction });
