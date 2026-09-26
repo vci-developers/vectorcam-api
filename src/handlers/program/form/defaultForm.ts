@@ -69,18 +69,21 @@ export async function createDefaultFormForProgram(
     { transaction }
   );
 
-  await FormQuestion.bulkCreate(
-    defaultQuestions.map((q, idx) => ({
-      formId: form.id,
-      parentId: null,
-      label: q.label,
-      type: q.type,
-      required: q.required ?? false,
-      options: q.options ?? null,
-      order: q.order ?? idx + 1,
-    })),
-    { transaction }
-  );
+  for (let idx = 0; idx < defaultQuestions.length; idx++) {
+    const q = defaultQuestions[idx];
+    await FormQuestion.create(
+      {
+        formId: form.id,
+        parentId: null,
+        label: q.label,
+        type: q.type,
+        required: q.required ?? false,
+        options: q.options ?? null,
+        order: q.order ?? idx + 1,
+      },
+      { transaction }
+    );
+  }
 
   return form;
 }

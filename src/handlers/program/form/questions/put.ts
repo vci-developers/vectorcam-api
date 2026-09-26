@@ -53,6 +53,7 @@ export const schema = {
             parentId: { type: ['number', 'null'] },
             prerequisite: {},
             label: { type: 'string' },
+            questionKey: { type: 'string' },
             type: { type: 'string' },
             required: { type: 'boolean' },
             options: { type: ['array', 'null'] },

@@ -1,5 +1,6 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../index';
+import { generateUniqueQuestionKey } from '../../utils/formQuestionKey';
 
 // Import models needed for associations
 import Form from './Form';
@@ -10,6 +11,7 @@ class FormQuestion extends Model {
   declare parentId: number | null;
   declare prerequisite: unknown | null;
   declare label: string;
+  declare questionKey: string;
   declare type: string;
   declare required: boolean;
   declare options: unknown[] | null;
@@ -55,6 +57,11 @@ FormQuestion.init(
       type: DataTypes.STRING(512),
       allowNull: false,
     },
+    questionKey: {
+      type: DataTypes.STRING(64),
+      allowNull: false,
+      field: 'question_key',
+    },
     type: {
       type: DataTypes.STRING(64),
       allowNull: false,
@@ -93,8 +100,27 @@ FormQuestion.init(
     tableName: 'form_questions',
     underscored: true,
     timestamps: true,
+    indexes: [
+      {
+        unique: true,
+        name: 'form_questions_form_id_question_key',
+        fields: ['form_id', 'question_key'],
+      },
+    ],
   }
 );
+
+FormQuestion.beforeCreate(async (question, options) => {
+  if (question.questionKey) {
+    return;
+  }
+
+  question.questionKey = await generateUniqueQuestionKey(
+    question.label,
+    question.formId,
+    options.transaction ?? undefined
+  );
+});
 
 // Setup associations
 FormQuestion.belongsTo(Form, { foreignKey: 'form_id', as: 'form' });
