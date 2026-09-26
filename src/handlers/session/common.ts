@@ -17,6 +17,19 @@ export const certifiedByResponseSchema = {
   },
 };
 
+export interface PerformedByInfo {
+  userId: number;
+  name: string | null;
+}
+
+export const performedByResponseSchema = {
+  type: ['object', 'null'],
+  properties: {
+    userId: { type: 'number' },
+    name: { type: ['string', 'null'] },
+  },
+};
+
 export const certifierInclude = {
   model: User,
   as: 'certifier',
@@ -65,6 +78,20 @@ export function formatCertifiedBy(session: Session): CertifiedByInfo | null {
       session.state === SessionState.CERTIFIED && session.updatedAt
         ? session.updatedAt.getTime()
         : null,
+  };
+}
+
+export function formatPerformedBy(
+  userId: number | null,
+  usersById?: ReadonlyMap<number, Pick<User, 'id' | 'name'>>
+): PerformedByInfo | null {
+  if (userId == null) {
+    return null;
+  }
+
+  return {
+    userId,
+    name: usersById?.get(userId)?.name ?? null,
   };
 }
 

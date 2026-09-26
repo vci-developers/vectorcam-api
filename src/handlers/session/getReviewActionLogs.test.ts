@@ -1,6 +1,6 @@
 import { Op } from 'sequelize';
 import { getReviewActionLogs } from './getReviewActionLogs';
-import { ReviewActionLog, Site } from '../../db/models';
+import { ReviewActionLog, Site, User } from '../../db/models';
 import { expandSiteIdsWithDescendants } from '../site/common';
 
 jest.mock('../../db/models', () => ({
@@ -10,6 +10,9 @@ jest.mock('../../db/models', () => ({
   },
   Site: {
     count: jest.fn(),
+  },
+  User: {
+    findAll: jest.fn(),
   },
 }));
 
@@ -31,6 +34,7 @@ describe('getReviewActionLogs hierarchy filtering', () => {
     jest.clearAllMocks();
     (ReviewActionLog.count as jest.Mock).mockResolvedValue(0);
     (ReviewActionLog.findAll as jest.Mock).mockResolvedValue([]);
+    (User.findAll as jest.Mock).mockResolvedValue([]);
     (Site.count as jest.Mock).mockResolvedValue(1);
   });
 

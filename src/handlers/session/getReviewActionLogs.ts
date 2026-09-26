@@ -1,7 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { ReviewActionLog, Site } from '../../db/models';
+import { ReviewActionLog, Site, User } from '../../db/models';
 import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants, siteIdInSubtreeOfLiteral } from '../site/common';
+import { formatPerformedBy, performedByResponseSchema } from './common';
 
 interface GetReviewActionLogsQuery {
   siteId?: number;
@@ -47,6 +48,7 @@ export const schema = {
               month: { type: 'number' },
               action: { type: 'string' },
               userId: { type: ['number', 'null'] },
+              performedBy: performedByResponseSchema,
               collectionCycleId: { type: ['number', 'null'] },
               hasChanges: { type: 'boolean' },
               changes: { type: ['object', 'null'], additionalProperties: true },
@@ -152,6 +154,16 @@ export async function getReviewActionLogs(
       order: [['createdAt', 'DESC']],
     });
 
+    const userIds = [...new Set(logs.map((log) => log.userId).filter((id): id is number => id != null))];
+    const users =
+      userIds.length > 0
+        ? await User.findAll({
+            where: { id: { [Op.in]: userIds } },
+            attributes: ['id', 'name'],
+          })
+        : [];
+    const usersById = new Map(users.map((user) => [user.id, user]));
+
     const formattedLogs = logs.map((log) => ({
       id: log.id,
       siteId: log.siteId,
@@ -159,6 +171,7 @@ export async function getReviewActionLogs(
       month: log.month,
       action: log.action,
       userId: log.userId,
+      performedBy: formatPerformedBy(log.userId, usersById),
       collectionCycleId: log.collectionCycleId ?? (log.fields?.collectionCycleId as number | undefined) ?? null,
       hasChanges: log.hasChanges,
       changes: log.changes,
