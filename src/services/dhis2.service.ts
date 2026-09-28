@@ -77,10 +77,65 @@ export function isDhis2EventNotFoundError(error: unknown): boolean {
   return isEventRequest && (message.includes('HTTP 404') || message.includes('[404]'));
 }
 
+export interface Dhis2ErrorLog {
+  action: string;
+  httpStatus: number;
+  httpStatusText: string;
+  responseBodyRaw: string;
+  responseBody: unknown;
+}
+
+export class Dhis2HttpError extends Error {
+  readonly action: string;
+  readonly httpStatus: number;
+  readonly httpStatusText: string;
+  readonly responseBodyRaw: string;
+  readonly responseBody: unknown;
+
+  constructor(params: {
+    action: string;
+    httpStatus: number;
+    httpStatusText: string;
+    responseBodyRaw: string;
+    responseBody: unknown;
+    message: string;
+  }) {
+    super(params.message);
+    this.name = 'Dhis2HttpError';
+    this.action = params.action;
+    this.httpStatus = params.httpStatus;
+    this.httpStatusText = params.httpStatusText;
+    this.responseBodyRaw = params.responseBodyRaw;
+    this.responseBody = params.responseBody;
+  }
+
+  toErrorLog(): Dhis2ErrorLog {
+    return {
+      action: this.action,
+      httpStatus: this.httpStatus,
+      httpStatusText: this.httpStatusText,
+      responseBodyRaw: this.responseBodyRaw,
+      responseBody: this.responseBody,
+    };
+  }
+}
+
+export function getDhis2ErrorLog(error: unknown): Dhis2ErrorLog | null {
+  if (error instanceof Dhis2HttpError) {
+    return error.toErrorLog();
+  }
+  return null;
+}
+
+export function formatDhis2ErrorLogForStorage(errorLog: Dhis2ErrorLog): string {
+  return JSON.stringify(errorLog);
+}
+
 async function throwDhis2HttpError(response: Response, action: string): Promise<never> {
   const bodyText = (await response.text()).trim();
   const statusPart = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
 
+  let responseBody: unknown = bodyText;
   let detail = bodyText;
   if (bodyText) {
     try {
@@ -89,6 +144,7 @@ async function throwDhis2HttpError(response: Response, action: string): Promise<
         httpStatusCode?: number;
         status?: string;
       };
+      responseBody = parsed;
       if (parsed.message) {
         const codePrefix =
           parsed.httpStatusCode != null ? `[${parsed.httpStatusCode}] ` : '';
@@ -101,7 +157,14 @@ async function throwDhis2HttpError(response: Response, action: string): Promise<
   }
 
   const suffix = detail ? ` — ${detail}` : '';
-  throw new Error(`Failed to ${action}: ${statusPart}${suffix}`);
+  throw new Dhis2HttpError({
+    action,
+    httpStatus: response.status,
+    httpStatusText: response.statusText,
+    responseBodyRaw: bodyText,
+    responseBody,
+    message: `Failed to ${action}: ${statusPart}${suffix}`,
+  });
 }
 
 class DHIS2Service {

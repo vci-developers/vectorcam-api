@@ -3,6 +3,9 @@ import { FastifyBaseLogger, FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import {
     dhis2Service,
+    Dhis2ErrorLog,
+    formatDhis2ErrorLogForStorage,
+    getDhis2ErrorLog,
     isDhis2EventNotFoundError,
     TrackedEntityInstance,
 } from '../../services/dhis2.service';
@@ -227,6 +230,8 @@ interface SyncResult {
     eventId?: string | null;
     dataValuesCount?: number | null;
     dataValues?: DataValueWithName[] | null;
+    /** Full DHIS2 HTTP error payload when a household sync fails on a DHIS2 API call */
+    dhis2ErrorLog?: Dhis2ErrorLog | null;
 }
 
 /**
@@ -503,9 +508,12 @@ async function runDhis2SyncTask(
         );
     } catch (error: any) {
         const timedOut = controller.signal.aborted || isAbortError(error);
+        const dhis2ErrorLog = getDhis2ErrorLog(error);
         const message = timedOut
             ? getAbortMessage(controller.signal, `DHIS2 sync task timed out after ${DHIS2_SYNC_TIMEOUT_SECONDS} seconds`)
-            : error.message || 'Internal server error during DHIS2 sync';
+            : dhis2ErrorLog
+                ? formatDhis2ErrorLogForStorage(dhis2ErrorLog)
+                : error.message || 'Internal server error during DHIS2 sync';
 
         await Dhis2SyncTask.update(
             {
@@ -837,7 +845,11 @@ async function performDhis2Sync(
                 throw error;
             }
 
-            log.error(`Error syncing site ${site.id}:`, error);
+            const dhis2ErrorLog = getDhis2ErrorLog(error);
+            log.error(
+                { err: error, siteId: site.id, dhis2ErrorLog },
+                `Error syncing site ${site.id}`
+            );
             failedSyncs++;
             results.push({
                 siteId: site.id,
@@ -845,6 +857,7 @@ async function performDhis2Sync(
                 healthCenter: site.healthCenter,
                 status: 'failed',
                 message: error.message || 'Unknown error occurred',
+                ...(dhis2ErrorLog ? { dhis2ErrorLog } : {}),
             });
         }
     }
