@@ -10,6 +10,7 @@ import {
   isValidTfliteUpload,
   MAX_MODEL_FILE_SIZE_BYTES,
   modelIdAlreadyExists,
+  normalizeDescription,
   normalizeUploadFilename,
   parseModelClassesField,
   programModelResponseSchema,
@@ -43,6 +44,7 @@ export const schema = {
 interface UploadFields {
   modelId?: string;
   modelClasses?: string;
+  description?: string;
 }
 
 export async function uploadProgramModel(
@@ -85,6 +87,8 @@ export async function uploadProgramModel(
         fields.modelId = part.value as string;
       } else if (part.fieldname === 'modelClasses') {
         fields.modelClasses = part.value as string;
+      } else if (part.fieldname === 'description') {
+        fields.description = part.value as string;
       }
     }
 
@@ -135,6 +139,7 @@ export async function uploadProgramModel(
           programId,
           modelId,
           filename,
+          description: normalizeDescription(fields.description),
           s3Key,
           modelClasses,
           fileSize: fileBuffer.length,

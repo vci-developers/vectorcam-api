@@ -10,6 +10,7 @@ import {
   findProgramModelByModelId,
   isValidTfliteUpload,
   MAX_MODEL_FILE_SIZE_BYTES,
+  normalizeDescription,
   normalizeUploadFilename,
   parseModelClassesField,
   programModelResponseSchema,
@@ -36,6 +37,7 @@ export const schema = {
         type: 'array',
         items: { type: 'string' },
       },
+      description: { type: ['string', 'null'] },
     },
   },
   response: {
@@ -51,12 +53,13 @@ export const schema = {
 
 interface UpdateFields {
   modelClasses?: string;
+  description?: string;
 }
 
 export async function updateProgramModel(
   request: FastifyRequest<{
     Params: { program_id: string; model_id: string };
-    Body: { modelClasses?: string[] };
+    Body: { modelClasses?: string[]; description?: string | null };
   }>,
   reply: FastifyReply
 ): Promise<void> {
@@ -77,6 +80,7 @@ export async function updateProgramModel(
     }
 
     let modelClasses: string[] | undefined;
+    let descriptionUpdate: string | null | undefined;
     let fileBuffer: Buffer | null = null;
     let fileMeta: { filename: string; mimetype: string } | null = null;
 
@@ -96,6 +100,8 @@ export async function updateProgramModel(
 
         if (part.fieldname === 'modelClasses') {
           fields.modelClasses = part.value as string;
+        } else if (part.fieldname === 'description') {
+          fields.description = part.value as string;
         }
       }
 
@@ -106,16 +112,28 @@ export async function updateProgramModel(
         }
         modelClasses = parsed;
       }
-    } else if (request.body?.modelClasses !== undefined) {
-      const parsed = validateModelClasses(request.body.modelClasses);
-      if (!parsed) {
-        return reply.code(400).send({ error: 'modelClasses must be an array of non-empty strings' });
+
+      if (fields.description !== undefined) {
+        descriptionUpdate = normalizeDescription(fields.description);
       }
-      modelClasses = parsed;
+    } else {
+      if (request.body?.modelClasses !== undefined) {
+        const parsed = validateModelClasses(request.body.modelClasses);
+        if (!parsed) {
+          return reply.code(400).send({ error: 'modelClasses must be an array of non-empty strings' });
+        }
+        modelClasses = parsed;
+      }
+
+      if (request.body && 'description' in request.body) {
+        descriptionUpdate = normalizeDescription(request.body.description);
+      }
     }
 
-    if (!modelClasses && !fileBuffer) {
-      return reply.code(400).send({ error: 'Provide modelClasses and/or a replacement model file' });
+    if (!modelClasses && !fileBuffer && descriptionUpdate === undefined) {
+      return reply.code(400).send({
+        error: 'Provide modelClasses, description, and/or a replacement model file',
+      });
     }
 
     let newS3Key: string | null = null;
@@ -142,6 +160,10 @@ export async function updateProgramModel(
 
       if (modelClasses) {
         updates.modelClasses = modelClasses;
+      }
+
+      if (descriptionUpdate !== undefined) {
+        updates.description = descriptionUpdate;
       }
 
       if (fileBuffer && newS3Key) {
