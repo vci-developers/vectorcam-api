@@ -50,6 +50,34 @@ export interface HouseholdData {
   specimenCounts: SpecimenCounts;
 }
 
+export type FemaleAbdomenDhis2Bucket = 'fed' | 'unfed' | 'gravid' | 'half_gravid';
+
+/**
+ * Map thumbnail abdomen status text to DHIS2 female Anopheles buckets.
+ * Unfed must be checked before fed because "unfed" contains the substring "fed".
+ */
+export function classifyFemaleAbdomenStatusForDhis2(
+  abdomenStatus: string
+): FemaleAbdomenDhis2Bucket | null {
+  const status = abdomenStatus.toLowerCase();
+  if (!status) {
+    return null;
+  }
+  if (status.includes('unfed') || status.includes('empty')) {
+    return 'unfed';
+  }
+  if (status.includes('half') && status.includes('gravid')) {
+    return 'half_gravid';
+  }
+  if (status.includes('gravid')) {
+    return 'gravid';
+  }
+  if (status.includes('fed') || status.includes('blood')) {
+    return 'fed';
+  }
+  return null;
+}
+
 class DHIS2AggregationService {
   /**
    * Get all household data for a specific month
@@ -231,15 +259,7 @@ class DHIS2AggregationService {
         if (sex === 'male') {
           counts.male_anopheles++;
         } else if (sex === 'female') {
-          if (abdomenStatus.includes('fed') || abdomenStatus.includes('blood')) {
-            counts.an_gambiae_fed++;
-          } else if (abdomenStatus.includes('unfed') || abdomenStatus.includes('empty')) {
-            counts.an_gambiae_unfed++;
-          } else if (abdomenStatus.includes('gravid') && !abdomenStatus.includes('half')) {
-            counts.an_gambiae_gravid++;
-          } else if (abdomenStatus.includes('half') && abdomenStatus.includes('gravid')) {
-            counts.an_gambiae_half_gravid++;
-          }
+          this.applyFemaleAbdomenBucket(counts, 'an_gambiae', abdomenStatus);
         }
       }
       // An. funestus s.l.
@@ -249,15 +269,7 @@ class DHIS2AggregationService {
         if (sex === 'male') {
           counts.male_anopheles++;
         } else if (sex === 'female') {
-          if (abdomenStatus.includes('fed') || abdomenStatus.includes('blood')) {
-            counts.an_funestus_fed++;
-          } else if (abdomenStatus.includes('unfed') || abdomenStatus.includes('empty')) {
-            counts.an_funestus_unfed++;
-          } else if (abdomenStatus.includes('gravid') && !abdomenStatus.includes('half')) {
-            counts.an_funestus_gravid++;
-          } else if (abdomenStatus.includes('half') && abdomenStatus.includes('gravid')) {
-            counts.an_funestus_half_gravid++;
-          }
+          this.applyFemaleAbdomenBucket(counts, 'an_funestus', abdomenStatus);
         }
       }
       // Culex
@@ -297,17 +309,40 @@ class DHIS2AggregationService {
         if (sex === 'male') {
           counts.male_anopheles++;
         } else if (sex === 'female') {
-          if (abdomenStatus.includes('fed') || abdomenStatus.includes('blood')) {
-            counts.an_other_fed++;
-          } else if (abdomenStatus.includes('unfed') || abdomenStatus.includes('empty')) {
-            counts.an_other_unfed++;
-          } else if (abdomenStatus.includes('gravid') && !abdomenStatus.includes('half')) {
-            counts.an_other_gravid++;
-          } else if (abdomenStatus.includes('half') && abdomenStatus.includes('gravid')) {
-            counts.an_other_half_gravid++;
-          }
+          this.applyFemaleAbdomenBucket(counts, 'an_other', abdomenStatus);
         }
       }
+    }
+  }
+
+  private applyFemaleAbdomenBucket(
+    counts: SpecimenCounts,
+    speciesKey: 'an_gambiae' | 'an_funestus' | 'an_other',
+    abdomenStatus: string
+  ): void {
+    const bucket = classifyFemaleAbdomenStatusForDhis2(abdomenStatus);
+    if (!bucket) {
+      return;
+    }
+    switch (speciesKey) {
+      case 'an_gambiae':
+        if (bucket === 'fed') counts.an_gambiae_fed++;
+        else if (bucket === 'unfed') counts.an_gambiae_unfed++;
+        else if (bucket === 'gravid') counts.an_gambiae_gravid++;
+        else counts.an_gambiae_half_gravid++;
+        break;
+      case 'an_funestus':
+        if (bucket === 'fed') counts.an_funestus_fed++;
+        else if (bucket === 'unfed') counts.an_funestus_unfed++;
+        else if (bucket === 'gravid') counts.an_funestus_gravid++;
+        else counts.an_funestus_half_gravid++;
+        break;
+      case 'an_other':
+        if (bucket === 'fed') counts.an_other_fed++;
+        else if (bucket === 'unfed') counts.an_other_unfed++;
+        else if (bucket === 'gravid') counts.an_other_gravid++;
+        else counts.an_other_half_gravid++;
+        break;
     }
   }
 }
