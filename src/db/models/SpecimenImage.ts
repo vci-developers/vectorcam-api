@@ -1,6 +1,7 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../index';
 import InferenceResult from './InferenceResult';
+import VectorAiInferenceResult from './VectorAiInferenceResult';
 
 class SpecimenImage extends Model {
   declare id: number;
@@ -92,5 +93,14 @@ SpecimenImage.init(
 
 SpecimenImage.hasOne(InferenceResult, { foreignKey: 'specimenImageId', as: 'inferenceResult' });
 InferenceResult.belongsTo(SpecimenImage, { foreignKey: 'specimenImageId', as: 'specimenImage' });
+
+SpecimenImage.hasMany(VectorAiInferenceResult, {
+  foreignKey: 'specimenImageId',
+  as: 'vectorAiInferenceResults',
+});
+VectorAiInferenceResult.belongsTo(SpecimenImage, {
+  foreignKey: 'specimenImageId',
+  as: 'specimenImage',
+});
 
 export default SpecimenImage; 

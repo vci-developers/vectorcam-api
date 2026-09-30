@@ -85,6 +85,10 @@ const developmentConfig = {
   activeUserMetrics: {
     cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 0 * * *',
   },
+  vectorAiInference: {
+    enabled: process.env.VECTOR_AI_INFERENCE_CRON_ENABLED !== 'false',
+    cronSchedule: process.env.VECTOR_AI_INFERENCE_CRON || '0 0 * * *',
+  },
 };
 
 // Configuration for test environment
@@ -158,6 +162,10 @@ const testConfig = {
   activeUserMetrics: {
     cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 0 * * *',
   },
+  vectorAiInference: {
+    enabled: process.env.VECTOR_AI_INFERENCE_CRON_ENABLED !== 'false',
+    cronSchedule: process.env.VECTOR_AI_INFERENCE_CRON || '0 0 * * *',
+  },
 };
 
 // Configuration for production environment
@@ -230,6 +238,10 @@ const productionConfig = {
   },
   activeUserMetrics: {
     cronSchedule: process.env.ACTIVE_USER_METRICS_CRON || '0 0 * * *',
+  },
+  vectorAiInference: {
+    enabled: process.env.VECTOR_AI_INFERENCE_CRON_ENABLED !== 'false',
+    cronSchedule: process.env.VECTOR_AI_INFERENCE_CRON || '0 0 * * *',
   },
 };
 

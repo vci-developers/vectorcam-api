@@ -42,13 +42,18 @@ function parseModelErrorBody(message: string): unknown {
   }
 }
 
+export interface InvokeVectorAiInferenceOptions {
+  endpointName?: string;
+}
+
 export async function invokeVectorAiInference(
-  input: InvokeVectorAiInferenceInput
+  input: InvokeVectorAiInferenceInput,
+  options: InvokeVectorAiInferenceOptions = {}
 ): Promise<InvokeVectorAiInferenceResult> {
   try {
     const response = await sagemakerRuntimeClient.send(
       new InvokeEndpointCommand({
-        EndpointName: config.aws.vectorAiInferenceEndpoint,
+        EndpointName: options.endpointName ?? config.aws.vectorAiInferenceEndpoint,
         ContentType: input.contentType,
         Accept: 'application/json',
         Body: input.body,

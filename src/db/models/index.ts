@@ -28,6 +28,8 @@ import SessionUnit from './SessionUnit';
 import UserAuthEvent from './UserAuthEvent';
 import ActiveUserMetric from './ActiveUserMetric';
 import ProgramModel from './ProgramModel';
+import VectorAiInferenceResult from './VectorAiInferenceResult';
+import VectorAiModel from './VectorAiModel';
 
 export {
   Program,
@@ -60,4 +62,6 @@ export {
   UserAuthEvent,
   ActiveUserMetric,
   ProgramModel,
+  VectorAiInferenceResult,
+  VectorAiModel,
 };
