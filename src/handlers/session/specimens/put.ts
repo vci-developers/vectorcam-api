@@ -1,7 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Specimen, SpecimenImage } from '../../../db/models';
-import { formatSpecimenResponse, handleError, validateSpecimenSessionUnit } from '../../specimen/common';
+import {
+  formatSpecimenResponse,
+  handleError,
+  validateSpecimenSessionUnit,
+  specimenImageInferenceResponseSchemaProperties,
+} from '../../specimen/common';
 import { findSession, findSessionSpecimen } from '../common';
 
 export const schema = {
@@ -74,30 +79,7 @@ export const schema = {
                     appAbdomenStatus: { type: ['string', 'null'] },
                     capturedAt: { type: ['number', 'null'] },
                     submittedAt: { type: 'number' },
-                    inferenceResult: {
-                      anyOf: [
-                        { type: 'null' },
-                        {
-                          type: 'object',
-                          properties: {
-                            id: { type: 'number' },
-                            bboxTopLeftX: { type: 'number' },
-                            bboxTopLeftY: { type: 'number' },
-                            bboxWidth: { type: 'number' },
-                            bboxHeight: { type: 'number' },
-                            bboxConfidence: { type: 'number' },
-                            bboxClassId: { type: 'number' },
-                            speciesLogits: { type: 'array', items: { type: 'number' } },
-                            sexLogits: { type: 'array', items: { type: 'number' } },
-                            abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                            speciesInferenceDuration: { type: ['number', 'null'] },
-                            sexInferenceDuration: { type: ['number', 'null'] },
-                            abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                            bboxDetectionDuration: { type: ['number', 'null'] }
-                          }
-                        }
-                      ]
-                    }
+                    ...specimenImageInferenceResponseSchemaProperties,
                   }
                 }
               ]

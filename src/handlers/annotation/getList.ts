@@ -3,6 +3,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op, WhereOptions } from 'sequelize';
 import { Annotation, AnnotationTask, User, Specimen, Session, Site, SpecimenImage, SessionUnit } from '../../db/models';
 import { formatAnnotationResponse } from './common';
+import { getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from '../specimen/common';
 import { buildSiteSubtreeWhere } from '../site/common';
 
 interface GetAnnotationListQuery {
@@ -123,6 +124,9 @@ export const schema = {
                       appSpecies: { type: ['string', 'null'] },
                       appSex: { type: ['string', 'null'] },
                       appAbdomenStatus: { type: ['string', 'null'] },
+                      capturedAt: { type: ['number', 'null'] },
+                      submittedAt: { type: 'number' },
+                      ...specimenImageInferenceResponseSchemaProperties,
                     },
                   },
                   session: {
@@ -290,6 +294,7 @@ export default async function getAnnotationList(
           {
             model: SpecimenImage,
             as: 'thumbnailImage',
+            include: getSpecimenImageInferenceInclude(),
           },
           {
             model: SessionUnit,

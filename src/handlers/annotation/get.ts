@@ -6,12 +6,12 @@ import {
   User, 
   Specimen, 
   SpecimenImage, 
-  InferenceResult, 
   Session, 
   Site,
   SessionUnit,
 } from '../../db/models';
 import { formatAnnotationResponse } from './common';
+import { getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from '../specimen/common';
 
 interface GetAnnotationParams {
   annotationId: number;
@@ -114,25 +114,7 @@ export const schema = {
                 appAbdomenStatus: { type: ['string', 'null'] },
                 capturedAt: { type: ['number', 'null'] },
                 submittedAt: { type: 'number' },
-                inferenceResult: {
-                  type: ['object', 'null'],
-                  properties: {
-                    id: { type: 'number' },
-                    bboxTopLeftX: { type: 'number' },
-                    bboxTopLeftY: { type: 'number' },
-                    bboxWidth: { type: 'number' },
-                    bboxHeight: { type: 'number' },
-                    bboxConfidence: { type: 'number' },
-                    bboxClassId: { type: 'number' },
-                    speciesLogits: { type: 'array' },
-                    sexLogits: { type: 'array' },
-                    abdomenStatusLogits: { type: 'array' },
-                    speciesInferenceDuration: { type: ['number', 'null'] },
-                    sexInferenceDuration: { type: ['number', 'null'] },
-                    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                    bboxDetectionDuration: { type: ['number', 'null'] }
-                  }
-                }
+                ...specimenImageInferenceResponseSchemaProperties,
               }
             },
             session: {
@@ -232,12 +214,7 @@ export default async function getAnnotation(
             {
               model: SpecimenImage,
               as: 'thumbnailImage',
-              include: [
-                {
-                  model: InferenceResult,
-                  as: 'inferenceResult',
-                }
-              ]
+              include: getSpecimenImageInferenceInclude(),
             },
             {
               model: SessionUnit,

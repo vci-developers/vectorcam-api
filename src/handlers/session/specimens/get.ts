@@ -1,7 +1,11 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Session, Site, Device } from '../../../db/models';
 import { SessionState } from '../../../db/models/Session';
-import { formatSpecimenResponse, handleError } from '../../specimen/common';
+import {
+  formatSpecimenResponse,
+  handleError,
+  specimenImageInferenceResponseSchemaProperties,
+} from '../../specimen/common';
 import { certifiedByResponseSchema, findSession, findSessionSpecimen, formatCertifiedBy } from '../common';
 import { formatSiteResponse } from '../../site/common';
 
@@ -60,25 +64,7 @@ export const schema = {
               appAbdomenStatus: { type: ['string', 'null'] },
               capturedAt: { type: ['number', 'null'] },
               submittedAt: { type: 'number' },
-              inferenceResult: {
-                type: ['object', 'null'],
-                properties: {
-                  id: { type: 'number' },
-                  bboxTopLeftX: { type: 'number' },
-                  bboxTopLeftY: { type: 'number' },
-                  bboxWidth: { type: 'number' },
-                  bboxHeight: { type: 'number' },
-                  bboxConfidence: { type: 'number' },
-                  bboxClassId: { type: 'number' },
-                  speciesLogits: { type: 'array', items: { type: 'number' } },
-                  sexLogits: { type: 'array', items: { type: 'number' } },
-                  abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                  speciesInferenceDuration: { type: ['number', 'null'] },
-                  sexInferenceDuration: { type: ['number', 'null'] },
-                  abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                  bboxDetectionDuration: { type: ['number', 'null'] }
-                }
-              }
+              ...specimenImageInferenceResponseSchemaProperties,
             }
           }
         },
@@ -99,30 +85,7 @@ export const schema = {
                 appAbdomenStatus: { type: ['string', 'null'] },
                 capturedAt: { type: ['number', 'null'] },
                 submittedAt: { type: 'number' },
-                inferenceResult: {
-                  anyOf: [
-                    { type: 'null' },
-                    {
-                      type: 'object',
-                      properties: {
-                        id: { type: 'number' },
-                        bboxTopLeftX: { type: 'number' },
-                        bboxTopLeftY: { type: 'number' },
-                        bboxWidth: { type: 'number' },
-                        bboxHeight: { type: 'number' },
-                        bboxConfidence: { type: 'number' },
-                        bboxClassId: { type: 'number' },
-                        speciesLogits: { type: 'array', items: { type: 'number' } },
-                        sexLogits: { type: 'array', items: { type: 'number' } },
-                        abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                        speciesInferenceDuration: { type: ['number', 'null'] },
-                        sexInferenceDuration: { type: ['number', 'null'] },
-                        abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                        bboxDetectionDuration: { type: ['number', 'null'] }
-                      }
-                    }
-                  ]
-                }
+                ...specimenImageInferenceResponseSchemaProperties,
               }
             }
           ]

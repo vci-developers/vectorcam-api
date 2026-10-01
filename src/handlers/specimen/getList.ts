@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, Site, SpecimenImage, InferenceResult, SessionUnit } from '../../db/models';
+import { Specimen, Session, Site, SpecimenImage, SessionUnit } from '../../db/models';
+import { getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from './common';
 import { formatSpecimenResponseFromImages } from './common';
 import { Op, Order } from 'sequelize';
 import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
@@ -80,30 +81,7 @@ export const schema = {
                     appAbdomenStatus: { type: ['string', 'null'] },
                     capturedAt: { type: ['number', 'null'] },
                     submittedAt: { type: 'number' },
-                    inferenceResult: {
-                      anyOf: [
-                        { type: 'null' },
-                        {
-                          type: 'object',
-                          properties: {
-                            id: { type: 'number' },
-                            bboxTopLeftX: { type: 'number' },
-                            bboxTopLeftY: { type: 'number' },
-                            bboxWidth: { type: 'number' },
-                            bboxHeight: { type: 'number' },
-                            bboxConfidence: { type: 'number' },
-                            bboxClassId: { type: 'number' },
-                            speciesLogits: { type: 'array', items: { type: 'number' } },
-                            sexLogits: { type: 'array', items: { type: 'number' } },
-                            abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                            speciesInferenceDuration: { type: ['number', 'null'] },
-                            sexInferenceDuration: { type: ['number', 'null'] },
-                            abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                            bboxDetectionDuration: { type: ['number', 'null'] }
-                          }
-                        }
-                      ]
-                    }
+                    ...specimenImageInferenceResponseSchemaProperties,
                   }
                 }
               },
@@ -124,30 +102,7 @@ export const schema = {
                       appAbdomenStatus: { type: ['string', 'null'] },
                       capturedAt: { type: ['number', 'null'] },
                       submittedAt: { type: 'number' },
-                      inferenceResult: {
-                        anyOf: [
-                          { type: 'null' },
-                          {
-                            type: 'object',
-                            properties: {
-                              id: { type: 'number' },
-                              bboxTopLeftX: { type: 'number' },
-                              bboxTopLeftY: { type: 'number' },
-                              bboxWidth: { type: 'number' },
-                              bboxHeight: { type: 'number' },
-                              bboxConfidence: { type: 'number' },
-                              bboxClassId: { type: 'number' },
-                              speciesLogits: { type: 'array', items: { type: 'number' } },
-                              sexLogits: { type: 'array', items: { type: 'number' } },
-                              abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                              speciesInferenceDuration: { type: ['number', 'null'] },
-                              sexInferenceDuration: { type: ['number', 'null'] },
-                              abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                              bboxDetectionDuration: { type: ['number', 'null'] }
-                            }
-                          }
-                        ]
-                      }
+                      ...specimenImageInferenceResponseSchemaProperties,
                     }
                   }
                 ]
@@ -390,11 +345,7 @@ export async function getSpecimenList(
           where: includeAllImages
             ? { specimenId: { [Op.in]: specimenIds } }
             : { id: { [Op.in]: thumbnailImageIds } },
-          include: [{
-            model: InferenceResult,
-            as: 'inferenceResult',
-            required: false
-          }],
+          include: getSpecimenImageInferenceInclude(),
           order: [['createdAt', 'ASC']]
         });
 

@@ -1,6 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen, Session } from '../../../../db/models';
-import { handleError, findSpecimenImage, formatImageResponse } from '../../common';
+import {
+  handleError,
+  findSpecimenImage,
+  formatImageResponse,
+  enrichSpecimenImageInferenceData,
+  specimenImageInferenceResponseSchemaProperties,
+} from '../../common';
 import { getChangedFields, logReviewAction } from '../../../../services/reviewActionLog.service';
 
 interface UpdateImageDataRequestBody {
@@ -84,30 +90,7 @@ export const schema = {
             appAbdomenStatus: { type: ['string', 'null'] },
             capturedAt: { type: ['number', 'null'] },
             submittedAt: { type: 'number' },
-            inferenceResult: {
-              anyOf: [
-                { type: 'null' },
-                {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'number' },
-                    bboxTopLeftX: { type: 'number' },
-                    bboxTopLeftY: { type: 'number' },
-                    bboxWidth: { type: 'number' },
-                    bboxHeight: { type: 'number' },
-                    bboxConfidence: { type: 'number' },
-                    bboxClassId: { type: 'number' },
-                    speciesLogits: { type: 'array', items: { type: 'number' } },
-                    sexLogits: { type: 'array', items: { type: 'number' } },
-                    abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                    speciesInferenceDuration: { type: ['number', 'null'] },
-                    sexInferenceDuration: { type: ['number', 'null'] },
-                    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                    bboxDetectionDuration: { type: ['number', 'null'] }
-                  }
-                }
-              ]
-            },
+            ...specimenImageInferenceResponseSchemaProperties,
             filemd5: { type: 'string' }
           }
         }
@@ -296,6 +279,7 @@ export async function updateImageData(
     // Build the updated image object for response
     (image as SpecimenImage & { inferenceResult?: InferenceResult | null }).inferenceResult =
       result ?? null;
+    await enrichSpecimenImageInferenceData(image);
     const updatedImage = {
       ...formatImageResponse(specimen.id, image),
       filemd5: image.filemd5,

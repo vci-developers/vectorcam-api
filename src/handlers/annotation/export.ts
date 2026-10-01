@@ -6,13 +6,18 @@ import {
   User, 
   Specimen, 
   SpecimenImage, 
-  InferenceResult,
   Session,
   Site,
   Program
 } from '../../db/models';
 import { config } from '../../config/environment';
 import { buildSiteSubtreeWhere } from '../site/common';
+import {
+  formatVectorAiPredictions,
+  getVectorAiPredictionCsvValues,
+  getSpecimenImageInferenceInclude,
+  vectorAiPredictionCsvColumnHeaders,
+} from '../specimen/common';
 
 // Function to properly escape CSV fields
 function escapeCSVField(field: any): string {
@@ -169,13 +174,7 @@ export async function exportAnnotationsCSV(
               model: SpecimenImage,
               as: 'thumbnailImage',
               required: false,
-              include: [
-                {
-                  model: InferenceResult,
-                  as: 'inferenceResult',
-                  required: false
-                }
-              ]
+              include: getSpecimenImageInferenceInclude(),
             },
             {
               model: Session,
@@ -259,7 +258,8 @@ export async function exportAnnotationsCSV(
       'AbdomenStatusInferenceDuration',
       'BboxDetectionDuration',
       'InferenceResultCreatedAt',
-      'InferenceResultUpdatedAt'
+      'InferenceResultUpdatedAt',
+      ...vectorAiPredictionCsvColumnHeaders,
     ].join(',') + '\n';
 
     // Generate CSV rows
@@ -271,6 +271,9 @@ export async function exportAnnotationsCSV(
       const specimen = annotation.get('specimen') as any;
       const thumbnailImage = specimen?.get('thumbnailImage') as any;
       const inferenceResult = thumbnailImage?.get('inferenceResult') as any;
+      const vectorAiCsv = getVectorAiPredictionCsvValues(
+        thumbnailImage ? formatVectorAiPredictions(thumbnailImage) : {}
+      );
 
       // Build thumbnail image URL
       const thumbnailImageUrl = thumbnailImage?.imageKey && thumbnailImage.imageKey.trim() !== '' 
@@ -334,7 +337,10 @@ export async function exportAnnotationsCSV(
         escapeCSVField(inferenceResult?.abdomenStatusInferenceDuration),
         escapeCSVField(inferenceResult?.bboxDetectionDuration),
         escapeCSVField(inferenceResult?.createdAt ? inferenceResult.createdAt.toISOString() : null),
-        escapeCSVField(inferenceResult?.updatedAt ? inferenceResult.updatedAt.toISOString() : null)
+        escapeCSVField(inferenceResult?.updatedAt ? inferenceResult.updatedAt.toISOString() : null),
+        escapeCSVField(vectorAiCsv.species),
+        escapeCSVField(vectorAiCsv.sex),
+        escapeCSVField(vectorAiCsv.abdomenStatus),
       ];
 
       csv += row.join(',') + '\n';

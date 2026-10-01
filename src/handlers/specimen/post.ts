@@ -4,6 +4,7 @@ import {
   handleError, 
   formatSpecimenResponse,
   validateSpecimenSessionUnit,
+  specimenImageInferenceResponseSchemaProperties,
 } from './common';
 import { Specimen } from '../../db/models';
 import { findSessionSpecimen } from '../session/common';
@@ -79,30 +80,7 @@ export const schema = {
                     appAbdomenStatus: { type: ['string', 'null'] },
                     capturedAt: { type: ['number', 'null'] },
                     submittedAt: { type: 'number' },
-                    inferenceResult: {
-                      anyOf: [
-                        { type: 'null' },
-                        {
-                          type: 'object',
-                          properties: {
-                            id: { type: 'number' },
-                            bboxTopLeftX: { type: 'number' },
-                            bboxTopLeftY: { type: 'number' },
-                            bboxWidth: { type: 'number' },
-                            bboxHeight: { type: 'number' },
-                            bboxConfidence: { type: 'number' },
-                            bboxClassId: { type: 'number' },
-                            speciesLogits: { type: 'array', items: { type: 'number' } },
-                            sexLogits: { type: 'array', items: { type: 'number' } },
-                            abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                            speciesInferenceDuration: { type: ['number', 'null'] },
-                            sexInferenceDuration: { type: ['number', 'null'] },
-                            abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                            bboxDetectionDuration: { type: ['number', 'null'] }
-                          }
-                        }
-                      ]
-                    }
+                    ...specimenImageInferenceResponseSchemaProperties,
                   }
                 }
               ]

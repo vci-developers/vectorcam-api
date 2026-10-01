@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import SpecimenImage from '../../../../db/models/SpecimenImage';
-import { InferenceResult, Specimen } from '../../../../db/models';
-import { formatImageResponse } from '../../common';
+import { Specimen } from '../../../../db/models';
+import { formatImageResponse, getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from '../../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -32,30 +32,7 @@ export const schema = {
               appAbdomenStatus: { type: ['string', 'null'] },
               capturedAt: { type: ['number', 'null'] },
               submittedAt: { type: 'number' },
-              inferenceResult: {
-                anyOf: [
-                  { type: 'null' },
-                  {
-                    type: 'object',
-                    properties: {
-                      id: { type: 'number' },
-                      bboxTopLeftX: { type: 'number' },
-                      bboxTopLeftY: { type: 'number' },
-                      bboxWidth: { type: 'number' },
-                      bboxHeight: { type: 'number' },
-                      bboxConfidence: { type: 'number' },
-                      bboxClassId: { type: 'number' },
-                      speciesLogits: { type: 'array', items: { type: 'number' } },
-                      sexLogits: { type: 'array', items: { type: 'number' } },
-                      abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                      speciesInferenceDuration: { type: ['number', 'null'] },
-                      sexInferenceDuration: { type: ['number', 'null'] },
-                      abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                      bboxDetectionDuration: { type: ['number', 'null'] }
-                    }
-                  }
-                ]
-              },
+              ...specimenImageInferenceResponseSchemaProperties,
               filemd5: { type: 'string' }
             }
           }
@@ -82,7 +59,8 @@ export async function getImageList(
     // Find all images for this specimen
     const images = await SpecimenImage.findAll({
       where: { specimenId: specimen.id },
-      order: [['created_at', 'DESC']]
+      include: getSpecimenImageInferenceInclude(),
+      order: [['created_at', 'DESC']],
     });
 
     if (images.length === 0) {
@@ -94,16 +72,9 @@ export async function getImageList(
     }
 
     // Format the response
-    const formattedImages = await Promise.all(images.map(async (img) => {
-      const inferenceResult = await InferenceResult.findOne({
-        where: { specimenImageId: img.id }
-      });
-      (img as SpecimenImage & { inferenceResult?: InferenceResult | null }).inferenceResult =
-        inferenceResult ?? null;
-      return {
-        ...formatImageResponse(specimen.id, img),
-        filemd5: img.filemd5,
-      };
+    const formattedImages = images.map((img) => ({
+      ...formatImageResponse(specimen.id, img),
+      filemd5: img.filemd5,
     }));
 
     // Get the thumbnail URL

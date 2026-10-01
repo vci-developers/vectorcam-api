@@ -1,6 +1,12 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { SpecimenImage, InferenceResult, Specimen } from "../../../../db/models";
-import { handleError, findSpecimenImage, formatImageResponse } from '../../common';
+import { SpecimenImage, Specimen } from "../../../../db/models";
+import {
+  handleError,
+  findSpecimenImage,
+  formatImageResponse,
+  enrichSpecimenImageInferenceData,
+  specimenImageInferenceResponseSchemaProperties,
+} from '../../common';
 
 export const schema = {
   tags: ['Specimen Images'],
@@ -28,30 +34,7 @@ export const schema = {
         appAbdomenStatus: { type: ['string', 'null'] },
         capturedAt: { type: ['number', 'null'] },
         submittedAt: { type: 'number' },
-        inferenceResult: {
-          anyOf: [
-            { type: 'null' },
-            {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                bboxTopLeftX: { type: 'number' },
-                bboxTopLeftY: { type: 'number' },
-                bboxWidth: { type: 'number' },
-                bboxHeight: { type: 'number' },
-                bboxConfidence: { type: 'number' },
-                bboxClassId: { type: 'number' },
-                speciesLogits: { type: 'array', items: { type: 'number' } },
-                sexLogits: { type: 'array', items: { type: 'number' } },
-                abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                speciesInferenceDuration: { type: ['number', 'null'] },
-                sexInferenceDuration: { type: ['number', 'null'] },
-                abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                bboxDetectionDuration: { type: ['number', 'null'] }
-              }
-            }
-          ]
-        },
+        ...specimenImageInferenceResponseSchemaProperties,
         filemd5: { type: 'string' }
       }
     }
@@ -72,11 +55,7 @@ export async function getImageData(
       if (!image) {
         return reply.code(404).send({ error: 'Image not found' });
       }
-      const inferenceResult = await InferenceResult.findOne({
-        where: { specimenImageId: image.id }
-      });
-      (image as SpecimenImage & { inferenceResult?: InferenceResult | null }).inferenceResult =
-        inferenceResult ?? null;
+      await enrichSpecimenImageInferenceData(image);
       return reply.code(200).send({
         ...formatImageResponse(specimen.id, image),
         filemd5: image.filemd5,

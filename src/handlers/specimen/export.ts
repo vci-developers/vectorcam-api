@@ -1,7 +1,22 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { handleError } from './common';
-import { Specimen, Session, Site, Device, Program, InferenceResult, SpecimenImage } from '../../db/models';
+import {
+  handleError,
+  buildVectorAiPredictionsFromRows,
+  getVectorAiPredictionCsvValues,
+  vectorAiPredictionCsvHeaderSuffix,
+} from './common';
+import {
+  Specimen,
+  Session,
+  Site,
+  Device,
+  Program,
+  InferenceResult,
+  SpecimenImage,
+  VectorAiInferenceResult,
+  VectorAiModel,
+} from '../../db/models';
 import { config } from '../../config/environment';
 import { formatSiteResponse, buildSiteSubtreeWhere } from '../site/common';
 
@@ -178,13 +193,30 @@ export async function exportSpecimensCSV(
     }
 
     const inferenceResults = new Map<number, InstanceType<typeof InferenceResult>>();
+    const vectorAiPredictionsByImageId = new Map<number, ReturnType<typeof buildVectorAiPredictionsFromRows>>();
     if (includeInferenceResult && allImages.length > 0) {
       const imageIds = allImages.map(img => img.id);
-      const results = await InferenceResult.findAll({
-        where: { specimenImageId: { [Op.in]: imageIds } }
-      });
+      const [results, vectorAiResults] = await Promise.all([
+        InferenceResult.findAll({
+          where: { specimenImageId: { [Op.in]: imageIds } },
+        }),
+        VectorAiInferenceResult.findAll({
+          where: { specimenImageId: { [Op.in]: imageIds } },
+          include: [{ model: VectorAiModel, as: 'vectorAiModel', required: false }],
+        }),
+      ]);
       for (const result of results) {
         inferenceResults.set(result.specimenImageId, result);
+      }
+
+      const vectorAiResultsByImageId = new Map<number, InstanceType<typeof VectorAiInferenceResult>[]>();
+      for (const result of vectorAiResults) {
+        const existing = vectorAiResultsByImageId.get(result.specimenImageId) ?? [];
+        existing.push(result);
+        vectorAiResultsByImageId.set(result.specimenImageId, existing);
+      }
+      for (const [imageId, rows] of vectorAiResultsByImageId) {
+        vectorAiPredictionsByImageId.set(imageId, buildVectorAiPredictionsFromRows(rows));
       }
     }
 
@@ -194,6 +226,7 @@ export async function exportSpecimensCSV(
     // Add inference result columns if requested
     if (includeInferenceResult) {
         csvHeader += ',InferenceResultID,BboxTopLeftX,BboxTopLeftY,BboxWidth,BboxHeight,SpeciesLogits,SexLogits,AbdomenStatusLogits,BboxConfidence,BboxClassId,SpeciesInferenceDuration,SexInferenceDuration,AbdomenStatusInferenceDuration,BboxDetectionDuration,InferenceResultCreatedAt,InferenceResultUpdatedAt';
+        csvHeader += `,${vectorAiPredictionCsvHeaderSuffix}`;
     }
     
     csvHeader += '\n';
@@ -272,6 +305,9 @@ export async function exportSpecimensCSV(
           escapeCSVField(device?.registeredAt?.toISOString())
         ];
         if (includeInferenceResult) {
+          const vectorAiCsv = getVectorAiPredictionCsvValues(
+            vectorAiPredictionsByImageId.get(img.id) ?? {}
+          );
           if (inferenceResult) {
             row.push(
               escapeCSVField(inferenceResult.id),
@@ -299,6 +335,11 @@ export async function exportSpecimensCSV(
               escapeCSVField(null), escapeCSVField(null), escapeCSVField(null), escapeCSVField(null),
             );
           }
+          row.push(
+            escapeCSVField(vectorAiCsv.species),
+            escapeCSVField(vectorAiCsv.sex),
+            escapeCSVField(vectorAiCsv.abdomenStatus)
+          );
         }
         csv += row.join(',') + '\n';
       }

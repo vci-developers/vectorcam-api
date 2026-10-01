@@ -2,9 +2,11 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { SpecimenImage, InferenceResult, Specimen } from '../../../../db/models';
 import {
   handleError,
-  parseProbabilityString,
+  formatImageResponse,
+  enrichSpecimenImageInferenceData,
   specimenImagePredictionCreateFields,
   specimenImagePredictionSchemaProperties,
+  specimenImageInferenceResponseSchemaProperties,
 } from '../../common';
 
 interface CreateImageDataRequestBody {
@@ -87,30 +89,7 @@ export const schema = {
             capturedAt: { type: ['number', 'null'] },
             submittedAt: { type: 'number' },
             filemd5: { type: 'string' },
-            inferenceResult: {
-              anyOf: [
-                { type: 'null' },
-                {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'number' },
-                    bboxTopLeftX: { type: 'number' },
-                    bboxTopLeftY: { type: 'number' },
-                    bboxWidth: { type: 'number' },
-                    bboxHeight: { type: 'number' },
-                    bboxConfidence: { type: 'number' },
-                    bboxClassId: { type: 'number' },
-                    speciesLogits: { type: 'array', items: { type: 'number' } },
-                    sexLogits: { type: 'array', items: { type: 'number' } },
-                    abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
-                    speciesInferenceDuration: { type: ['number', 'null'] },
-                    sexInferenceDuration: { type: ['number', 'null'] },
-                    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
-                    bboxDetectionDuration: { type: ['number', 'null'] }
-                  }
-                }
-              ]
-            }
+            ...specimenImageInferenceResponseSchemaProperties,
           }
         }
       }
@@ -168,41 +147,17 @@ export async function createImageData(
       });
     }
 
-    // Build the response object
-    const responseImage = {
-      id: newImage.id,
-      url: `/specimens/${specimen.id}/images/${newImage.id}`,
-      metadata: newImage.metadata ?? null,
-      species: newImage.species ?? null,
-      sex: newImage.sex ?? null,
-      abdomenStatus: newImage.abdomenStatus ?? null,
-      appSpecies: newImage.appSpecies ?? null,
-      appSex: newImage.appSex ?? null,
-      appAbdomenStatus: newImage.appAbdomenStatus ?? null,
-      capturedAt: newImage.capturedAt ? newImage.capturedAt.getTime() : null,
-      submittedAt: newImage.createdAt.getTime(),
-      filemd5: newImage.filemd5,
-      inferenceResult: createdInferenceResult
-        ? {
-            id: createdInferenceResult.id,
-            bboxTopLeftX: createdInferenceResult.bboxTopLeftX,
-            bboxTopLeftY: createdInferenceResult.bboxTopLeftY,
-            bboxWidth: createdInferenceResult.bboxWidth,
-            bboxHeight: createdInferenceResult.bboxHeight,
-            bboxConfidence: createdInferenceResult.bboxConfidence,
-            bboxClassId: createdInferenceResult.bboxClassId,
-            speciesLogits: parseProbabilityString(createdInferenceResult.speciesLogits),
-            sexLogits: parseProbabilityString(createdInferenceResult.sexLogits),
-            abdomenStatusLogits: parseProbabilityString(createdInferenceResult.abdomenStatusLogits),
-            speciesInferenceDuration: createdInferenceResult.speciesInferenceDuration ?? null,
-            sexInferenceDuration: createdInferenceResult.sexInferenceDuration ?? null,
-            abdomenStatusInferenceDuration: createdInferenceResult.abdomenStatusInferenceDuration ?? null,
-            bboxDetectionDuration: createdInferenceResult.bboxDetectionDuration ?? null
-          }
-        : null
-    };
+    (newImage as SpecimenImage & { inferenceResult?: InferenceResult | null }).inferenceResult =
+      createdInferenceResult;
+    await enrichSpecimenImageInferenceData(newImage);
 
-    return reply.code(201).send({ message: 'Image created successfully', image: responseImage });
+    return reply.code(201).send({
+      message: 'Image created successfully',
+      image: {
+        ...formatImageResponse(specimen.id, newImage),
+        filemd5: newImage.filemd5,
+      },
+    });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to create specimen image');
   }

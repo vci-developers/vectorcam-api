@@ -1,5 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Specimen, Session, InferenceResult, SpecimenImage, SessionUnit } from '../../db/models';
+import {
+  Specimen,
+  Session,
+  InferenceResult,
+  SpecimenImage,
+  SessionUnit,
+  VectorAiInferenceResult,
+  VectorAiModel,
+} from '../../db/models';
+import { VectorAiInferenceField } from '../../db/models/VectorAiModel';
+
+export type VectorAiPredictions = Partial<Record<VectorAiInferenceField, string | null>>;
 
 export interface ImageResponse {
   id: number;
@@ -29,6 +40,152 @@ export interface ImageResponse {
     abdomenStatusInferenceDuration: number | null;
     bboxDetectionDuration: number | null;
   } | null;
+  vectorAiPredictions: VectorAiPredictions;
+}
+
+const inferenceResultObjectSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    bboxTopLeftX: { type: 'number' },
+    bboxTopLeftY: { type: 'number' },
+    bboxWidth: { type: 'number' },
+    bboxHeight: { type: 'number' },
+    bboxConfidence: { type: 'number' },
+    bboxClassId: { type: 'number' },
+    speciesLogits: { type: 'array', items: { type: 'number' } },
+    sexLogits: { type: 'array', items: { type: 'number' } },
+    abdomenStatusLogits: { type: 'array', items: { type: 'number' } },
+    speciesInferenceDuration: { type: ['number', 'null'] },
+    sexInferenceDuration: { type: ['number', 'null'] },
+    abdomenStatusInferenceDuration: { type: ['number', 'null'] },
+    bboxDetectionDuration: { type: ['number', 'null'] },
+  },
+} as const;
+
+/** Shared Fastify response schema for on-device and Vector AI inference on specimen images. */
+export const specimenImageInferenceResponseSchemaProperties = {
+  inferenceResult: {
+    anyOf: [{ type: 'null' }, inferenceResultObjectSchema],
+  },
+  vectorAiPredictions: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      species: { type: ['string', 'null'] },
+      sex: { type: ['string', 'null'] },
+      abdomen_status: { type: ['string', 'null'] },
+    },
+  },
+} as const;
+
+export function getSpecimenImageInferenceInclude() {
+  return [
+    {
+      model: InferenceResult,
+      as: 'inferenceResult',
+      required: false,
+    },
+    {
+      model: VectorAiInferenceResult,
+      as: 'vectorAiInferenceResults',
+      required: false,
+      include: [
+        {
+          model: VectorAiModel,
+          as: 'vectorAiModel',
+          required: false,
+        },
+      ],
+    },
+  ];
+}
+
+export const vectorAiPredictionCsvColumnHeaders = [
+  'VectorAiPredictionsSpecies',
+  'VectorAiPredictionsSex',
+  'VectorAiPredictionsAbdomenStatus',
+] as const;
+
+export const vectorAiPredictionCsvHeaderSuffix = vectorAiPredictionCsvColumnHeaders.join(',');
+
+export function buildVectorAiPredictionsFromRows(
+  rows: VectorAiInferenceResult[] | undefined | null
+): VectorAiPredictions {
+  if (!rows?.length) {
+    return {};
+  }
+
+  const latestByField = new Map<VectorAiInferenceField, VectorAiInferenceResult>();
+
+  for (const row of rows) {
+    const vectorAiModel = (row as VectorAiInferenceResult & { vectorAiModel?: VectorAiModel }).vectorAiModel;
+    const field = vectorAiModel?.field;
+    if (!field) {
+      continue;
+    }
+
+    const existing = latestByField.get(field);
+    if (!existing || row.vectorAiModelId > existing.vectorAiModelId) {
+      latestByField.set(field, row);
+    }
+  }
+
+  const predictions: VectorAiPredictions = {};
+  for (const [field, row] of latestByField) {
+    predictions[field] = row.value;
+  }
+
+  return predictions;
+}
+
+export function formatVectorAiPredictions(img: SpecimenImage): VectorAiPredictions {
+  return buildVectorAiPredictionsFromRows(
+    (img as SpecimenImage & { vectorAiInferenceResults?: VectorAiInferenceResult[] }).vectorAiInferenceResults
+  );
+}
+
+export function getVectorAiPredictionCsvValues(predictions: VectorAiPredictions): {
+  species: string | null;
+  sex: string | null;
+  abdomenStatus: string | null;
+} {
+  return {
+    species: predictions.species ?? null,
+    sex: predictions.sex ?? null,
+    abdomenStatus: predictions.abdomen_status ?? null,
+  };
+}
+
+export async function enrichSpecimenImageInferenceData(image: SpecimenImage): Promise<void> {
+  const imageWithAssociations = image as SpecimenImage & {
+    inferenceResult?: InferenceResult | null;
+    vectorAiInferenceResults?: VectorAiInferenceResult[];
+  };
+
+  const tasks: Promise<void>[] = [];
+
+  if (imageWithAssociations.inferenceResult === undefined) {
+    tasks.push(
+      InferenceResult.findOne({ where: { specimenImageId: image.id } }).then((inferenceResult) => {
+        imageWithAssociations.inferenceResult = inferenceResult;
+      })
+    );
+  }
+
+  if (imageWithAssociations.vectorAiInferenceResults === undefined) {
+    tasks.push(
+      VectorAiInferenceResult.findAll({
+        where: { specimenImageId: image.id },
+        include: [{ model: VectorAiModel, as: 'vectorAiModel', required: false }],
+        order: [['id', 'ASC']],
+      }).then((vectorAiInferenceResults) => {
+        imageWithAssociations.vectorAiInferenceResults = vectorAiInferenceResults;
+      })
+    );
+  }
+
+  await Promise.all(tasks);
 }
 
 export interface SessionUnitResponse {
@@ -124,7 +281,8 @@ export function formatImageResponse(specimenId: number, img: SpecimenImage): Ima
       sexInferenceDuration: inferenceResult.sexInferenceDuration,
       abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
       bboxDetectionDuration: inferenceResult.bboxDetectionDuration
-    } : null
+    } : null,
+    vectorAiPredictions: formatVectorAiPredictions(img),
   };
 }
 
@@ -178,11 +336,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     // Get all images with their inference results in a single query using eager loading
     const images = await SpecimenImage.findAll({
       where: { specimenId: specimen.id },
-      include: [{
-        model: InferenceResult,
-        as: 'inferenceResult',
-        required: false
-      }]
+      include: getSpecimenImageInferenceInclude(),
     });
     
     // Transform the results
@@ -193,11 +347,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     // Only fetch the thumbnail image with its inference result in a single query
     const thumbnailImage = specimen.thumbnailImageId 
       ? await SpecimenImage.findByPk(specimen.thumbnailImageId, {
-          include: [{
-            model: InferenceResult,
-            as: 'inferenceResult',
-            required: false
-          }]
+          include: getSpecimenImageInferenceInclude(),
         })
       : null;
       
