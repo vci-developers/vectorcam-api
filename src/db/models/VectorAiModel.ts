@@ -1,11 +1,13 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../index';
+import Program from './Program';
 
 export const VECTOR_AI_INFERENCE_FIELDS = ['species', 'sex', 'abdomen_status'] as const;
 export type VectorAiInferenceField = (typeof VECTOR_AI_INFERENCE_FIELDS)[number];
 
 class VectorAiModel extends Model {
   declare id: number;
+  declare programId: number;
   declare field: VectorAiInferenceField;
   declare version: string;
   declare description: string | null;
@@ -20,6 +22,15 @@ VectorAiModel.init(
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
+    },
+    programId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'programs',
+        key: 'id',
+      },
+      field: 'program_id',
     },
     field: {
       type: DataTypes.ENUM(...VECTOR_AI_INFERENCE_FIELDS),
@@ -47,10 +58,13 @@ VectorAiModel.init(
     indexes: [
       {
         unique: true,
-        fields: ['field', 'version'],
+        fields: ['program_id', 'field', 'version'],
       },
     ],
   }
 );
+
+VectorAiModel.belongsTo(Program, { foreignKey: 'program_id', as: 'program' });
+Program.hasMany(VectorAiModel, { foreignKey: 'program_id', as: 'vectorAiModels' });
 
 export default VectorAiModel;

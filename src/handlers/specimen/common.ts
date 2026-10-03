@@ -307,7 +307,7 @@ async function resolveSpecimenSessionUnit(specimen: Specimen): Promise<SessionUn
 }
 
 export function formatSpecimenResponseFromImages(specimen: Specimen, images: SpecimenImage[]): SpecimenResponse {
-  const imagesToReturn = images.map(img => formatImageResponse(specimen.id, img));
+  const imagesToReturn = images.map((img) => formatImageResponse(specimen.id, img));
   const thumbnailImageObj = imagesToReturn.find(img => img.id === specimen.thumbnailImageId) ?? null;
   const sessionUnit = specimen.get('sessionUnit') as SessionUnit | undefined;
 
@@ -340,7 +340,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     });
     
     // Transform the results
-    const imagesResponses = images.map(img => formatImageResponse(specimen.id, img));
+    const imagesResponses = images.map((img) => formatImageResponse(specimen.id, img));
     imagesToReturn = imagesResponses;
     thumbnailImageObj = imagesResponses.find(img => img.id === specimen.thumbnailImageId) ?? null;
   } else {

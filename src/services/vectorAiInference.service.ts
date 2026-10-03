@@ -58,30 +58,47 @@ function extractPredictedValue(body: unknown): string | null {
   return typeof predictedClass === 'string' ? predictedClass : null;
 }
 
-export async function getLatestVectorAiModelForField(
+/** Latest registered model row per program for a given prediction field. */
+export async function getLatestVectorAiModelsForField(
   field: VectorAiInferenceField
-): Promise<VectorAiModel | null> {
-  return VectorAiModel.findOne({
+): Promise<VectorAiModel[]> {
+  const models = await VectorAiModel.findAll({
     where: { field },
     order: [['id', 'DESC']],
   });
+
+  const latestByProgramId = new Map<number, VectorAiModel>();
+  for (const model of models) {
+    if (!latestByProgramId.has(model.programId)) {
+      latestByProgramId.set(model.programId, model);
+    }
+  }
+
+  return [...latestByProgramId.values()];
 }
 
 async function listSpecimenImagesPendingInference(
-  vectorAiModelId: number
+  vectorAiModel: VectorAiModel
 ): Promise<PendingSpecimenImageRow[]> {
   return sequelize.query<PendingSpecimenImageRow>(
     `SELECT si.id, si.image_key
      FROM specimen_images si
-     WHERE NOT EXISTS (
-       SELECT 1
-       FROM vector_ai_inference_results vair
-       WHERE vair.specimen_image_id = si.id
-         AND vair.vector_ai_model_id = :vectorAiModelId
-     )
+     INNER JOIN specimens sp ON sp.id = si.specimen_id
+     INNER JOIN sessions sess ON sess.id = sp.session_id
+     INNER JOIN sites site ON site.id = sess.site_id
+     WHERE site.program_id = :programId
+       AND NOT EXISTS (
+         SELECT 1
+         FROM vector_ai_inference_results vair
+         WHERE vair.specimen_image_id = si.id
+           AND vair.vector_ai_model_id = :vectorAiModelId
+       )
      ORDER BY si.id ASC`,
     {
-      replacements: { vectorAiModelId },
+      replacements: {
+        programId: vectorAiModel.programId,
+        vectorAiModelId: vectorAiModel.id,
+      },
       type: QueryTypes.SELECT,
     }
   );
@@ -139,38 +156,37 @@ export async function runVectorAiInferenceCron(): Promise<VectorAiInferenceCronS
   };
 
   for (const field of VECTOR_AI_INFERENCE_FIELDS) {
-    stats.modelsChecked += 1;
-
-    const model = await getLatestVectorAiModelForField(field);
-    if (!model) {
-      continue;
-    }
-
     if (!CRON_INFERENCE_FIELDS.includes(field)) {
       continue;
     }
 
-    stats.modelsRun += 1;
+    const models = await getLatestVectorAiModelsForField(field);
+    stats.modelsChecked += models.length;
 
-    const pendingImages = await listSpecimenImagesPendingInference(model.id);
+    for (const model of models) {
+      stats.modelsRun += 1;
 
-    for (const image of pendingImages) {
-      stats.imagesProcessed += 1;
+      const pendingImages = await listSpecimenImagesPendingInference(model);
 
-      const outcome = await runInferenceForSpecimenImage(image, model);
-      if (outcome.ok) {
-        stats.imagesSucceeded += 1;
-      } else {
-        stats.imagesFailed += 1;
-        logger.warn(
-          {
-            specimenImageId: image.id,
-            vectorAiModelId: model.id,
-            field: model.field,
-            error: outcome.error,
-          },
-          'Vector AI inference failed for specimen image'
-        );
+      for (const image of pendingImages) {
+        stats.imagesProcessed += 1;
+
+        const outcome = await runInferenceForSpecimenImage(image, model);
+        if (outcome.ok) {
+          stats.imagesSucceeded += 1;
+        } else {
+          stats.imagesFailed += 1;
+          logger.warn(
+            {
+              specimenImageId: image.id,
+              vectorAiModelId: model.id,
+              programId: model.programId,
+              field: model.field,
+              error: outcome.error,
+            },
+            'Vector AI inference failed for specimen image'
+          );
+        }
       }
     }
   }

@@ -13,6 +13,15 @@ async function createVectorAiTables() {
         primaryKey: true,
         autoIncrement: true,
       },
+      program_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'programs',
+          key: 'id',
+        },
+        onDelete: 'CASCADE',
+      },
       field: {
         type: DataTypes.ENUM('species', 'sex', 'abdomen_status'),
         allowNull: false,
@@ -42,15 +51,23 @@ async function createVectorAiTables() {
     });
 
     await sequelize.query(
-      'CREATE UNIQUE INDEX vector_ai_models_field_version_unique ON vector_ai_models (field, version)'
+      'CREATE UNIQUE INDEX vector_ai_models_program_field_version_unique ON vector_ai_models (program_id, field, version)'
     );
 
     const speciesEndpoint =
       process.env.VECTOR_AI_INFERENCE_ENDPOINT?.trim() || DEFAULT_SPECIES_ENDPOINT;
+    const programIdRaw = process.env.VECTOR_AI_MODEL_PROGRAM_ID?.trim();
+    const programId = programIdRaw ? parseInt(programIdRaw, 10) : NaN;
+    if (!Number.isInteger(programId) || programId <= 0) {
+      throw new Error(
+        'VECTOR_AI_MODEL_PROGRAM_ID must be set to a valid program id when seeding vector_ai_models.'
+      );
+    }
 
     await sequelize.query(
-      `INSERT INTO vector_ai_models (field, version, description, sagemaker_endpoint, created_at, updated_at)
+      `INSERT INTO vector_ai_models (program_id, field, version, description, sagemaker_endpoint, created_at, updated_at)
        VALUES (
+         :programId,
          'species',
          'v1.0',
          'Initial species classifier served on the vector-ai-inference SageMaker endpoint.',
@@ -58,7 +75,7 @@ async function createVectorAiTables() {
          NOW(),
          NOW()
        )`,
-      { replacements: { endpoint: speciesEndpoint } }
+      { replacements: { endpoint: speciesEndpoint, programId } }
     );
 
     console.log('vector_ai_models table created and species v1.0 seeded successfully');

@@ -1,7 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session, Site, SpecimenImage, SessionUnit } from '../../db/models';
-import { getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from './common';
-import { formatSpecimenResponseFromImages } from './common';
+import {
+  getSpecimenImageInferenceInclude,
+  specimenImageInferenceResponseSchemaProperties,
+  formatSpecimenResponseFromImages,
+} from './common';
 import { Op, Order } from 'sequelize';
 import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
 
@@ -357,7 +360,6 @@ export async function getSpecimenList(
       }
     }
 
-    // Format response using the page-level image query above.
     const formattedSpecimens = specimens.map((specimen) => {
       return formatSpecimenResponseFromImages(
         specimen,

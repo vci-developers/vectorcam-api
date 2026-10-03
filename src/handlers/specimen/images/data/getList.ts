@@ -1,7 +1,11 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import SpecimenImage from '../../../../db/models/SpecimenImage';
 import { Specimen } from '../../../../db/models';
-import { formatImageResponse, getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from '../../common';
+import {
+  formatImageResponse,
+  getSpecimenImageInferenceInclude,
+  specimenImageInferenceResponseSchemaProperties,
+} from '../../common';
 
 export const schema = {
   tags: ['Specimen Images'],

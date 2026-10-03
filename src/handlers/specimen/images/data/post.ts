@@ -150,7 +150,6 @@ export async function createImageData(
     (newImage as SpecimenImage & { inferenceResult?: InferenceResult | null }).inferenceResult =
       createdInferenceResult;
     await enrichSpecimenImageInferenceData(newImage);
-
     return reply.code(201).send({
       message: 'Image created successfully',
       image: {
