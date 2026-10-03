@@ -9,7 +9,7 @@ import VectorAiInferenceResult, {
 } from '../db/models/VectorAiInferenceResult';
 import { getFile } from './s3.service';
 import pino from 'pino';
-import { invokeVectorAiInference } from './sagemaker.service';
+import { invokeVectorAiInference, InvokeVectorAiInferenceResult } from './sagemaker.service';
 import { MAX_INFERENCE_BODY_BYTES } from '../handlers/vector-ai/inference/post';
 
 const logger = pino();
@@ -104,22 +104,72 @@ async function listSpecimenImagesPendingInference(
   );
 }
 
-async function runInferenceForSpecimenImage(
-  image: PendingSpecimenImageRow,
+export interface ResolveVectorAiModelInput {
+  modelId?: number;
+  version?: string;
+  field?: VectorAiInferenceField;
+  programId?: number;
+}
+
+export async function resolveVectorAiModel(
+  input: ResolveVectorAiModelInput
+): Promise<VectorAiModel | null> {
+  if (input.modelId !== undefined) {
+    return VectorAiModel.findByPk(input.modelId);
+  }
+
+  if (!input.version?.trim()) {
+    return null;
+  }
+
+  const where: {
+    version: string;
+    field: VectorAiInferenceField;
+    programId?: number;
+  } = {
+    version: input.version.trim(),
+    field: input.field ?? 'species',
+  };
+
+  if (input.programId !== undefined) {
+    where.programId = input.programId;
+  }
+
+  return VectorAiModel.findOne({
+    where,
+    order: [['id', 'DESC']],
+  });
+}
+
+export interface RunAndStoreVectorAiInferenceForImageResult extends InvokeVectorAiInferenceResult {
+  stored: boolean;
+}
+
+export async function runAndStoreVectorAiInferenceForImage(
+  specimenImageId: number,
+  imageKey: string,
   model: VectorAiModel
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<RunAndStoreVectorAiInferenceForImageResult> {
   let imageBuffer: Buffer;
   try {
-    imageBuffer = await getFile(image.image_key);
+    imageBuffer = await getFile(imageKey);
   } catch {
-    return { ok: false, error: 'Failed to load image from S3' };
+    return {
+      statusCode: 502,
+      body: { error: 'Failed to load image from S3' },
+      stored: false,
+    };
   }
 
   if (imageBuffer.byteLength > MAX_INFERENCE_BODY_BYTES) {
-    return { ok: false, error: `Image exceeds ${MAX_INFERENCE_BODY_BYTES} bytes` };
+    return {
+      statusCode: 400,
+      body: { error: `Image exceeds ${MAX_INFERENCE_BODY_BYTES} bytes` },
+      stored: false,
+    };
   }
 
-  const contentType = guessContentType(image.image_key);
+  const contentType = guessContentType(imageKey);
 
   const result = await invokeVectorAiInference(
     {
@@ -130,17 +180,33 @@ async function runInferenceForSpecimenImage(
   );
 
   if (result.statusCode !== 200) {
-    return { ok: false, error: `SageMaker returned status ${result.statusCode}` };
+    return { ...result, stored: false };
   }
 
   const resultLog = result.body as VectorAiInferenceResultLog;
 
   await VectorAiInferenceResult.upsert({
-    specimenImageId: image.id,
+    specimenImageId,
     vectorAiModelId: model.id,
     value: extractPredictedValue(result.body),
     resultLog,
   });
+
+  return { ...result, stored: true };
+}
+
+async function runInferenceForSpecimenImage(
+  image: PendingSpecimenImageRow,
+  model: VectorAiModel
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const result = await runAndStoreVectorAiInferenceForImage(image.id, image.image_key, model);
+  if (result.statusCode !== 200 || !result.stored) {
+    const errorBody =
+      result.body && typeof result.body === 'object' && 'error' in (result.body as object)
+        ? String((result.body as { error: unknown }).error)
+        : `SageMaker returned status ${result.statusCode}`;
+    return { ok: false, error: errorBody };
+  }
 
   return { ok: true };
 }
