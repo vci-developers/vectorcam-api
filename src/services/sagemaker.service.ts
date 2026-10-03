@@ -10,7 +10,7 @@ import pino from 'pino';
 
 const logger = pino();
 
-const INFERENCE_REQUEST_TIMEOUT_MS = 120_000;
+const INFERENCE_REQUEST_TIMEOUT_MS = 70_000;
 
 export const sagemakerRuntimeClient = new SageMakerRuntimeClient({
   region: config.aws.vectorAiRegion,

@@ -1,5 +1,10 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { invokeVectorAiInference } from '../../../services/sagemaker.service';
+import {
+  buildJsonInvokeBody,
+  jsonInvokeBodyCountsAgainstSizeLimit,
+  validateJsonRequest,
+} from './jsonPayload';
 
 export const MAX_INFERENCE_BODY_BYTES = 6 * 1024 * 1024;
 
@@ -10,18 +15,12 @@ export const SUPPORTED_BINARY_CONTENT_TYPES = new Set([
   'application/octet-stream',
 ]);
 
-export interface JsonInferenceRequest {
-  image: string;
-  content_type?: string;
-  confidence?: number;
-}
-
 export const schema = {
   tags: ['Vector AI'],
   description:
     'Transparent proxy to the vector-ai-inference SageMaker endpoint. ' +
-    'Send JSON with a base64 image (optional confidence) or raw image bytes with an image/* Content-Type. ' +
-    'The upstream response body is returned as-is.',
+    'Send JSON with an S3 reference (s3_uri or s3_bucket+s3_key), a base64 image (optional confidence), ' +
+    'or raw image bytes with an image/* Content-Type. The upstream response body is returned as-is.',
   consumes: [
     'application/json',
     'image/jpeg',
@@ -33,67 +32,6 @@ export const schema = {
 
 function parseContentType(contentTypeHeader: string | undefined): string {
   return (contentTypeHeader || '').split(';')[0].trim().toLowerCase();
-}
-
-function isValidBase64(value: string): boolean {
-  if (!value || value.includes('data:')) {
-    return false;
-  }
-
-  const normalized = value.replace(/\s/g, '');
-  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(normalized)) {
-    return false;
-  }
-
-  try {
-    return Buffer.from(normalized, 'base64').length > 0;
-  } catch {
-    return false;
-  }
-}
-
-function validateJsonRequest(body: unknown): { ok: true; payload: JsonInferenceRequest } | { ok: false; error: string } {
-  if (!body || typeof body !== 'object') {
-    return { ok: false, error: 'Request body must be a JSON object' };
-  }
-
-  const payload = body as JsonInferenceRequest;
-
-  if (typeof payload.image !== 'string' || !payload.image.trim()) {
-    return { ok: false, error: 'Field "image" is required and must be a base64-encoded string' };
-  }
-
-  if (!isValidBase64(payload.image)) {
-    return { ok: false, error: 'Field "image" must be valid base64 without a data: URL prefix' };
-  }
-
-  if (payload.content_type !== undefined && typeof payload.content_type !== 'string') {
-    return { ok: false, error: 'Field "content_type" must be a string when provided' };
-  }
-
-  if (payload.confidence !== undefined) {
-    if (typeof payload.confidence !== 'number' || payload.confidence < 0 || payload.confidence > 1) {
-      return { ok: false, error: 'Field "confidence" must be a number between 0.0 and 1.0' };
-    }
-  }
-
-  return { ok: true, payload };
-}
-
-function buildJsonInvokeBody(payload: JsonInferenceRequest): Uint8Array {
-  const forwardPayload: Record<string, unknown> = {
-    image: payload.image.replace(/\s/g, ''),
-  };
-
-  if (payload.content_type) {
-    forwardPayload.content_type = payload.content_type;
-  }
-
-  if (payload.confidence !== undefined) {
-    forwardPayload.confidence = payload.confidence;
-  }
-
-  return Buffer.from(JSON.stringify(forwardPayload));
 }
 
 export async function invokeInference(
@@ -114,6 +52,15 @@ export async function invokeInference(
 
       invokeContentType = 'application/json';
       invokeBody = buildJsonInvokeBody(validation.payload);
+
+      if (
+        jsonInvokeBodyCountsAgainstSizeLimit(validation.payload) &&
+        invokeBody.byteLength > MAX_INFERENCE_BODY_BYTES
+      ) {
+        return reply.code(400).send({
+          error: `Request body exceeds ${MAX_INFERENCE_BODY_BYTES} bytes. Use an S3 reference or resize the image.`,
+        });
+      }
     } else if (SUPPORTED_BINARY_CONTENT_TYPES.has(contentType)) {
       const body = request.body;
       if (!Buffer.isBuffer(body) || body.length === 0) {
@@ -128,9 +75,9 @@ export async function invokeInference(
       });
     }
 
-    if (invokeBody.byteLength > MAX_INFERENCE_BODY_BYTES) {
+    if (invokeContentType !== 'application/json' && invokeBody.byteLength > MAX_INFERENCE_BODY_BYTES) {
       return reply.code(400).send({
-        error: `Request body exceeds ${MAX_INFERENCE_BODY_BYTES} bytes. Resize the image before sending.`,
+        error: `Request body exceeds ${MAX_INFERENCE_BODY_BYTES} bytes. Use JSON with an S3 reference or resize the image.`,
       });
     }
 

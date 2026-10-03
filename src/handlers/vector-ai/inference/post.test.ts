@@ -88,6 +88,59 @@ describe('invokeInference', () => {
     });
   });
 
+  it('forwards JSON requests with S3 bucket and key', async () => {
+    mockInvoke.mockResolvedValue({
+      statusCode: 200,
+      body: { status: 'success', predicted_class: 'Culex' },
+    });
+
+    const reply = createReply();
+    const request = createRequest({
+      headers: { 'content-type': 'application/json' },
+      body: {
+        s3_bucket: 'my-bucket',
+        s3_key: 'path/to/image.jpg',
+        s3_region: 'eu-west-1',
+        confidence: 0.25,
+      },
+    });
+
+    await invokeInference(request as any, reply as any);
+
+    expect(mockInvoke).toHaveBeenCalledWith({
+      contentType: 'application/json',
+      body: Buffer.from(
+        JSON.stringify({
+          s3_bucket: 'my-bucket',
+          s3_key: 'path/to/image.jpg',
+          s3_region: 'eu-west-1',
+          confidence: 0.25,
+        })
+      ),
+    });
+    expect(reply.code).toHaveBeenCalledWith(200);
+  });
+
+  it('forwards JSON requests with s3_uri without applying the binary size limit', async () => {
+    mockInvoke.mockResolvedValue({
+      statusCode: 200,
+      body: { status: 'no_detection' },
+    });
+
+    const reply = createReply();
+    const request = createRequest({
+      headers: { 'content-type': 'application/json' },
+      body: {
+        s3_uri: 's3://my-bucket/path/to/large.jpg',
+      },
+    });
+
+    await invokeInference(request as any, reply as any);
+
+    expect(mockInvoke).toHaveBeenCalled();
+    expect(reply.code).toHaveBeenCalledWith(200);
+  });
+
   it('returns 400 for invalid base64 JSON payloads', async () => {
     const reply = createReply();
     const request = createRequest({

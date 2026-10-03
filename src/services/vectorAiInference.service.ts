@@ -7,10 +7,9 @@ import VectorAiModel, {
 import VectorAiInferenceResult, {
   VectorAiInferenceResultLog,
 } from '../db/models/VectorAiInferenceResult';
-import { getFile } from './s3.service';
 import pino from 'pino';
 import { invokeVectorAiInference, InvokeVectorAiInferenceResult } from './sagemaker.service';
-import { MAX_INFERENCE_BODY_BYTES } from '../handlers/vector-ai/inference/post';
+import { buildAppS3ReferenceInvokeBody } from '../handlers/vector-ai/inference/jsonPayload';
 
 const logger = pino();
 
@@ -33,20 +32,6 @@ export interface VectorAiInferenceCronStats {
 interface PendingSpecimenImageRow {
   id: number;
   image_key: string;
-}
-
-function guessContentType(imageKey: string): string {
-  const lower = imageKey.toLowerCase();
-  if (lower.endsWith('.png')) {
-    return 'image/png';
-  }
-  if (lower.endsWith('.webp')) {
-    return 'image/webp';
-  }
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
-    return 'image/jpeg';
-  }
-  return 'image/jpeg';
 }
 
 function extractPredictedValue(body: unknown): string | null {
@@ -150,31 +135,10 @@ export async function runAndStoreVectorAiInferenceForImage(
   imageKey: string,
   model: VectorAiModel
 ): Promise<RunAndStoreVectorAiInferenceForImageResult> {
-  let imageBuffer: Buffer;
-  try {
-    imageBuffer = await getFile(imageKey);
-  } catch {
-    return {
-      statusCode: 502,
-      body: { error: 'Failed to load image from S3' },
-      stored: false,
-    };
-  }
-
-  if (imageBuffer.byteLength > MAX_INFERENCE_BODY_BYTES) {
-    return {
-      statusCode: 400,
-      body: { error: `Image exceeds ${MAX_INFERENCE_BODY_BYTES} bytes` },
-      stored: false,
-    };
-  }
-
-  const contentType = guessContentType(imageKey);
-
   const result = await invokeVectorAiInference(
     {
-      contentType,
-      body: imageBuffer,
+      contentType: 'application/json',
+      body: buildAppS3ReferenceInvokeBody(imageKey),
     },
     { endpointName: model.sagemakerEndpoint }
   );
