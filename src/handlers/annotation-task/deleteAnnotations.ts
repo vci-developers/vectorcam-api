@@ -8,7 +8,7 @@ interface BulkDeleteAnnotationsParams {
 }
 
 interface BulkDeleteAnnotationsQuery {
-  annotationIds: string;
+  annotationIds?: string;
 }
 
 interface BulkDeleteAnnotationsRequest extends FastifyRequest {
@@ -31,7 +31,7 @@ function parseAnnotationIdsParam(value?: string): number[] {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Bulk delete annotations from a task',
-  description: 'Deletes annotations by ID under a specific annotation task (requires admin token)',
+  description: 'Deletes annotations under a specific annotation task. Omit annotationIds or leave it empty to delete all annotations on the task (requires admin token)',
   params: {
     type: 'object',
     required: ['taskId'],
@@ -41,11 +41,10 @@ export const schema = {
   },
   querystring: {
     type: 'object',
-    required: ['annotationIds'],
     properties: {
       annotationIds: {
         type: 'string',
-        description: 'Comma-separated annotation IDs to delete'
+        description: 'Optional comma-separated annotation IDs to delete; omit to delete all annotations on the task'
       }
     }
   },
@@ -87,36 +86,41 @@ export default async function bulkDeleteAnnotations(
     const { taskId } = request.params;
     const uniqueAnnotationIds = parseAnnotationIdsParam(request.query.annotationIds);
 
-    if (uniqueAnnotationIds.length === 0) {
-      await transaction.rollback();
-      return reply.code(400).send({ error: 'annotationIds must contain at least one valid annotation ID' });
-    }
-
     const task = await AnnotationTask.findByPk(taskId, { transaction });
     if (!task) {
       await transaction.rollback();
       return reply.code(404).send({ error: 'Annotation task not found' });
     }
 
-    const annotations = await Annotation.findAll({
-      where: {
-        id: { [Op.in]: uniqueAnnotationIds },
-        annotationTaskId: taskId
-      },
-      attributes: ['id'],
-      transaction
-    });
+    let deleted: number;
+    let notFoundIds: number[] = [];
 
-    const foundIds = new Set(annotations.map(a => a.id));
-    const notFoundIds = uniqueAnnotationIds.filter(id => !foundIds.has(id));
+    if (uniqueAnnotationIds.length === 0) {
+      deleted = await Annotation.destroy({
+        where: { annotationTaskId: taskId },
+        transaction
+      });
+    } else {
+      const annotations = await Annotation.findAll({
+        where: {
+          id: { [Op.in]: uniqueAnnotationIds },
+          annotationTaskId: taskId
+        },
+        attributes: ['id'],
+        transaction
+      });
 
-    const deleted = await Annotation.destroy({
-      where: {
-        id: { [Op.in]: [...foundIds] },
-        annotationTaskId: taskId
-      },
-      transaction
-    });
+      const foundIds = new Set(annotations.map(a => a.id));
+      notFoundIds = uniqueAnnotationIds.filter(id => !foundIds.has(id));
+
+      deleted = await Annotation.destroy({
+        where: {
+          id: { [Op.in]: [...foundIds] },
+          annotationTaskId: taskId
+        },
+        transaction
+      });
+    }
 
     await transaction.commit();
 
