@@ -40,7 +40,9 @@ export interface ImageResponse {
     abdomenStatusInferenceDuration: number | null;
     bboxDetectionDuration: number | null;
   } | null;
-  vectorAiPredictions: VectorAiPredictions;
+  vectorAiSpecies: string | null;
+  vectorAiSex: string | null;
+  vectorAiAbdomenStatus: string | null;
 }
 
 const inferenceResultObjectSchema = {
@@ -68,15 +70,9 @@ export const specimenImageInferenceResponseSchemaProperties = {
   inferenceResult: {
     anyOf: [{ type: 'null' }, inferenceResultObjectSchema],
   },
-  vectorAiPredictions: {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      species: { type: ['string', 'null'] },
-      sex: { type: ['string', 'null'] },
-      abdomen_status: { type: ['string', 'null'] },
-    },
-  },
+  vectorAiSpecies: { type: ['string', 'null'] },
+  vectorAiSex: { type: ['string', 'null'] },
+  vectorAiAbdomenStatus: { type: ['string', 'null'] },
 } as const;
 
 export function getSpecimenImageInferenceInclude() {
@@ -143,6 +139,18 @@ export function formatVectorAiPredictions(img: SpecimenImage): VectorAiPredictio
   return buildVectorAiPredictionsFromRows(
     (img as SpecimenImage & { vectorAiInferenceResults?: VectorAiInferenceResult[] }).vectorAiInferenceResults
   );
+}
+
+export function getVectorAiFlattenedFields(predictions: VectorAiPredictions): {
+  vectorAiSpecies: string | null;
+  vectorAiSex: string | null;
+  vectorAiAbdomenStatus: string | null;
+} {
+  return {
+    vectorAiSpecies: predictions.species ?? null,
+    vectorAiSex: predictions.sex ?? null,
+    vectorAiAbdomenStatus: predictions.abdomen_status ?? null,
+  };
 }
 
 export function getVectorAiPredictionCsvValues(predictions: VectorAiPredictions): {
@@ -282,7 +290,7 @@ export function formatImageResponse(specimenId: number, img: SpecimenImage): Ima
       abdomenStatusInferenceDuration: inferenceResult.abdomenStatusInferenceDuration,
       bboxDetectionDuration: inferenceResult.bboxDetectionDuration
     } : null,
-    vectorAiPredictions: formatVectorAiPredictions(img),
+    ...getVectorAiFlattenedFields(formatVectorAiPredictions(img)),
   };
 }
 

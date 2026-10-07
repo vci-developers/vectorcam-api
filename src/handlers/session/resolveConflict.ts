@@ -59,7 +59,7 @@ interface ResolveConflictRequest {
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Resolve conflicts between sessions or session units, or apply resolved data to a single session',
+  description: 'Resolve conflicts between sessions or session units, or apply resolved data to a single session or session unit',
   body: {
     type: 'object',
     properties: {
@@ -71,7 +71,7 @@ export const schema = {
       sessionUnitIds: {
         type: 'array',
         items: { type: 'number' },
-        minItems: 2,
+        minItems: 1,
       },
       resolvedData: {
         type: 'object',
@@ -176,10 +176,6 @@ export async function resolveConflict(
 
     if (hasSessionIds === hasSessionUnitIds) {
       return reply.code(400).send({ error: 'Provide either sessionIds or sessionUnitIds' });
-    }
-
-    if (hasSessionUnitIds && sessionUnitIds!.length < 2) {
-      return reply.code(400).send({ error: 'At least 2 session unit IDs are required' });
     }
 
     if (hasSessionUnitIds && Object.keys(resolvedData).length > 0) {
