@@ -3,6 +3,7 @@ import {
   createSpecimen,
   getSpecimenList,
   getSpecimenCount,
+  getSpecimenSessionCount,
   getSpecimenMonthlySummary,
   getSpecimenDetails,
   updateSpecimen,
@@ -26,6 +27,7 @@ import { schema as completeUploadSchema } from '../handlers/specimen/upload/comp
 import { schema as getUploadStatusSchema } from '../handlers/specimen/upload/get'
 import { schema as getListSchema } from '../handlers/specimen/getList'
 import { schema as getCountSchema } from '../handlers/specimen/getCount'
+import { schema as getSessionCountSchema } from '../handlers/specimen/getSessionCount'
 import { schema as getMonthlySummarySchema } from '../handlers/specimen/getMonthlySummary'
 import { schema as getUploadListSchema } from '../handlers/specimen/upload/getList'
 import { schema as deleteSchema } from '../handlers/specimen/delete';
@@ -73,6 +75,12 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
     preHandler: [requireSiteReadAccess],
     schema: getMonthlySummarySchema,
   }, getSpecimenMonthlySummary as any);
+
+  // Specimen counts grouped by session for a program (requires read access)
+  fastify.get('/count/sessions', {
+    preHandler: [requireSiteReadAccess],
+    schema: getSessionCountSchema,
+  }, getSpecimenSessionCount as any);
 
   // Create a new specimen (requires write access, session validation in handler)
   fastify.post('/', {
