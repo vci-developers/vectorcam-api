@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Specimen, Session, Site, SpecimenImage } from '../../db/models';
 import { Op, QueryTypes, fn, col, where, literal } from 'sequelize';
 import sequelize from '../../db/index';
-import { formatSiteResponse, buildSiteSubtreeWhere, parseSiteIds } from '../site/common';
+import { formatSiteResponse, buildSiteSubtreeWhere, parseSiteIds, siteCoordinatesResponseSchema } from '../site/common';
 
 interface QueryParams {
   startDate?: string;
@@ -89,6 +89,7 @@ export const schema = {
                   isActive: { type: 'boolean' },
                   hasData: { type: 'boolean' },
                   healthCenter: { type: 'string', nullable: true },
+                  ...siteCoordinatesResponseSchema,
                   locationHierarchy: {
                     type: 'object',
                     additionalProperties: { type: 'string' }

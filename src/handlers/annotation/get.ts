@@ -11,6 +11,7 @@ import {
   SessionUnit,
 } from '../../db/models';
 import { formatAnnotationResponse } from './common';
+import { siteCoordinatesResponseSchema } from '../site/common';
 import { getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from '../specimen/common';
 
 interface GetAnnotationParams {
@@ -151,6 +152,7 @@ export const schema = {
                     houseNumber: { type: 'string' },
                     isActive: { type: 'boolean' },
                     healthCenter: { type: ['string', 'null'] },
+                    ...siteCoordinatesResponseSchema,
                     locationHierarchy: {
                       type: 'object',
                       additionalProperties: { type: 'string' }

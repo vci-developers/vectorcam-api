@@ -46,6 +46,8 @@ export const schema = {
               isActive: { type: 'boolean' },
               hasData: { type: 'boolean' },
               healthCenter: { type: 'string', nullable: true },
+              latitude: { type: ['number', 'null'] },
+              longitude: { type: ['number', 'null'] },
               locationHierarchy: {
                 type: 'object',
                 additionalProperties: { type: 'string' }

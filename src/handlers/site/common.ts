@@ -18,9 +18,17 @@ export interface SiteResponse {
   villageName?: string;
   houseNumber?: string;
   healthCenter?: string;
+  latitude: number | null;
+  longitude: number | null;
   // Location hierarchy map keyed by location type name -> site name
   locationHierarchy?: Record<string, string>;
 }
+
+/** OpenAPI fields for site coordinates (reuse in nested site response schemas). */
+export const siteCoordinatesResponseSchema = {
+  latitude: { type: ['number', 'null'] },
+  longitude: { type: ['number', 'null'] },
+};
 
 export interface LocationHierarchyEntry {
   locationType: string;
@@ -180,6 +188,8 @@ export async function formatSiteResponse(site: Site): Promise<SiteResponse> {
     isActive: site.isActive,
     hasData: site.hasData,
     name: trimmedName !== '' ? trimmedName : null,
+    latitude: site.latitude ?? null,
+    longitude: site.longitude ?? null,
   };
 
   if (site.locationTypeId != null) base.locationTypeId = site.locationTypeId;

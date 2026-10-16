@@ -7,7 +7,7 @@ import {
   specimenImageInferenceResponseSchemaProperties,
 } from '../../specimen/common';
 import { certifiedByResponseSchema, findSession, findSessionSpecimen, formatCertifiedBy } from '../common';
-import { formatSiteResponse } from '../../site/common';
+import { formatSiteResponse, siteCoordinatesResponseSchema } from '../../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -127,6 +127,7 @@ export const schema = {
                 houseNumber: { type: 'string' },
                 isActive: { type: 'boolean' },
                 healthCenter: { type: ['string', 'null'] },
+                ...siteCoordinatesResponseSchema,
                 locationHierarchy: {
                   type: 'object',
                   additionalProperties: { type: 'string' }

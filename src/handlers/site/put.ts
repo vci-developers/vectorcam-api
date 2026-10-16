@@ -13,6 +13,8 @@ interface UpdateSiteRequest {
   houseNumber?: string;
   isActive?: boolean;
   healthCenter?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export const schema = {
@@ -38,6 +40,8 @@ export const schema = {
       houseNumber: { type: 'string' },
       isActive: { type: 'boolean' },
       healthCenter: { type: 'string' },
+      latitude: { type: ['number', 'null'] },
+      longitude: { type: ['number', 'null'] },
     },
   },
   response: {
@@ -61,6 +65,8 @@ export const schema = {
             isActive: { type: 'boolean' },
             hasData: { type: 'boolean' },
             healthCenter: { type: 'string' },
+            latitude: { type: ['number', 'null'] },
+            longitude: { type: ['number', 'null'] },
             locationHierarchy: {
               type: 'object',
               additionalProperties: { type: 'string' }
@@ -81,7 +87,7 @@ export async function updateSite(
 ) {
   try {
     const { site_id } = request.params;
-    const { programId, locationTypeId, parentId, name, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
+    const { programId, locationTypeId, parentId, name, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter, latitude, longitude } = request.body;
 
     const site = await findSiteById(site_id);
     if (!site) {
@@ -107,6 +113,8 @@ export async function updateSite(
       houseNumber: houseNumber !== undefined ? houseNumber : site.houseNumber,
       isActive: isActive !== undefined ? isActive : site.isActive,
       healthCenter: healthCenter !== undefined ? healthCenter : site.healthCenter,
+      latitude: latitude !== undefined ? latitude : site.latitude,
+      longitude: longitude !== undefined ? longitude : site.longitude,
     });
 
     const hydratedSite = await rebuildLocationHierarchy(site);

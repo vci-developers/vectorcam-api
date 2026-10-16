@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { certifierInclude, certifiedByResponseSchema, formatSessionResponse, handleError, findSession } from './common';
 import { Site, Device } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
-import { formatSiteResponse } from '../site/common';
+import { formatSiteResponse, siteCoordinatesResponseSchema } from '../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -54,6 +54,7 @@ export const schema = {
             houseNumber: { type: 'string' },
             isActive: { type: 'boolean' },
             healthCenter: { type: 'string', nullable: true },
+            ...siteCoordinatesResponseSchema,
             locationHierarchy: {
               type: 'object',
               additionalProperties: { type: 'string' }

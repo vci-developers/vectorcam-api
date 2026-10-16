@@ -4,7 +4,7 @@ import { Op, WhereOptions } from 'sequelize';
 import { Annotation, AnnotationTask, User, Specimen, Session, Site, SpecimenImage, SessionUnit } from '../../db/models';
 import { formatAnnotationResponse } from './common';
 import { getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from '../specimen/common';
-import { buildSiteSubtreeWhere } from '../site/common';
+import { buildSiteSubtreeWhere, siteCoordinatesResponseSchema } from '../site/common';
 
 interface GetAnnotationListQuery {
   page?: number;
@@ -163,6 +163,7 @@ export const schema = {
                           houseNumber: { type: 'string' },
                           isActive: { type: 'boolean' },
                           healthCenter: { type: ['string', 'null'] },
+                          ...siteCoordinatesResponseSchema,
                           locationHierarchy: {
                             type: 'object',
                             additionalProperties: { type: 'string' }

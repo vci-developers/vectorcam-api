@@ -2,7 +2,7 @@ import { certifiedByResponseSchema, formatCertifiedBy } from '../session/common'
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { formatSpecimenResponse, handleError, specimenImageInferenceResponseSchemaProperties } from './common';
 import { Session, Site, Device, Specimen } from '../../db/models';
-import { formatSiteResponse } from '../site/common';
+import { formatSiteResponse, siteCoordinatesResponseSchema } from '../site/common';
 
 export const schema = {
   tags: ['Specimens'],
@@ -120,6 +120,7 @@ export const schema = {
                 houseNumber: { type: 'string' },
                 isActive: { type: 'boolean' },
                 healthCenter: { type: ['string', 'null'] },
+                ...siteCoordinatesResponseSchema,
                 locationHierarchy: {
                   type: 'object',
                   additionalProperties: { type: 'string' }

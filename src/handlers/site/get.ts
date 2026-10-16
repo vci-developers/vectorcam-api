@@ -28,6 +28,8 @@ export const schema = {
         isActive: { type: 'boolean' },
         hasData: { type: 'boolean' },
         healthCenter: { type: ['string', 'null'] },
+        latitude: { type: ['number', 'null'] },
+        longitude: { type: ['number', 'null'] },
         program: {
           type: 'object',
           properties: {

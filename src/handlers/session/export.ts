@@ -132,7 +132,7 @@ export async function exportSessionsCSV(
 
     // Generate CSV header with program data
     let csv =
-      'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,ExpectedSpecimens,State,CertifiedBy,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry\n';
+      'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,ExpectedSpecimens,State,CertifiedBy,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry\n';
 
     // Generate CSV rows
     for (const session of sessions) {
@@ -177,6 +177,8 @@ export async function exportSessionsCSV(
         escapeCSVField(formattedSite?.houseNumber ?? ''),
         escapeCSVField(site?.isActive),
         escapeCSVField(formattedSite?.healthCenter ?? ''),
+        escapeCSVField(formattedSite?.latitude ?? null),
+        escapeCSVField(formattedSite?.longitude ?? null),
         escapeCSVField(siteLocationHierarchy || ''),
         escapeCSVField(program?.id),
         escapeCSVField(program?.name),

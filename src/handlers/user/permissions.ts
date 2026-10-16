@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { getUserSiteAccess } from '../../middleware/siteAccess.middleware';
 import { Site } from '../../db/models';
-import { formatSiteResponse } from '../site/common';
+import { formatSiteResponse, siteCoordinatesResponseSchema } from '../site/common';
 
 interface PermissionsQuery {
   siteId?: string;
@@ -58,6 +58,7 @@ export const getPermissionsSchema: any = {
                       isActive: { type: 'boolean' },
                       hasData: { type: 'boolean' },
                       healthCenter: { type: 'string', nullable: true },
+                      ...siteCoordinatesResponseSchema,
                       locationHierarchy: {
                         type: 'object',
                         additionalProperties: { type: 'string' }

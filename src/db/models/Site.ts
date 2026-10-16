@@ -18,6 +18,8 @@ class Site extends Model {
   declare isActive: boolean;
   declare hasData: boolean;
   declare healthCenter: string | null;
+  declare latitude: number | null;
+  declare longitude: number | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -105,6 +107,14 @@ Site.init(
       type: DataTypes.STRING(255),
       allowNull: true,
       field: 'health_center',
+    },
+    latitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+    longitude: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
     },
   },
   {

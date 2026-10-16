@@ -14,6 +14,8 @@ interface CreateSiteRequest {
   houseNumber?: string;
   isActive?: boolean;
   healthCenter?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export const schema = {
@@ -33,6 +35,8 @@ export const schema = {
       houseNumber: { type: 'string' },
       isActive: { type: 'boolean' },
       healthCenter: { type: 'string' },
+      latitude: { type: ['number', 'null'] },
+      longitude: { type: ['number', 'null'] },
     },
   },
   response: {
@@ -56,6 +60,8 @@ export const schema = {
             isActive: { type: 'boolean' },
             hasData: { type: 'boolean' },
             healthCenter: { type: 'string' },
+            latitude: { type: ['number', 'null'] },
+            longitude: { type: ['number', 'null'] },
             locationHierarchy: {
               type: 'object',
               additionalProperties: { type: 'string' }
@@ -72,7 +78,7 @@ export async function createSite(
   reply: FastifyReply
 ) {
   try {
-    const { programId, locationTypeId, parentId, name, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter } = request.body;
+    const { programId, locationTypeId, parentId, name, district, subCounty, parish, villageName, houseNumber, isActive, healthCenter, latitude, longitude } = request.body;
 
     // Validate user can create sites
     const siteAccess = request.siteAccess;
@@ -109,6 +115,8 @@ export async function createSite(
       houseNumber,
       isActive,
       healthCenter,
+      latitude,
+      longitude,
     });
 
     const hydratedSite = await rebuildLocationHierarchy(site);
