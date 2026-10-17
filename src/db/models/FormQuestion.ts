@@ -1,4 +1,4 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes, Transaction } from 'sequelize';
 import sequelize from '../index';
 import { generateUniqueQuestionKey } from '../../utils/formQuestionKey';
 
@@ -110,15 +110,18 @@ FormQuestion.init(
   }
 );
 
-FormQuestion.beforeCreate(async (question, options) => {
+// Validation (including notNull) runs before beforeCreate, so the key must be assigned here.
+FormQuestion.beforeValidate(async (question, options) => {
   if (question.questionKey) {
     return;
   }
 
+  const { transaction } = options as typeof options & { transaction?: Transaction | null };
+
   question.questionKey = await generateUniqueQuestionKey(
     question.label,
     question.formId,
-    options.transaction ?? undefined
+    transaction ?? undefined
   );
 });
 
