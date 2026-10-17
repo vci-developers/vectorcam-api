@@ -245,7 +245,7 @@ export default async function getAnnotationSummary(
 
     const matrixQueries: Record<MatrixAttribute, string> = {
       species: `
-        SELECT a.visual_species AS annotatedValue, si.species AS predictedValue, COUNT(a.id) AS count
+        SELECT a.visual_species AS annotatedValue, si.app_species AS predictedValue, COUNT(a.id) AS count
         FROM annotations a
         INNER JOIN specimens sp ON a.specimen_id = sp.id
         INNER JOIN sessions sess ON sp.session_id = sess.id
@@ -253,10 +253,10 @@ export default async function getAnnotationSummary(
         LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
         WHERE a.status = 'ANNOTATED'
         ${whereSql}
-        GROUP BY a.visual_species, si.species
+        GROUP BY a.visual_species, si.app_species
       `,
       sex: `
-        SELECT a.visual_sex AS annotatedValue, si.sex AS predictedValue, COUNT(a.id) AS count
+        SELECT a.visual_sex AS annotatedValue, si.app_sex AS predictedValue, COUNT(a.id) AS count
         FROM annotations a
         INNER JOIN specimens sp ON a.specimen_id = sp.id
         INNER JOIN sessions sess ON sp.session_id = sess.id
@@ -264,10 +264,10 @@ export default async function getAnnotationSummary(
         LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
         WHERE a.status = 'ANNOTATED'
         ${whereSql}
-        GROUP BY a.visual_sex, si.sex
+        GROUP BY a.visual_sex, si.app_sex
       `,
       abdomenStatus: `
-        SELECT a.visual_abdomen_status AS annotatedValue, si.abdomen_status AS predictedValue, COUNT(a.id) AS count
+        SELECT a.visual_abdomen_status AS annotatedValue, si.app_abdomen_status AS predictedValue, COUNT(a.id) AS count
         FROM annotations a
         INNER JOIN specimens sp ON a.specimen_id = sp.id
         INNER JOIN sessions sess ON sp.session_id = sess.id
@@ -275,7 +275,7 @@ export default async function getAnnotationSummary(
         LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
         WHERE a.status = 'ANNOTATED'
         ${whereSql}
-        GROUP BY a.visual_abdomen_status, si.abdomen_status
+        GROUP BY a.visual_abdomen_status, si.app_abdomen_status
       `
     };
 
