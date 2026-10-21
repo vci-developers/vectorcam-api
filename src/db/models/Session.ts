@@ -36,6 +36,7 @@ class Session extends Model {
   declare updatedAt: Date;
   declare latitude: number | null;
   declare longitude: number | null;
+  declare gpsAccuracy: number | null;
   declare type: string;
   declare collectorLastTrainedOn: Date | null;
   declare hardwareId: string | null;
@@ -130,6 +131,11 @@ Session.init(
       type: DataTypes.FLOAT,
       allowNull: true,
       field: 'latitude',
+    },
+    gpsAccuracy: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+      field: 'gps_accuracy',
     },
     type: {
       type: DataTypes.STRING(255),

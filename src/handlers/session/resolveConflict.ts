@@ -37,6 +37,7 @@ interface ResolveConflictRequest {
     notes?: string | null;
     latitude?: number | null;
     longitude?: number | null;
+    gpsAccuracy?: number | null;
     type?: string;
     collectorLastTrainedOn?: number | null;
     hardwareId?: string | null;
@@ -86,6 +87,7 @@ export const schema = {
           notes: { type: ['string', 'null'] },
           latitude: { type: ['number', 'null'] },
           longitude: { type: ['number', 'null'] },
+          gpsAccuracy: { type: ['number', 'null'] },
           type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'] },
           collectorLastTrainedOn: { type: ['number', 'null'] },
           hardwareId: { type: ['string', 'null'], maxLength: 64 },
@@ -361,6 +363,7 @@ export async function resolveConflict(
         notes: session.notes,
         latitude: session.latitude,
         longitude: session.longitude,
+        gpsAccuracy: session.gpsAccuracy,
         type: session.type,
         collectorLastTrainedOn: session.collectorLastTrainedOn
           ? session.collectorLastTrainedOn.getTime()
@@ -446,6 +449,7 @@ export async function resolveConflict(
     if (resolvedData.notes !== undefined) updateData.notes = resolvedData.notes;
     if (resolvedData.latitude !== undefined) updateData.latitude = resolvedData.latitude;
     if (resolvedData.longitude !== undefined) updateData.longitude = resolvedData.longitude;
+    if (resolvedData.gpsAccuracy !== undefined) updateData.gpsAccuracy = resolvedData.gpsAccuracy;
     if (resolvedData.type !== undefined) updateData.type = resolvedData.type;
     if (resolvedData.collectorLastTrainedOn !== undefined) {
       updateData.collectorLastTrainedOn = resolvedData.collectorLastTrainedOn

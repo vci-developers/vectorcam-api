@@ -137,6 +137,7 @@ export const schema = {
                 collectionCycleId: { type: ['number', 'null'] },
                 latitude: { type: ['number', 'null'] },
                 longitude: { type: ['number', 'null'] },
+                gpsAccuracy: { type: ['number', 'null'] },
                 type: { type: 'string' },
                 certifiedBy: certifiedByResponseSchema,
                 site: {

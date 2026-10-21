@@ -56,6 +56,7 @@ export interface SessionResponse {
   // Add new fields
   latitude: number | null;
   longitude: number | null;
+  gpsAccuracy: number | null;
   type: string;
   collectorLastTrainedOn: number | null;
   hardwareId: string | null;
@@ -114,6 +115,7 @@ export function formatSessionResponse(session: Session): SessionResponse {
     collectionCycleId: session.collectionCycleId,
     latitude: session.latitude,
     longitude: session.longitude,
+    gpsAccuracy: session.gpsAccuracy,
     type: session.type,
     collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
     hardwareId: session.hardwareId,

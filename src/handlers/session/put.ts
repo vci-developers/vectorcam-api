@@ -20,6 +20,7 @@ interface UpdateSessionRequest {
   collectionCycleId?: number | null;
   latitude?: number;
   longitude?: number;
+  gpsAccuracy?: number;
   type: string;
   collectorLastTrainedOn?: number;
   hardwareId?: string;
@@ -53,6 +54,7 @@ export const schema = {
       collectionCycleId: { type: ['number', 'null'] },
       latitude: { type: 'number' },
       longitude: { type: 'number' },
+      gpsAccuracy: { type: 'number' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'] },
       collectorLastTrainedOn: { type: 'number' },
       hardwareId: { type: 'string', maxLength: 64 },
@@ -84,6 +86,7 @@ export const schema = {
             collectionCycleId: { type: ['number', 'null'] },
             latitude: { type: ['number', 'null'] },
             longitude: { type: ['number', 'null'] },
+            gpsAccuracy: { type: ['number', 'null'] },
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE', ''] },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
@@ -136,6 +139,7 @@ export async function updateSession(
       collectionCycleId,
       latitude,
       longitude,
+      gpsAccuracy,
       type,
       collectorLastTrainedOn,
       hardwareId,
@@ -190,6 +194,7 @@ export async function updateSession(
       'collectionCycleId',
       'latitude',
       'longitude',
+      'gpsAccuracy',
       'type',
       'collectorLastTrainedOn',
       'hardwareId',
@@ -212,6 +217,7 @@ export async function updateSession(
       collectionCycleId: session.collectionCycleId,
       latitude: session.latitude,
       longitude: session.longitude,
+      gpsAccuracy: session.gpsAccuracy,
       type: session.type,
       collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
       hardwareId: session.hardwareId,
@@ -241,6 +247,7 @@ export async function updateSession(
       deviceId: deviceId || session.deviceId,
       latitude: latitude !== undefined ? latitude : session.latitude,
       longitude: longitude !== undefined ? longitude : session.longitude,
+      gpsAccuracy: gpsAccuracy !== undefined ? gpsAccuracy : session.gpsAccuracy,
       type: type !== undefined ? type : session.type,
       collectorLastTrainedOn: collectorLastTrainedOn !== undefined ? new Date(collectorLastTrainedOn) : session.collectorLastTrainedOn,
       hardwareId: hardwareId !== undefined ? hardwareId : session.hardwareId,
@@ -277,6 +284,7 @@ export async function updateSession(
       collectionCycleId: session.collectionCycleId,
       latitude: session.latitude,
       longitude: session.longitude,
+      gpsAccuracy: session.gpsAccuracy,
       type: session.type,
       collectorLastTrainedOn: session.collectorLastTrainedOn ? session.collectorLastTrainedOn.getTime() : null,
       hardwareId: session.hardwareId,

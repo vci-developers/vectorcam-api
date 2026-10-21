@@ -138,7 +138,7 @@ export async function exportSurveillanceFormsCSV(
 
     // Generate CSV header with comprehensive data
     let csv =
-      'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,NumChildrenUnder5,HasPregnantWoman,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionExpectedSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt\n';
+      'ID,NumPeopleSleptInHouse,WasIrsConducted,MonthsSinceIrs,NumLlinsAvailable,LlinType,LlinBrand,NumPeopleSleptUnderLlin,NumChildrenUnder5,HasPregnantWoman,CreatedAt,UpdatedAt,SessionID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionGpsAccuracy,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionExpectedSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt\n';
 
     // Generate CSV rows
     for (const form of surveillanceForms) {
@@ -178,6 +178,7 @@ export async function exportSurveillanceFormsCSV(
         escapeCSVField(session?.updatedAt?.toISOString()),
         escapeCSVField(session?.latitude !== null && session?.latitude !== undefined ? session.latitude : null),
         escapeCSVField(session?.longitude !== null && session?.longitude !== undefined ? session.longitude : null),
+        escapeCSVField(session?.gpsAccuracy !== null && session?.gpsAccuracy !== undefined ? session.gpsAccuracy : null),
         escapeCSVField(session?.type),
         escapeCSVField(session?.collectorLastTrainedOn?.toISOString()),
         escapeCSVField(session?.hardwareId),

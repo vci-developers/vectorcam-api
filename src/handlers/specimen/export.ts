@@ -221,7 +221,7 @@ export async function exportSpecimensCSV(
     }
 
     // Generate CSV header
-    let csvHeader = 'SpecimenID,ShouldProcessFurther,ExpectedImages,ImageID,ImageUrl,ImageS3Key,FileMD5,ImageMetadata,Species,Sex,AbdomenStatus,AppSpecies,AppSex,AppAbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionUnitID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionExpectedSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt';
+    let csvHeader = 'SpecimenID,ShouldProcessFurther,ExpectedImages,ImageID,ImageUrl,ImageS3Key,FileMD5,ImageMetadata,Species,Sex,AbdomenStatus,AppSpecies,AppSex,AppAbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionUnitID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionGpsAccuracy,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionExpectedSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt';
     
     // Add inference result columns if requested
     if (includeInferenceResult) {
@@ -282,6 +282,7 @@ export async function exportSpecimensCSV(
           escapeCSVField(session?.updatedAt?.toISOString()),
           escapeCSVField(session?.latitude),
           escapeCSVField(session?.longitude),
+          escapeCSVField(session?.gpsAccuracy),
           escapeCSVField(session?.type),
           escapeCSVField(session?.collectorLastTrainedOn?.toISOString()),
           escapeCSVField(session?.hardwareId),

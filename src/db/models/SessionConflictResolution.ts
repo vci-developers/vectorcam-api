@@ -25,6 +25,7 @@ class SessionConflictResolution extends Model {
       notes: string | null;
       latitude: number | null;
       longitude: number | null;
+      gpsAccuracy: number | null;
       type: string;
       collectorLastTrainedOn: number | null;
       hardwareId: string | null;
@@ -56,6 +57,7 @@ class SessionConflictResolution extends Model {
     notes: string | null;
     latitude: number | null;
     longitude: number | null;
+    gpsAccuracy: number | null;
     type: string;
     collectorLastTrainedOn: number | null;
     hardwareId: string | null;

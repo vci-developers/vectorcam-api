@@ -36,6 +36,7 @@ export const schema = {
               collectionCycleId: { type: ['number', 'null'] },
               latitude: { type: ['number', 'null'] },
               longitude: { type: ['number', 'null'] },
+              gpsAccuracy: { type: ['number', 'null'] },
               type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'] },
               collectorLastTrainedOn: { type: ['number', 'null'] },
               hardwareId: { type: ['string', 'null'] },

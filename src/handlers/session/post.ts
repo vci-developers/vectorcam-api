@@ -24,6 +24,7 @@ interface SubmitSessionRequest {
   deviceId: number;
   latitude?: number;
   longitude?: number;
+  gpsAccuracy?: number;
   type: string;
   collectorLastTrainedOn: number;
   hardwareId?: string;
@@ -50,6 +51,7 @@ export const schema = {
       deviceId: { type: 'number' },
       latitude: { type: 'number' },
       longitude: { type: 'number' },
+      gpsAccuracy: { type: 'number' },
       type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE'] },
       collectorLastTrainedOn: { type: 'number' },
       hardwareId: { type: 'string', maxLength: 64 },
@@ -80,6 +82,7 @@ export const schema = {
             collectionCycleId: { type: ['number', 'null'] },
             latitude: { type: ['number', 'null'] },
             longitude: { type: ['number', 'null'] },
+            gpsAccuracy: { type: ['number', 'null'] },
             type: { type: 'string', enum: ['SURVEILLANCE', 'DATA_COLLECTION', 'CALIBRATION', 'PRACTICE', ''] },
             collectorLastTrainedOn: { type: ['number', 'null'] },
             hardwareId: { type: ['string', 'null'] },
@@ -130,6 +133,7 @@ export async function submitSession(
       deviceId,
       latitude,
       longitude,
+      gpsAccuracy,
       type,
       collectorLastTrainedOn,
       hardwareId,
@@ -184,6 +188,7 @@ export async function submitSession(
       deviceId,
       latitude,
       longitude,
+      gpsAccuracy,
       type,
       collectorLastTrainedOn: collectorLastTrainedOn ? new Date(collectorLastTrainedOn) : null,
       hardwareId,

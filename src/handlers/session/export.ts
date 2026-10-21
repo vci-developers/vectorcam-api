@@ -132,7 +132,7 @@ export async function exportSessionsCSV(
 
     // Generate CSV header with program data
     let csv =
-      'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,Type,CollectorLastTrainedOn,HardwareID,ExpectedSpecimens,State,CertifiedBy,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry\n';
+      'SessionID,FrontendID,CollectorTitle,CollectorName,CollectionDate,CollectionMethod,SpecimenCondition,Notes,CreatedAt,CompletedAt,SubmittedAt,UpdatedAt,Latitude,Longitude,GpsAccuracy,Type,CollectorLastTrainedOn,HardwareID,ExpectedSpecimens,State,CertifiedBy,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry\n';
 
     // Generate CSV rows
     for (const session of sessions) {
@@ -159,6 +159,7 @@ export async function exportSessionsCSV(
         escapeCSVField(session.updatedAt.toISOString()),
         escapeCSVField(session.latitude !== null && session.latitude !== undefined ? session.latitude : null),
         escapeCSVField(session.longitude !== null && session.longitude !== undefined ? session.longitude : null),
+        escapeCSVField(session.gpsAccuracy !== null && session.gpsAccuracy !== undefined ? session.gpsAccuracy : null),
         escapeCSVField(session.type),
         escapeCSVField(session.collectorLastTrainedOn?.toISOString()),
         escapeCSVField(session.hardwareId),
