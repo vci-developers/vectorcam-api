@@ -7,6 +7,7 @@ interface ReviewActionLogInput {
   action: string;
   userId?: number | null;
   collectionCycleId?: number | null;
+  specimenId?: number | null;
   changes?: Record<string, unknown> | null;
   fields?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
@@ -54,6 +55,7 @@ export async function logReviewAction(input: ReviewActionLogInput): Promise<void
     action: input.action,
     userId: input.userId ?? null,
     collectionCycleId: input.collectionCycleId ?? null,
+    specimenId: input.specimenId ?? null,
     hasChanges: Boolean(input.changes && Object.keys(input.changes).length > 0),
     changes: input.changes || null,
     fields: input.fields || null,

@@ -91,4 +91,20 @@ describe('getReviewActionLogs hierarchy filtering', () => {
     const where = (ReviewActionLog.count as jest.Mock).mock.calls[0][0].where;
     expect(where.collectionCycleId).toBe(12);
   });
+
+  it('filters logs by specimenId', async () => {
+    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([]);
+
+    const request: any = {
+      query: { specimenId: 55 },
+      siteAccess: { userSites: [] },
+      log: { error: jest.fn() },
+    };
+    const reply = createReply();
+
+    await getReviewActionLogs(request, reply as any);
+
+    const where = (ReviewActionLog.count as jest.Mock).mock.calls[0][0].where;
+    expect(where.specimenId).toBe(55);
+  });
 });

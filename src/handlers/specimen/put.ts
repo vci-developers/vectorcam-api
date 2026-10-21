@@ -184,6 +184,7 @@ export async function updateSpecimen(
           action: 'update_specimen_thumbnail_prediction',
           userId,
           collectionCycleId: session.collectionCycleId,
+          specimenId: specimen.id,
           changes: changedFields,
           fields: {
             endpoint: '/specimens/:specimen_id',

@@ -151,6 +151,7 @@ export async function putImage(
           action: 'replace_specimen_image_file',
           userId,
           collectionCycleId: session.collectionCycleId,
+          specimenId: specimen.id,
           changes: combinedChanges,
           fields: {
             endpoint: '/specimens/:specimen_id/images/:image_id',

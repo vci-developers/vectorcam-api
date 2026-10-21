@@ -9,6 +9,7 @@ class ReviewActionLog extends Model {
   declare action: string;
   declare userId: number | null;
   declare collectionCycleId: number | null;
+  declare specimenId: number | null;
   declare hasChanges: boolean;
   declare changes: Record<string, unknown> | null;
   declare fields: Record<string, unknown> | null;
@@ -60,6 +61,16 @@ ReviewActionLog.init(
       },
       onDelete: 'SET NULL',
     },
+    specimenId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'specimen_id',
+      references: {
+        model: 'specimens',
+        key: 'id',
+      },
+      onDelete: 'SET NULL',
+    },
     hasChanges: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -96,6 +107,9 @@ ReviewActionLog.init(
       },
       {
         fields: ['collection_cycle_id'],
+      },
+      {
+        fields: ['specimen_id'],
       },
     ],
   }

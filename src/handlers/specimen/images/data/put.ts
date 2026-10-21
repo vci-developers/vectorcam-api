@@ -257,6 +257,7 @@ export async function updateImageData(
           action: 'update_specimen_image_prediction',
           userId,
           collectionCycleId: session.collectionCycleId,
+          specimenId: specimen.id,
           changes: combinedChanges,
           fields: {
             endpoint: '/specimens/:specimen_id/images/data/:image_id',

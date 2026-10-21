@@ -33,6 +33,7 @@ describe('logReviewAction', () => {
       action: 'certify_session',
       userId: 7,
       collectionCycleId: 12,
+      specimenId: null,
       hasChanges: false,
       changes: null,
       fields: {
@@ -40,6 +41,23 @@ describe('logReviewAction', () => {
       },
       metadata: null,
     });
+  });
+
+  it('stores specimenId at the top level', async () => {
+    await logReviewAction({
+      siteId: 42,
+      year: 2025,
+      month: 6,
+      action: 'update_specimen_thumbnail_prediction',
+      userId: 7,
+      specimenId: 55,
+    });
+
+    expect(ReviewActionLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        specimenId: 55,
+      })
+    );
   });
 
   it('stores null collectionCycleId when unassigned', async () => {

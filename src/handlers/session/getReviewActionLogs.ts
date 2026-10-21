@@ -11,6 +11,7 @@ interface GetReviewActionLogsQuery {
   action?: string;
   userId?: number;
   collectionCycleId?: number;
+  specimenId?: number;
   hasChanges?: boolean;
   page?: number;
   size?: number;
@@ -28,6 +29,7 @@ export const schema = {
       action: { type: 'string' },
       userId: { type: 'number' },
       collectionCycleId: { type: 'number' },
+      specimenId: { type: 'number' },
       hasChanges: { type: 'boolean' },
       page: { type: 'number', minimum: 1, default: 1 },
       size: { type: 'number', minimum: 1, maximum: 100, default: 20 },
@@ -50,6 +52,7 @@ export const schema = {
               userId: { type: ['number', 'null'] },
               performedBy: performedByResponseSchema,
               collectionCycleId: { type: ['number', 'null'] },
+              specimenId: { type: ['number', 'null'] },
               hasChanges: { type: 'boolean' },
               changes: { type: ['object', 'null'], additionalProperties: true },
               fields: { type: ['object', 'null'], additionalProperties: true },
@@ -91,6 +94,7 @@ export async function getReviewActionLogs(
       action,
       userId,
       collectionCycleId,
+      specimenId,
       hasChanges,
       page = 1,
       size = 20,
@@ -141,6 +145,9 @@ export async function getReviewActionLogs(
     if (collectionCycleId !== undefined) {
       whereClause.collectionCycleId = collectionCycleId;
     }
+    if (specimenId !== undefined) {
+      whereClause.specimenId = specimenId;
+    }
     if (hasChanges !== undefined) {
       whereClause.hasChanges = hasChanges;
     }
@@ -173,6 +180,7 @@ export async function getReviewActionLogs(
       userId: log.userId,
       performedBy: formatPerformedBy(log.userId, usersById),
       collectionCycleId: log.collectionCycleId ?? (log.fields?.collectionCycleId as number | undefined) ?? null,
+      specimenId: log.specimenId ?? (log.fields?.specimenId as number | undefined) ?? null,
       hasChanges: log.hasChanges,
       changes: log.changes,
       fields: log.fields,
