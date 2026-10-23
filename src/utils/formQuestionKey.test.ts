@@ -1,5 +1,6 @@
 import {
   allocateQuestionKeyInForm,
+  normalizeQuestionKey,
   questionMatchSignature,
   slugifyLabelForQuestionKey,
 } from './formQuestionKey';
@@ -23,6 +24,20 @@ describe('questionMatchSignature', () => {
     const root = questionMatchSignature(null, 'Child label', 'text');
     const underParent = questionMatchSignature('parent_key', 'Child label', 'text');
     expect(root).not.toEqual(underParent);
+  });
+});
+
+describe('normalizeQuestionKey', () => {
+  it('trims whitespace and keeps the provided key', () => {
+    expect(normalizeQuestionKey('  household_size  ')).toEqual({ key: 'household_size' });
+    expect(normalizeQuestionKey('Household Size')).toEqual({ key: 'Household Size' });
+  });
+
+  it('rejects empty and oversized keys', () => {
+    expect(normalizeQuestionKey('   ')).toEqual({ error: 'questionKey cannot be empty' });
+    expect(normalizeQuestionKey('a'.repeat(65))).toEqual({
+      error: 'questionKey must be at most 64 characters',
+    });
   });
 });
 

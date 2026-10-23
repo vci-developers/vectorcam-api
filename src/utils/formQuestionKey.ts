@@ -1,8 +1,40 @@
-import { Transaction } from 'sequelize';
+import { Op, Transaction } from 'sequelize';
 import FormQuestion from '../db/models/FormQuestion';
 
 const MAX_KEY_LENGTH = 64;
 const MAX_SLUG_LENGTH = 48;
+
+export function normalizeQuestionKey(value: string): { key: string } | { error: string } {
+  const key = value.trim();
+
+  if (!key) {
+    return { error: 'questionKey cannot be empty' };
+  }
+
+  if (key.length > MAX_KEY_LENGTH) {
+    return { error: `questionKey must be at most ${MAX_KEY_LENGTH} characters` };
+  }
+
+  return { key };
+}
+
+export async function isQuestionKeyTaken(
+  formId: number,
+  questionKey: string,
+  options?: { transaction?: Transaction; excludeQuestionId?: number }
+): Promise<boolean> {
+  const existing = await FormQuestion.findOne({
+    where: {
+      formId,
+      questionKey,
+      ...(options?.excludeQuestionId !== undefined ? { id: { [Op.ne]: options.excludeQuestionId } } : {}),
+    },
+    attributes: ['id'],
+    transaction: options?.transaction,
+  });
+
+  return existing !== null;
+}
 
 /**
  * Derive a short, stable slug from a question label (snake_case, a-z0-9).

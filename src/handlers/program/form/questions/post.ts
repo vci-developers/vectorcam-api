@@ -1,11 +1,14 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { UniqueConstraintError } from 'sequelize';
 import { Form, FormQuestion } from '../../../../db/models';
 import sequelize from '../../../../db/index';
+import { isQuestionKeyTaken, normalizeQuestionKey } from '../../../../utils/formQuestionKey';
 import { serializeQuestion, validateQuestionScopeConfig } from '../common';
 
 interface CreateQuestionBody {
   label: string;
   type: string;
+  questionKey?: string;
   required?: boolean;
   options?: unknown[] | null;
   order?: number | null;
@@ -30,6 +33,7 @@ export const schema = {
     required: ['label', 'type'],
     properties: {
       label: { type: 'string' },
+      questionKey: { type: 'string', minLength: 1, maxLength: 64 },
       type: { type: 'string' },
       required: { type: 'boolean' },
       options: { type: ['array', 'null'] },
@@ -109,12 +113,29 @@ export async function createProgramFormQuestion(
       return reply.code(400).send({ error: scopeError });
     }
 
+    let questionKey: string | undefined;
+    if (request.body.questionKey !== undefined) {
+      const normalized = normalizeQuestionKey(request.body.questionKey);
+      if ('error' in normalized) {
+        await transaction.rollback();
+        return reply.code(400).send({ error: normalized.error });
+      }
+
+      questionKey = normalized.key;
+      const taken = await isQuestionKeyTaken(form.id, questionKey, { transaction });
+      if (taken) {
+        await transaction.rollback();
+        return reply.code(409).send({ error: 'A question with this questionKey already exists on this form' });
+      }
+    }
+
     const question = await FormQuestion.create(
       {
         formId: form.id,
         parentId,
         prerequisite: request.body.prerequisite ?? null,
         label: request.body.label,
+        ...(questionKey !== undefined ? { questionKey } : {}),
         type: request.body.type,
         required: request.body.required ?? false,
         options: request.body.options ?? null,
@@ -133,6 +154,9 @@ export async function createProgramFormQuestion(
     });
   } catch (error) {
     await transaction.rollback();
+    if (error instanceof UniqueConstraintError) {
+      return reply.code(409).send({ error: 'A question with this questionKey already exists on this form' });
+    }
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to create question' });
   }

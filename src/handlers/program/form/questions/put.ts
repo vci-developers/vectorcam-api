@@ -1,10 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { UniqueConstraintError } from 'sequelize';
 import { Form, FormQuestion } from '../../../../db/models';
 import sequelize from '../../../../db/index';
+import { isQuestionKeyTaken, normalizeQuestionKey } from '../../../../utils/formQuestionKey';
 import { serializeQuestion, validateQuestionScopeConfig } from '../common';
 
 interface UpdateQuestionBody {
   label?: string;
+  questionKey?: string;
   type?: string;
   required?: boolean;
   options?: unknown[] | null;
@@ -30,6 +33,7 @@ export const schema = {
     type: 'object',
     properties: {
       label: { type: 'string' },
+      questionKey: { type: 'string', minLength: 1, maxLength: 64 },
       type: { type: 'string' },
       required: { type: 'boolean' },
       options: { type: ['array', 'null'] },
@@ -110,6 +114,27 @@ export async function updateProgramFormQuestion(
       }
     }
 
+    let nextQuestionKey = question.questionKey;
+    if (request.body.questionKey !== undefined) {
+      const normalized = normalizeQuestionKey(request.body.questionKey);
+      if ('error' in normalized) {
+        await transaction.rollback();
+        return reply.code(400).send({ error: normalized.error });
+      }
+
+      nextQuestionKey = normalized.key;
+      if (nextQuestionKey !== question.questionKey) {
+        const taken = await isQuestionKeyTaken(form.id, nextQuestionKey, {
+          transaction,
+          excludeQuestionId: question.id,
+        });
+        if (taken) {
+          await transaction.rollback();
+          return reply.code(409).send({ error: 'A question with this questionKey already exists on this form' });
+        }
+      }
+    }
+
     const nextAnswerScope = request.body.answerScope ?? question.answerScope;
     const nextIsIdentity = request.body.isUnitIdentityComponent ?? question.isUnitIdentityComponent;
     const nextRequired = request.body.required ?? question.required;
@@ -126,6 +151,7 @@ export async function updateProgramFormQuestion(
     await question.update(
       {
         label: request.body.label ?? question.label,
+        questionKey: nextQuestionKey,
         type: request.body.type ?? question.type,
         required: request.body.required ?? question.required,
         options: request.body.options ?? question.options,
@@ -146,6 +172,9 @@ export async function updateProgramFormQuestion(
     });
   } catch (error) {
     await transaction.rollback();
+    if (error instanceof UniqueConstraintError) {
+      return reply.code(409).send({ error: 'A question with this questionKey already exists on this form' });
+    }
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to update question' });
   }
