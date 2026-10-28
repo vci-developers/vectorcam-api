@@ -1,17 +1,24 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { QueryTypes } from 'sequelize';
 import sequelize from '../../db/index';
-import { Site, Session, SurveillanceForm, Specimen, SpecimenImage, Annotation } from '../../db/models';
 import { handleError } from './common';
+import {
+  countHousesUsedForCollection,
+  resolveMetricsFormContext,
+  resolveMetricsSiteScope,
+} from './metricsSiteScope';
+import {
+  hasRequiredSurveillanceMappings,
+  resolveSurveillanceQuestionMappings,
+  SurveillanceQuestionMapping,
+} from './metricsSurveillanceQuestions';
 
 interface MetricsQuery {
-  district: string;
+  district?: string;
+  programId?: string;
+  siteIds?: string;
   startDate: string;
   endDate: string;
-}
-
-interface MetricsRequest extends FastifyRequest {
-  Querystring: MetricsQuery;
 }
 
 const METRIC_LABELS = {
@@ -34,15 +41,17 @@ const METRIC_LABELS = {
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Get all metrics for a specific district and date range in one API call',
+  description: 'Get session metrics for a district, program, or site subtree and date range',
   querystring: {
     type: 'object',
     properties: {
-      district: { type: 'string' },
+      district: { type: 'string', description: 'Filter by legacy district name' },
+      programId: { type: 'integer', description: 'Filter by program ID' },
+      siteIds: { type: 'string', description: 'Comma-separated site IDs (includes descendant sites)' },
       startDate: { type: 'string', format: 'date' },
       endDate: { type: 'string', format: 'date' }
     },
-    required: ['district', 'startDate', 'endDate']
+    required: ['startDate', 'endDate']
   },
   response: {
     200: {
@@ -100,19 +109,272 @@ export const schema = {
   }
 };
 
+function emptyMetricsResponse() {
+  return {
+    siteInformation: {
+      housesUsedForCollection: 0,
+      peopleInAllHousesInspected: 0,
+    },
+    entomologicalSummary: {
+      totalFedAnopheles: 0,
+      malariaVectorDensity: 0,
+      fedAnophelesToPeopleSleptRatio: 0,
+      totalLlins: 0,
+      totalPeopleSleptUnderLlin: 0,
+      llinsPerPerson: 0,
+      vectorDensity: 0,
+      fedMosquitoesToPeopleSleptRatio: 0,
+    },
+    metricLabels: METRIC_LABELS,
+  };
+}
+
+function numericAnswerSql(questionId: number, alias: string): string {
+  return `MAX(CASE
+    WHEN fa.question_id = ${questionId}
+    THEN CAST(JSON_UNQUOTE(fa.value) AS DECIMAL(20, 4))
+  END) AS ${alias}`;
+}
+
+function buildNumericExpression(mapping: SurveillanceQuestionMapping, alias: string): string {
+  if (mapping.kind === 'single') {
+    return numericAnswerSql(mapping.questionId, alias);
+  }
+
+  const parts = mapping.questionIds.map(
+    (questionId, index) => `COALESCE(${alias}_part_${index}, 0)`
+  );
+  const selects = mapping.questionIds.map(
+    (questionId, index) => numericAnswerSql(questionId, `${alias}_part_${index}`)
+  );
+
+  return `${selects.join(',\n        ')},
+        (${parts.join(' + ')}) AS ${alias}`;
+}
+
+interface HouseholdMetricsRow {
+  site_id: number;
+  num_people_slept_in_house: number | null;
+  num_llins_available: number | null;
+  num_people_slept_under_llin: number | null;
+}
+
+async function loadLegacyHouseholdMetrics(
+  siteIds: number[],
+  startDate: Date,
+  endDate: Date
+): Promise<{ peopleInAllHousesInspected: number; rows: HouseholdMetricsRow[] }> {
+  const peopleInHousesQuery = `
+    SELECT COALESCE(SUM(num_people_slept_in_house), 0) as totalPeople
+    FROM (
+      SELECT
+        sess.site_id,
+        MAX(sf.num_people_slept_in_house) as num_people_slept_in_house
+      FROM sessions sess
+      INNER JOIN sites s ON sess.site_id = s.id
+      LEFT JOIN surveillanceforms sf ON sess.id = sf.session_id
+      WHERE s.id IN (:siteIds)
+        AND sess.collection_date >= :startDate
+        AND sess.collection_date < :endDate
+        AND sf.num_people_slept_in_house IS NOT NULL
+      GROUP BY sess.site_id
+    ) as unique_houses
+  `;
+
+  const peopleResult = await sequelize.query(peopleInHousesQuery, {
+    replacements: { siteIds, startDate, endDate },
+    type: QueryTypes.SELECT,
+  }) as Array<{ totalPeople: number }>;
+
+  const surveillanceDataQuery = `
+    SELECT
+      sess.site_id,
+      sf.num_people_slept_in_house,
+      sf.num_llins_available,
+      sf.num_people_slept_under_llin
+    FROM sessions sess
+    INNER JOIN sites s ON sess.site_id = s.id
+    LEFT JOIN surveillanceforms sf ON sess.id = sf.session_id
+    WHERE s.id IN (:siteIds)
+      AND sess.collection_date >= :startDate
+      AND sess.collection_date < :endDate
+      AND sess.type = 'SURVEILLANCE'
+    GROUP BY sess.site_id, sf.num_people_slept_in_house,
+             sf.num_llins_available, sf.num_people_slept_under_llin
+  `;
+
+  const rows = await sequelize.query(surveillanceDataQuery, {
+    replacements: { siteIds, startDate, endDate },
+    type: QueryTypes.SELECT,
+  }) as HouseholdMetricsRow[];
+
+  return {
+    peopleInAllHousesInspected: peopleResult[0]?.totalPeople || 0,
+    rows,
+  };
+}
+
+async function loadFormHouseholdMetrics(
+  siteIds: number[],
+  startDate: Date,
+  endDate: Date,
+  formId: number,
+  mappings: ReturnType<typeof resolveSurveillanceQuestionMappings>
+): Promise<{ peopleInAllHousesInspected: number; rows: HouseholdMetricsRow[] }> {
+  const peopleMapping = mappings.numPeopleSleptInHouse!;
+  const llinsMapping = mappings.numLlinsAvailable!;
+  const underLlinMapping = mappings.numPeopleSleptUnderLlin!;
+
+  const perSessionQuery = `
+    SELECT
+      sess.site_id,
+      sess.id AS session_id,
+      ${buildNumericExpression(peopleMapping, 'num_people_slept_in_house')},
+      ${buildNumericExpression(llinsMapping, 'num_llins_available')},
+      ${buildNumericExpression(underLlinMapping, 'num_people_slept_under_llin')}
+    FROM sessions sess
+    INNER JOIN sites s ON sess.site_id = s.id
+    LEFT JOIN form_answers fa ON fa.session_id = sess.id AND fa.form_id = :formId
+    WHERE s.id IN (:siteIds)
+      AND sess.collection_date >= :startDate
+      AND sess.collection_date < :endDate
+      AND sess.type = 'SURVEILLANCE'
+    GROUP BY sess.site_id, sess.id
+  `;
+
+  const perSiteQuery = `
+    SELECT
+      site_id,
+      MAX(num_people_slept_in_house) AS num_people_slept_in_house,
+      MAX(num_llins_available) AS num_llins_available,
+      MAX(num_people_slept_under_llin) AS num_people_slept_under_llin
+    FROM (${perSessionQuery}) AS per_session
+    GROUP BY site_id, num_people_slept_in_house, num_llins_available, num_people_slept_under_llin
+  `;
+
+  const peopleInHousesQuery = `
+    SELECT COALESCE(SUM(num_people_slept_in_house), 0) AS totalPeople
+    FROM (
+      SELECT
+        site_id,
+        MAX(num_people_slept_in_house) AS num_people_slept_in_house
+      FROM (${perSessionQuery}) AS per_session
+      WHERE num_people_slept_in_house IS NOT NULL
+      GROUP BY site_id
+    ) AS unique_houses
+  `;
+
+  const [peopleResult, rows] = await Promise.all([
+    sequelize.query(peopleInHousesQuery, {
+      replacements: { siteIds, startDate, endDate, formId },
+      type: QueryTypes.SELECT,
+    }) as Promise<Array<{ totalPeople: number }>>,
+    sequelize.query(perSiteQuery, {
+      replacements: { siteIds, startDate, endDate, formId },
+      type: QueryTypes.SELECT,
+    }) as Promise<HouseholdMetricsRow[]>,
+  ]);
+
+  return {
+    peopleInAllHousesInspected: peopleResult[0]?.totalPeople || 0,
+    rows,
+  };
+}
+
+async function loadEntomologicalMetrics(
+  siteIds: number[],
+  startDate: Date,
+  endDate: Date
+): Promise<{
+  totalFedAnopheles: number;
+  totalAnopheles: number;
+  totalMosquitoes: number;
+}> {
+  const fedAnophelesQuery = `
+    SELECT
+      COUNT(DISTINCT CASE
+        WHEN si.abdomen_status IN ('Fully fed')
+          AND si.species LIKE '%anopheles%'
+        THEN sp.id
+      END) as totalFedAnopheles
+    FROM sessions sess
+    INNER JOIN sites s ON sess.site_id = s.id
+    LEFT JOIN specimens sp ON sess.id = sp.session_id
+    LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
+    WHERE s.id IN (:siteIds)
+      AND sess.collection_date >= :startDate
+      AND sess.collection_date < :endDate
+      AND sess.type = 'SURVEILLANCE'
+  `;
+
+  const malariaVectorDensityQuery = `
+    SELECT
+      COUNT(DISTINCT CASE
+        WHEN si.species LIKE '%anopheles%'
+        THEN sp.id
+      END) as totalAnopheles,
+      COUNT(DISTINCT CASE
+        WHEN si.species NOT LIKE '%non mosquito%'
+          AND si.species IS NOT NULL
+        THEN sp.id
+      END) as totalMosquitoes
+    FROM sessions sess
+    INNER JOIN sites s ON sess.site_id = s.id
+    LEFT JOIN specimens sp ON sess.id = sp.session_id
+    LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
+    WHERE s.id IN (:siteIds)
+      AND sess.collection_date >= :startDate
+      AND sess.collection_date < :endDate
+      AND sess.type = 'SURVEILLANCE'
+  `;
+
+  const fedAnophelesResult = await sequelize.query(fedAnophelesQuery, {
+    replacements: { siteIds, startDate, endDate },
+    type: QueryTypes.SELECT,
+  }) as Array<{ totalFedAnopheles: number }>;
+
+  const vectorDensityResult = await sequelize.query(malariaVectorDensityQuery, {
+    replacements: { siteIds, startDate, endDate },
+    type: QueryTypes.SELECT,
+  }) as Array<{ totalAnopheles: number; totalMosquitoes: number }>;
+
+  return {
+    totalFedAnopheles: fedAnophelesResult[0]?.totalFedAnopheles || 0,
+    totalAnopheles: vectorDensityResult[0]?.totalAnopheles || 0,
+    totalMosquitoes: vectorDensityResult[0]?.totalMosquitoes || 0,
+  };
+}
+
+function sumHouseholdRows(rows: HouseholdMetricsRow[]): {
+  totalLlins: number;
+  totalPeopleSleptUnderLlin: number;
+} {
+  let totalLlins = 0;
+  let totalPeopleSleptUnderLlin = 0;
+
+  for (const house of rows) {
+    if (house.num_llins_available !== null) {
+      totalLlins += Number(house.num_llins_available);
+    }
+    if (house.num_people_slept_under_llin !== null) {
+      totalPeopleSleptUnderLlin += Number(house.num_people_slept_under_llin);
+    }
+  }
+
+  return { totalLlins, totalPeopleSleptUnderLlin };
+}
+
 export async function getMetrics(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
   try {
     const query = request.query as MetricsQuery;
-    const { district, startDate: startDateStr, endDate: endDateStr } = query;
+    const { startDate: startDateStr, endDate: endDateStr } = query;
 
-    // Parse date strings to Date objects
     const startDate = new Date(startDateStr);
     const endDate = new Date(endDateStr);
 
-    // Validate dates
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
       return reply.code(400).send({ error: 'Invalid date format. Use YYYY-MM-DD format.' });
     }
@@ -121,162 +383,81 @@ export async function getMetrics(
       return reply.code(400).send({ error: 'startDate must be before endDate' });
     }
 
-    // 1. Get housesUsedForCollection: Total number of active houses in the district
-    const housesUsedForCollection = await Site.count({
-      where: {
-        district,
-        isActive: true
+    const siteScope = await resolveMetricsSiteScope(request, reply, query);
+    if (!siteScope) {
+      return;
+    }
+
+    if (siteScope.filteredSiteIds.length === 0) {
+      return reply.send(emptyMetricsResponse());
+    }
+
+    const parsedProgramId = query.programId ? Number(query.programId) : undefined;
+    const metricsProgramId = parsedProgramId ?? (
+      siteScope.programIds.length === 1 ? siteScope.programIds[0] : undefined
+    );
+
+    let useFormMetrics = false;
+    let formId: number | undefined;
+    let questionMappings: ReturnType<typeof resolveSurveillanceQuestionMappings> | undefined;
+
+    if (metricsProgramId !== undefined) {
+      const formContext = await resolveMetricsFormContext(metricsProgramId);
+      if (formContext) {
+        const mappings = resolveSurveillanceQuestionMappings(formContext.questions);
+        if (hasRequiredSurveillanceMappings(mappings)) {
+          useFormMetrics = true;
+          formId = formContext.formId;
+          questionMappings = mappings;
+        }
       }
-    });
+    }
 
-    // 2. Get peopleInAllHousesInspected: Sum of numPeopleSleptInHouse for unique houses
-    // We need to get unique sites that had sessions in that month and sum their people count
-    // Use a subquery with GROUP BY to get one row per site (not DISTINCT ON which is PostgreSQL-specific)
-    const peopleInHousesQuery = `
-      SELECT COALESCE(SUM(num_people_slept_in_house), 0) as totalPeople
-      FROM (
-        SELECT 
-          sess.site_id,
-          MAX(sf.num_people_slept_in_house) as num_people_slept_in_house
-        FROM sessions sess
-        INNER JOIN sites s ON sess.site_id = s.id
-        LEFT JOIN surveillanceforms sf ON sess.id = sf.session_id
-        WHERE s.district = :district
-          AND sess.collection_date >= :startDate
-          AND sess.collection_date < :endDate
-          AND sf.num_people_slept_in_house IS NOT NULL
-        GROUP BY sess.site_id
-      ) as unique_houses
-    `;
+    const sessionSiteIds = useFormMetrics && siteScope.collectionSiteIds.length > 0
+      ? siteScope.collectionSiteIds
+      : siteScope.filteredSiteIds;
 
-    const peopleResult = await sequelize.query(peopleInHousesQuery, {
-      replacements: { district, startDate, endDate },
-      type: QueryTypes.SELECT
-    }) as any[];
+    const housesUsedForCollection = await countHousesUsedForCollection(
+      siteScope.filteredSites,
+      siteScope.collectionSiteIds,
+      useFormMetrics
+    );
 
-    const peopleInAllHousesInspected = peopleResult[0]?.totalPeople || 0;
+    const householdMetrics = useFormMetrics && formId && questionMappings
+      ? await loadFormHouseholdMetrics(
+        sessionSiteIds,
+        startDate,
+        endDate,
+        formId,
+        questionMappings
+      )
+      : await loadLegacyHouseholdMetrics(sessionSiteIds, startDate, endDate);
 
-    // Calculate number of days in the date range
-    const millisecondsPerDay = 1000 * 60 * 60 * 24;
-    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / millisecondsPerDay);
+    const { totalLlins, totalPeopleSleptUnderLlin } = sumHouseholdRows(householdMetrics.rows);
+    const {
+      totalFedAnopheles,
+      totalAnopheles,
+      totalMosquitoes,
+    } = await loadEntomologicalMetrics(sessionSiteIds, startDate, endDate);
 
-    // 3. Get surveillance forms data for the district and date range
-    // We need data per house (per site) to calculate averages
-    const surveillanceDataQuery = `
-      SELECT 
-        sess.site_id,
-        sf.num_people_slept_in_house,
-        sf.num_llins_available,
-        sf.num_people_slept_under_llin,
-        COUNT(DISTINCT sp.id) as totalSpecimens
-      FROM sessions sess
-      INNER JOIN sites s ON sess.site_id = s.id
-      LEFT JOIN surveillanceforms sf ON sess.id = sf.session_id
-      LEFT JOIN specimens sp ON sess.id = sp.session_id
-      WHERE s.district = :district
-        AND sess.collection_date >= :startDate
-        AND sess.collection_date < :endDate
-        AND sess.type = 'SURVEILLANCE'
-      GROUP BY sess.site_id, sf.num_people_slept_in_house, 
-               sf.num_llins_available, sf.num_people_slept_under_llin
-    `;
+    const peopleInAllHousesInspected = householdMetrics.peopleInAllHousesInspected;
 
-    const surveillanceData = await sequelize.query(surveillanceDataQuery, {
-      replacements: { district, startDate, endDate },
-      type: QueryTypes.SELECT
-    }) as any[];
-
-    // 4. Get fed anopheles mosquitoes data
-    // Count specimens that are anopheles (species partially matches 'anopheles') and have fed abdomen status
-    const fedAnophelesQuery = `
-      SELECT 
-        COUNT(DISTINCT CASE 
-          WHEN si.abdomen_status IN ('Fully fed') 
-            AND si.species LIKE '%anopheles%'
-          THEN sp.id 
-        END) as totalFedAnopheles
-      FROM sessions sess
-      INNER JOIN sites s ON sess.site_id = s.id
-      LEFT JOIN specimens sp ON sess.id = sp.session_id
-      LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
-      WHERE s.district = :district
-        AND sess.collection_date >= :startDate
-        AND sess.collection_date < :endDate
-        AND sess.type = 'SURVEILLANCE'
-    `;
-
-    const fedAnophelesResult = await sequelize.query(fedAnophelesQuery, {
-      replacements: { district, startDate, endDate },
-      type: QueryTypes.SELECT
-    }) as any[];
-
-    const totalFedAnopheles = fedAnophelesResult[0]?.totalFedAnopheles || 0;
-
-    // 5. Get malaria vector density: total anopheles / total mosquitoes (excluding non-mosquitoes)
-    const malariaVectorDensityQuery = `
-      SELECT 
-        COUNT(DISTINCT CASE 
-          WHEN si.species LIKE '%anopheles%'
-          THEN sp.id 
-        END) as totalAnopheles,
-        COUNT(DISTINCT CASE 
-          WHEN si.species NOT LIKE '%non mosquito%'
-            AND si.species IS NOT NULL
-          THEN sp.id 
-        END) as totalMosquitoes
-      FROM sessions sess
-      INNER JOIN sites s ON sess.site_id = s.id
-      LEFT JOIN specimens sp ON sess.id = sp.session_id
-      LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
-      WHERE s.district = :district
-        AND sess.collection_date >= :startDate
-        AND sess.collection_date < :endDate
-        AND sess.type = 'SURVEILLANCE'
-    `;
-
-    const vectorDensityResult = await sequelize.query(malariaVectorDensityQuery, {
-      replacements: { district, startDate, endDate },
-      type: QueryTypes.SELECT
-    }) as any[];
-
-    const totalAnopheles = vectorDensityResult[0]?.totalAnopheles || 0;
-    const totalMosquitoes = vectorDensityResult[0]?.totalMosquitoes || 0;
-
-    // Calculate metrics
-    let totalLlins = 0;
-    let totalPeopleSleptUnderLlin = 0;
-
-    // Process surveillance data
-    surveillanceData.forEach(house => {
-      // Total LLINs and people under LLINs
-      if (house.num_llins_available !== null) {
-        totalLlins += house.num_llins_available;
-      }
-      if (house.num_people_slept_under_llin !== null) {
-        totalPeopleSleptUnderLlin += house.num_people_slept_under_llin;
-      }
-    });
-
-    // Calculate final metrics
-    // llinsPerPerson: total bednets / total people (no average)
-    const llinsPerPerson = peopleInAllHousesInspected > 0 
-      ? totalLlins / peopleInAllHousesInspected 
+    const llinsPerPerson = peopleInAllHousesInspected > 0
+      ? totalLlins / peopleInAllHousesInspected
       : 0;
 
-    // fedAnophelesToPeopleSleptRatio: total fed anopheles / total people under bednets (no average)
-    const fedAnophelesToPeopleSleptRatio = totalPeopleSleptUnderLlin > 0 
-      ? totalFedAnopheles / totalPeopleSleptUnderLlin 
+    const fedAnophelesToPeopleSleptRatio = totalPeopleSleptUnderLlin > 0
+      ? totalFedAnopheles / totalPeopleSleptUnderLlin
       : 0;
 
-    // malariaVectorDensity: total anopheles / total mosquitoes (excluding non-mosquitoes)
-    const malariaVectorDensity = totalMosquitoes > 0 
-      ? totalAnopheles / totalMosquitoes 
+    const malariaVectorDensity = totalMosquitoes > 0
+      ? totalAnopheles / totalMosquitoes
       : 0;
 
-    const response = {
+    return reply.send({
       siteInformation: {
         housesUsedForCollection,
-        peopleInAllHousesInspected
+        peopleInAllHousesInspected,
       },
       entomologicalSummary: {
         totalFedAnopheles,
@@ -291,11 +472,8 @@ export async function getMetrics(
         fedMosquitoesToPeopleSleptRatio: Number(fedAnophelesToPeopleSleptRatio.toFixed(2)),
       },
       metricLabels: METRIC_LABELS,
-    };
-
-    return reply.send(response);
+    });
   } catch (error) {
     return handleError(error, request, reply, 'Failed to get session metrics');
   }
 }
-
