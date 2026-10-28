@@ -55,6 +55,8 @@ export const schema = {
               parentId: { type: ['number', 'null'] },
               prerequisite: {},
               label: { type: ['string', 'null'] },
+              questionKey: { type: ['string', 'null'] },
+              order: { type: ['number', 'null'] },
               type: { type: ['string', 'null'] },
               required: { type: ['boolean', 'null'] },
               answerScope: { type: ['string', 'null'] },
@@ -104,37 +106,42 @@ export async function getSessionFormAnswers(
       formVersion: context.form.version,
       programId: context.form.programId,
       sessionId: context.session.id,
-      answers: answers.map(answer => ({
-        id: answer.id,
-        frontendId: answer.frontendId ?? null,
-        sessionUnitId: answer.sessionUnitId ?? null,
-        sessionUnit: (() => {
-          const unit = answer.get('sessionUnit') as SessionUnit | undefined;
-          if (!unit) return null;
-          return {
-            id: unit.id,
-            frontendId: unit.frontendId ?? null,
-            sessionId: unit.sessionId,
-            unitOrder: unit.unitOrder,
-            createdAt: unit.createdAt?.getTime?.() ?? null,
-            updatedAt: unit.updatedAt?.getTime?.() ?? null,
-          };
-        })(),
-        questionId: answer.questionId,
-        parentId: (answer.get('question') as FormQuestion | undefined)?.parentId ?? null,
-        prerequisite: (answer.get('question') as FormQuestion | undefined)?.prerequisite ?? null,
-        label: (answer.get('question') as FormQuestion | undefined)?.label ?? null,
-        type: (answer.get('question') as FormQuestion | undefined)?.type ?? null,
-        required: (answer.get('question') as FormQuestion | undefined)?.required ?? null,
-        answerScope: (answer.get('question') as FormQuestion | undefined)?.answerScope ?? null,
-        isUnitIdentityComponent: (answer.get('question') as FormQuestion | undefined)?.isUnitIdentityComponent ?? null,
-        options: (answer.get('question') as FormQuestion | undefined)?.options ?? null,
-        value: answer.value,
-        dataType: answer.dataType,
-        submittedAt: answer.submittedAt?.getTime?.() ?? null,
-        createdAt: answer.createdAt?.getTime?.() ?? null,
-        updatedAt: answer.updatedAt?.getTime?.() ?? null,
-      })),
+      answers: answers.map(answer => {
+        const question = answer.get('question') as FormQuestion | undefined;
+        return {
+          id: answer.id,
+          frontendId: answer.frontendId ?? null,
+          sessionUnitId: answer.sessionUnitId ?? null,
+          sessionUnit: (() => {
+            const unit = answer.get('sessionUnit') as SessionUnit | undefined;
+            if (!unit) return null;
+            return {
+              id: unit.id,
+              frontendId: unit.frontendId ?? null,
+              sessionId: unit.sessionId,
+              unitOrder: unit.unitOrder,
+              createdAt: unit.createdAt?.getTime?.() ?? null,
+              updatedAt: unit.updatedAt?.getTime?.() ?? null,
+            };
+          })(),
+          questionId: answer.questionId,
+          parentId: question?.parentId ?? null,
+          prerequisite: question?.prerequisite ?? null,
+          label: question?.label ?? null,
+          questionKey: question?.questionKey ?? null,
+          type: question?.type ?? null,
+          required: question?.required ?? null,
+          order: question?.order ?? null,
+          answerScope: question?.answerScope ?? null,
+          isUnitIdentityComponent: question?.isUnitIdentityComponent ?? null,
+          options: question?.options ?? null,
+          value: answer.value,
+          dataType: answer.dataType,
+          submittedAt: answer.submittedAt?.getTime?.() ?? null,
+          createdAt: answer.createdAt?.getTime?.() ?? null,
+          updatedAt: answer.updatedAt?.getTime?.() ?? null,
+        };
+      }),
     });
   } catch (error) {
     request.log.error(error);

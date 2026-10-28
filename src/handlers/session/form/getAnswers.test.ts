@@ -63,15 +63,22 @@ function buildForm(overrides: Partial<{ id: number; version: string; name: strin
 
 function buildAnswer(overrides: Partial<Record<string, unknown>> = {}) {
   const submittedAt = new Date('2026-01-15T12:00:00.000Z');
+  const submittedAtForQuestion = new Date('2026-01-10T08:00:00.000Z');
   const question = {
+    id: 501,
+    formId: 100,
     parentId: null,
     prerequisite: null,
     label: 'House number',
+    questionKey: 'house_number',
     type: 'text',
     required: true,
+    options: null,
+    order: 1,
     answerScope: 'SESSION',
     isUnitIdentityComponent: false,
-    options: null,
+    createdAt: submittedAtForQuestion,
+    updatedAt: submittedAtForQuestion,
   };
 
   return {
@@ -157,6 +164,8 @@ describe('getSessionFormAnswers', () => {
             id: 1,
             questionId: 501,
             label: 'House number',
+            questionKey: 'house_number',
+            order: 1,
             value: '12A',
           }),
         ]),
