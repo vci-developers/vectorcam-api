@@ -10,78 +10,79 @@ export interface FormQuestionLike {
   questionKey: string;
 }
 
+/** Each inner array is an alias group: any key in the group may appear on answers (any form version). */
 export type SurveillanceQuestionMapping =
-  | { kind: 'single'; questionId: number; questionKey: string }
-  | { kind: 'sum'; questionIds: number[]; questionKeys: string[] };
+  | { kind: 'single'; questionKeys: readonly string[] }
+  | { kind: 'sum'; parts: readonly (readonly string[])[] };
 
 export type SurveillanceQuestionMappings = Partial<
   Record<SurveillanceMetricField, SurveillanceQuestionMapping>
 >;
 
 /**
- * Preset question keys for each surveillance metric column.
- * Resolution picks the first single-key match on the form, otherwise the first
- * sum-key group where every key exists on the form (test DB / vectorcam_test).
+ * Preset question key alias groups for each surveillance metric column.
+ * Single: first alias group with any key on the program wins.
+ * Sum: first sum definition where every part has at least one key on the program wins.
  */
 export const PRESET_SURVEILLANCE_QUESTION_KEYS: Record<
   SurveillanceMetricField,
-  { single?: readonly string[]; sum?: readonly (readonly string[])[] }
+  { single?: readonly (readonly string[])[]; sum?: readonly (readonly (readonly string[])[])[] }
 > = {
   numPeopleSleptInHouse: {
-    single: ['number_of_people_who_slept_in_the_house'],
+    single: [['number_of_people_who_slept_in_the_house']],
     sum: [
       [
-        'number_of_people_who_slept_under_net_last_night',
-        'number_of_people_who_did_not_sleep_under_net_las',
+        [
+          'number_of_people_who_slept_under_net_last_night',
+          'number_of_people_who_slept_under_nets_last_night',
+        ],
+        [
+          'number_of_people_who_did_not_sleep_under_net_las',
+          'number_of_people_who_did_not_sleep_under_nets_la',
+        ],
       ],
     ],
   },
   numLlinsAvailable: {
-    single: ['number_of_llins_available', 'number_of_mosquito_nets_in_the_house'],
+    single: [
+      ['number_of_llins_available'],
+      ['number_of_mosquito_nets_in_the_house'],
+    ],
   },
   numPeopleSleptUnderLlin: {
     single: [
-      'number_of_people_who_slept_under_llin',
-      'number_of_people_who_slept_under_net_last_night',
+      ['number_of_people_who_slept_under_llin'],
+      [
+        'number_of_people_who_slept_under_net_last_night',
+        'number_of_people_who_slept_under_nets_last_night',
+      ],
     ],
   },
 };
 
-function indexQuestionsByKey(
-  questions: FormQuestionLike[]
-): Map<string, FormQuestionLike> {
-  const byKey = new Map<string, FormQuestionLike>();
-  for (const question of questions) {
-    byKey.set(question.questionKey, question);
-  }
-  return byKey;
+function collectQuestionKeys(questions: FormQuestionLike[]): Set<string> {
+  return new Set(questions.map((question) => question.questionKey));
+}
+
+function aliasGroupMatches(group: readonly string[], keySet: Set<string>): boolean {
+  return group.some((key) => keySet.has(key));
 }
 
 function resolveFieldMapping(
   field: SurveillanceMetricField,
-  byKey: Map<string, FormQuestionLike>
+  keySet: Set<string>
 ): SurveillanceQuestionMapping | undefined {
   const preset = PRESET_SURVEILLANCE_QUESTION_KEYS[field];
 
-  for (const key of preset.single ?? []) {
-    const question = byKey.get(key);
-    if (question) {
-      return {
-        kind: 'single',
-        questionId: question.id,
-        questionKey: question.questionKey,
-      };
+  for (const group of preset.single ?? []) {
+    if (aliasGroupMatches(group, keySet)) {
+      return { kind: 'single', questionKeys: group };
     }
   }
 
-  for (const keyGroup of preset.sum ?? []) {
-    const resolved = keyGroup.map((key) => byKey.get(key));
-    if (resolved.every((question): question is FormQuestionLike => question !== undefined)) {
-      return {
-        kind: 'sum',
-        questionIds: resolved.map((question) => question.id),
-        questionKeys: keyGroup.slice(),
-      };
+  for (const sumDefinition of preset.sum ?? []) {
+    if (sumDefinition.every((part) => aliasGroupMatches(part, keySet))) {
+      return { kind: 'sum', parts: sumDefinition };
     }
   }
 
@@ -89,12 +90,12 @@ function resolveFieldMapping(
 }
 
 /**
- * Map surveillance-form metric columns to form questions using preset question keys.
+ * Map surveillance-form metric columns to preset question key alias groups for a program.
  */
 export function resolveSurveillanceQuestionMappings(
   questions: FormQuestionLike[]
 ): SurveillanceQuestionMappings {
-  const byKey = indexQuestionsByKey(questions);
+  const keySet = collectQuestionKeys(questions);
   const mappings: SurveillanceQuestionMappings = {};
 
   for (const field of [
@@ -102,7 +103,7 @@ export function resolveSurveillanceQuestionMappings(
     'numLlinsAvailable',
     'numPeopleSleptUnderLlin',
   ] as const) {
-    const mapping = resolveFieldMapping(field, byKey);
+    const mapping = resolveFieldMapping(field, keySet);
     if (mapping) {
       mappings[field] = mapping;
     }

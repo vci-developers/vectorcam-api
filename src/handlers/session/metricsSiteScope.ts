@@ -1,11 +1,16 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { Form, FormQuestion, Program, Site } from '../../db/models';
+import { Form, FormQuestion, Site } from '../../db/models';
 import {
   buildSiteSubtreeWhere,
   expandSiteIdsWithDescendants,
   parseSiteIds,
 } from '../site/common';
+import {
+  hasRequiredSurveillanceMappings,
+  resolveSurveillanceQuestionMappings,
+  SurveillanceQuestionMappings,
+} from './metricsSurveillanceQuestions';
 
 export interface MetricsSiteScope {
   filteredSites: Site[];
@@ -107,43 +112,42 @@ export async function resolveMetricsSiteScope(
 }
 
 export async function resolveMetricsFormContext(programId: number): Promise<{
-  formId: number;
-  questions: FormQuestion[];
+  programId: number;
+  mappings: SurveillanceQuestionMappings;
 } | null> {
-  const program = await Program.findByPk(programId, { attributes: ['id', 'formVersion'] });
-  if (!program) {
+  const formExists = await Form.count({ where: { programId } });
+  if (formExists === 0) {
     return null;
-  }
-
-  const versionedForms = await Form.findAll({
-    where: {
-      programId,
-      version: { [Op.ne]: '' },
-    },
-    attributes: ['id', 'version'],
-    order: [['createdAt', 'DESC'], ['id', 'DESC']],
-  });
-
-  if (versionedForms.length === 0) {
-    return null;
-  }
-
-  let selectedForm = versionedForms.find((form) => form.version === program.formVersion);
-  if (!selectedForm) {
-    selectedForm = versionedForms[0];
   }
 
   const questions = await FormQuestion.findAll({
-    where: { formId: selectedForm.id },
     attributes: ['id', 'label', 'type', 'questionKey'],
-    order: [['order', 'ASC'], ['id', 'ASC']],
+    include: [{
+      model: Form,
+      as: 'form',
+      attributes: [],
+      where: { programId },
+      required: true,
+    }],
   });
 
   if (questions.length === 0) {
     return null;
   }
 
-  return { formId: selectedForm.id, questions };
+  const uniqueByKey = new Map<string, FormQuestion>();
+  for (const question of questions) {
+    if (!uniqueByKey.has(question.questionKey)) {
+      uniqueByKey.set(question.questionKey, question);
+    }
+  }
+
+  const mappings = resolveSurveillanceQuestionMappings(Array.from(uniqueByKey.values()));
+  if (!hasRequiredSurveillanceMappings(mappings)) {
+    return null;
+  }
+
+  return { programId, mappings };
 }
 
 export async function countHousesUsedForCollection(

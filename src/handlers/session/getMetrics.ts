@@ -8,9 +8,8 @@ import {
   resolveMetricsSiteScope,
 } from './metricsSiteScope';
 import {
-  hasRequiredSurveillanceMappings,
-  resolveSurveillanceQuestionMappings,
   SurveillanceQuestionMapping,
+  SurveillanceQuestionMappings,
 } from './metricsSurveillanceQuestions';
 
 interface MetricsQuery {
@@ -129,28 +128,61 @@ function emptyMetricsResponse() {
   };
 }
 
-function numericAnswerSql(questionId: number, alias: string): string {
+let questionKeyParamCounter = 0;
+
+function resetQuestionKeyParamCounter(): void {
+  questionKeyParamCounter = 0;
+}
+
+function questionKeysInClause(
+  questionKeys: readonly string[],
+  prefix: string,
+  replacements: Record<string, string>
+): string {
+  const params = questionKeys.map((key) => {
+    const paramName = `${prefix}_${questionKeyParamCounter++}`;
+    replacements[paramName] = key;
+    return `:${paramName}`;
+  });
+  return params.join(', ');
+}
+
+function numericAnswerSqlByKeys(
+  questionKeys: readonly string[],
+  alias: string,
+  replacements: Record<string, string>
+): string {
+  const inClause = questionKeysInClause(questionKeys, alias, replacements);
   return `MAX(CASE
-    WHEN fa.question_id = ${questionId}
+    WHEN fq.question_key IN (${inClause})
     THEN CAST(JSON_UNQUOTE(fa.value) AS DECIMAL(20, 4))
   END) AS ${alias}`;
 }
 
-function buildNumericExpression(mapping: SurveillanceQuestionMapping, alias: string): string {
+function buildNumericExpression(
+  mapping: SurveillanceQuestionMapping,
+  alias: string,
+  replacements: Record<string, string>
+): string {
   if (mapping.kind === 'single') {
-    return numericAnswerSql(mapping.questionId, alias);
+    return numericAnswerSqlByKeys(mapping.questionKeys, alias, replacements);
   }
 
-  const parts = mapping.questionIds.map(
-    (questionId, index) => `COALESCE(${alias}_part_${index}, 0)`
+  const parts = mapping.parts.map(
+    (_part, index) => `COALESCE(${alias}_part_${index}, 0)`
   );
-  const selects = mapping.questionIds.map(
-    (questionId, index) => numericAnswerSql(questionId, `${alias}_part_${index}`)
+  const selects = mapping.parts.map(
+    (partKeys, index) => numericAnswerSqlByKeys(partKeys, `${alias}_part_${index}`, replacements)
   );
 
   return `${selects.join(',\n        ')},
         (${parts.join(' + ')}) AS ${alias}`;
 }
+
+const FORM_ANSWER_JOINS = `
+    LEFT JOIN form_answers fa ON fa.session_id = sess.id
+    LEFT JOIN forms f ON f.id = fa.form_id AND f.program_id = :programId
+    LEFT JOIN form_questions fq ON fq.id = fa.question_id`;
 
 interface HouseholdMetricsRow {
   site_id: number;
@@ -218,23 +250,37 @@ async function loadFormHouseholdMetrics(
   siteIds: number[],
   startDate: Date,
   endDate: Date,
-  formId: number,
-  mappings: ReturnType<typeof resolveSurveillanceQuestionMappings>
+  programId: number,
+  mappings: SurveillanceQuestionMappings
 ): Promise<{ peopleInAllHousesInspected: number; rows: HouseholdMetricsRow[] }> {
   const peopleMapping = mappings.numPeopleSleptInHouse!;
   const llinsMapping = mappings.numLlinsAvailable!;
   const underLlinMapping = mappings.numPeopleSleptUnderLlin!;
 
+  resetQuestionKeyParamCounter();
+  const keyReplacements: Record<string, string> = {};
+  const peopleExpr = buildNumericExpression(peopleMapping, 'num_people_slept_in_house', keyReplacements);
+  const llinsExpr = buildNumericExpression(llinsMapping, 'num_llins_available', keyReplacements);
+  const underExpr = buildNumericExpression(underLlinMapping, 'num_people_slept_under_llin', keyReplacements);
+
+  const queryReplacements = {
+    siteIds,
+    startDate,
+    endDate,
+    programId,
+    ...keyReplacements,
+  };
+
   const perSessionQuery = `
     SELECT
       sess.site_id,
       sess.id AS session_id,
-      ${buildNumericExpression(peopleMapping, 'num_people_slept_in_house')},
-      ${buildNumericExpression(llinsMapping, 'num_llins_available')},
-      ${buildNumericExpression(underLlinMapping, 'num_people_slept_under_llin')}
+      ${peopleExpr},
+      ${llinsExpr},
+      ${underExpr}
     FROM sessions sess
     INNER JOIN sites s ON sess.site_id = s.id
-    LEFT JOIN form_answers fa ON fa.session_id = sess.id AND fa.form_id = :formId
+    ${FORM_ANSWER_JOINS}
     WHERE s.id IN (:siteIds)
       AND sess.collection_date >= :startDate
       AND sess.collection_date < :endDate
@@ -266,11 +312,11 @@ async function loadFormHouseholdMetrics(
 
   const [peopleResult, rows] = await Promise.all([
     sequelize.query(peopleInHousesQuery, {
-      replacements: { siteIds, startDate, endDate, formId },
+      replacements: queryReplacements,
       type: QueryTypes.SELECT,
     }) as Promise<Array<{ totalPeople: number }>>,
     sequelize.query(perSiteQuery, {
-      replacements: { siteIds, startDate, endDate, formId },
+      replacements: queryReplacements,
       type: QueryTypes.SELECT,
     }) as Promise<HouseholdMetricsRow[]>,
   ]);
@@ -398,18 +444,15 @@ export async function getMetrics(
     );
 
     let useFormMetrics = false;
-    let formId: number | undefined;
-    let questionMappings: ReturnType<typeof resolveSurveillanceQuestionMappings> | undefined;
+    let formMetricsProgramId: number | undefined;
+    let questionMappings: SurveillanceQuestionMappings | undefined;
 
     if (metricsProgramId !== undefined) {
       const formContext = await resolveMetricsFormContext(metricsProgramId);
       if (formContext) {
-        const mappings = resolveSurveillanceQuestionMappings(formContext.questions);
-        if (hasRequiredSurveillanceMappings(mappings)) {
-          useFormMetrics = true;
-          formId = formContext.formId;
-          questionMappings = mappings;
-        }
+        useFormMetrics = true;
+        formMetricsProgramId = formContext.programId;
+        questionMappings = formContext.mappings;
       }
     }
 
@@ -423,12 +466,12 @@ export async function getMetrics(
       useFormMetrics
     );
 
-    const householdMetrics = useFormMetrics && formId && questionMappings
+    const householdMetrics = useFormMetrics && formMetricsProgramId && questionMappings
       ? await loadFormHouseholdMetrics(
         sessionSiteIds,
         startDate,
         endDate,
-        formId,
+        formMetricsProgramId,
         questionMappings
       )
       : await loadLegacyHouseholdMetrics(sessionSiteIds, startDate, endDate);
