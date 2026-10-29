@@ -29,6 +29,7 @@ import SessionUnit from './SessionUnit';
 import UserAuthEvent from './UserAuthEvent';
 import ActiveUserMetric from './ActiveUserMetric';
 import ProgramModel from './ProgramModel';
+import Workflow from './Workflow';
 import VectorAiInferenceResult from './VectorAiInferenceResult';
 import VectorAiModel from './VectorAiModel';
 
@@ -64,6 +65,7 @@ export {
   UserAuthEvent,
   ActiveUserMetric,
   ProgramModel,
+  Workflow,
   VectorAiInferenceResult,
   VectorAiModel,
 };

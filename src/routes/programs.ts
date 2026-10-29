@@ -85,6 +85,16 @@ import { schema as checkoutProgramFormVersionSchema } from '../handlers/program/
 import { schema as createProgramFormDefinitionQuestionSchema } from '../handlers/program/programForm/questions/post';
 import { schema as updateProgramFormDefinitionQuestionSchema } from '../handlers/program/programForm/questions/put';
 import { schema as deleteProgramFormDefinitionQuestionSchema } from '../handlers/program/programForm/questions/delete';
+import {
+  getProgramWorkflow,
+  createProgramWorkflow,
+  updateProgramWorkflow,
+  deleteProgramWorkflow,
+} from '../handlers/program/workflow';
+import { schema as getProgramWorkflowSchema } from '../handlers/program/workflow/get';
+import { schema as createProgramWorkflowSchema } from '../handlers/program/workflow/post';
+import { schema as updateProgramWorkflowSchema } from '../handlers/program/workflow/put';
+import { schema as deleteProgramWorkflowSchema } from '../handlers/program/workflow/delete';
 
 import { createLocationType } from '../handlers/program/locationType/post';
 import { getLocationTypeList } from '../handlers/program/locationType/getList';
@@ -257,6 +267,26 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireSuperAdmin],
     schema: deleteProgramFormDefinitionQuestionSchema,
   }, deleteProgramFormDefinitionQuestion as any);
+
+  fastify.get('/:program_id/workflow', {
+    preHandler: [requireAnyWhitelistedAuth],
+    schema: getProgramWorkflowSchema,
+  }, getProgramWorkflow as any);
+
+  fastify.post('/:program_id/workflow', {
+    preHandler: [requireSuperAdmin],
+    schema: createProgramWorkflowSchema,
+  }, createProgramWorkflow as any);
+
+  fastify.put('/:program_id/workflow', {
+    preHandler: [requireSuperAdmin],
+    schema: updateProgramWorkflowSchema,
+  }, updateProgramWorkflow as any);
+
+  fastify.delete('/:program_id/workflow', {
+    preHandler: [requireSuperAdmin],
+    schema: deleteProgramWorkflowSchema,
+  }, deleteProgramWorkflow as any);
 
   fastify.get('/:program_id/forms', {
     preHandler: [requireAnyWhitelistedAuth],
