@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import sequelize from '../../../db/index';
 import { Form } from '../../../db/models';
-import { cloneQuestionsToForm } from './common';
+import { cloneQuestionsToForm, defaultProgramFormWhere, loadProgramFormScope } from './common';
 
 interface PublishBody {
   version: string;
@@ -66,7 +66,16 @@ export async function publishProgramForm(
       return reply.code(400).send({ error: 'Version is required to publish' });
     }
 
-    const draft = await Form.findOne({ where: { programId, version: '' }, transaction });
+    const scope = await loadProgramFormScope(programId, transaction);
+    if (!scope) {
+      await transaction.rollback();
+      return reply.code(404).send({ error: 'Program not found' });
+    }
+
+    const draft = await Form.findOne({
+      where: defaultProgramFormWhere(scope.programId, scope.defaultProgramFormId, { version: '' }),
+      transaction,
+    });
     if (!draft) {
       await transaction.rollback();
       return reply.code(404).send({ error: 'Draft form not found for this program' });

@@ -1,7 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { findProgramById, formatProgramResponse } from './common';
-import { Form } from '../../db/models';
 import { validateProgramConfig } from './model/common';
+import { Form } from '../../db/models';
+import { defaultProgramFormWhere } from './form/common';
 
 interface UpdateProgramRequest {
   name?: string;
@@ -72,7 +73,9 @@ export async function updateProgram(
 
       if (formVersion !== null) {
         const published = await Form.findOne({
-          where: { programId: program.id, version: formVersion },
+          where: defaultProgramFormWhere(program.id, program.defaultProgramFormId, {
+            version: formVersion,
+          }),
         });
         if (!published || published.version === '') {
           return reply.code(400).send({ error: 'formVersion must point to a published form' });

@@ -1,8 +1,10 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import sequelize from '../../../../db/index';
 import {
   findDraftFormVersion,
   resolveProgramFormRouteContext,
 } from '../common';
+import { syncProgramFormName } from '../../form/common';
 
 interface UpdateDraftBody {
   name?: string;
@@ -74,11 +76,12 @@ export async function updateProgramFormDraftVersion(
       return reply.code(400).send({ error: 'No updates provided' });
     }
 
-    await form.update(updates);
-
-    if (updates.name) {
-      await context.programForm.update({ name: updates.name });
-    }
+    await sequelize.transaction(async (transaction) => {
+      await form.update(updates, { transaction });
+      if (updates.name !== undefined) {
+        await syncProgramFormName(form.programFormId, updates.name, transaction);
+      }
+    });
 
     return reply.send({
       message: 'Form updated successfully',

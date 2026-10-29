@@ -3,7 +3,12 @@ import { UniqueConstraintError } from 'sequelize';
 import { Form, FormQuestion } from '../../../../db/models';
 import sequelize from '../../../../db/index';
 import { isQuestionKeyTaken, normalizeQuestionKey } from '../../../../utils/formQuestionKey';
-import { serializeQuestion, validateQuestionScopeConfig } from '../common';
+import {
+  defaultProgramFormWhere,
+  loadProgramFormScope,
+  serializeQuestion,
+  validateQuestionScopeConfig,
+} from '../common';
 
 interface UpdateQuestionBody {
   label?: string;
@@ -88,7 +93,16 @@ export async function updateProgramFormQuestion(
       return reply.code(400).send({ error: 'Invalid ids' });
     }
 
-    const form = await Form.findOne({ where: { programId, version: '' }, transaction });
+    const scope = await loadProgramFormScope(programId, transaction);
+    if (!scope) {
+      await transaction.rollback();
+      return reply.code(404).send({ error: 'Program not found' });
+    }
+
+    const form = await Form.findOne({
+      where: defaultProgramFormWhere(scope.programId, scope.defaultProgramFormId, { version: '' }),
+      transaction,
+    });
     if (!form) {
       await transaction.rollback();
       return reply.code(404).send({ error: 'Draft form not found for this program' });

@@ -3,7 +3,7 @@ import { UniqueConstraintError } from 'sequelize';
 import sequelize from '../../../../db/index';
 import { FormQuestion } from '../../../../db/models';
 import { isQuestionKeyTaken, normalizeQuestionKey } from '../../../../utils/formQuestionKey';
-import { serializeQuestion, validateQuestionScopeConfig } from '../../form/common';
+import { serializedQuestionSchema, serializeQuestion, validateQuestionScopeConfig } from '../../form/common';
 import { findDraftFormVersion, resolveProgramFormRouteContext } from '../common';
 
 interface UpdateQuestionBody {
@@ -51,7 +51,7 @@ export const schema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
-        question: { type: 'object' },
+        question: serializedQuestionSchema,
       },
     },
   },

@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
-import { Form, FormQuestion, Site } from '../../db/models';
+import { Form, FormQuestion, Program, Site } from '../../db/models';
+import { defaultProgramFormWhere } from '../program/form/common';
 import {
   buildSiteSubtreeWhere,
   expandSiteIdsWithDescendants,
@@ -113,9 +114,15 @@ export async function resolveMetricsSiteScope(
 
 export async function resolveMetricsFormContext(programId: number): Promise<{
   programId: number;
+  defaultProgramFormId: number | null;
   mappings: SurveillanceQuestionMappings;
 } | null> {
-  const formExists = await Form.count({ where: { programId } });
+  const program = await Program.findByPk(programId, {
+    attributes: ['id', 'defaultProgramFormId'],
+  });
+  const formWhere = defaultProgramFormWhere(programId, program?.defaultProgramFormId);
+
+  const formExists = await Form.count({ where: formWhere });
   if (formExists === 0) {
     return null;
   }
@@ -126,7 +133,7 @@ export async function resolveMetricsFormContext(programId: number): Promise<{
       model: Form,
       as: 'form',
       attributes: [],
-      where: { programId },
+      where: formWhere,
       required: true,
     }],
   });
@@ -147,7 +154,11 @@ export async function resolveMetricsFormContext(programId: number): Promise<{
     return null;
   }
 
-  return { programId, mappings };
+  return {
+    programId,
+    defaultProgramFormId: program?.defaultProgramFormId ?? null,
+    mappings,
+  };
 }
 
 export async function countHousesUsedForCollection(

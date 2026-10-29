@@ -1,6 +1,7 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Op } from 'sequelize';
 import { Form, FormAnswer, FormQuestion, Program, Session, SessionUnit, Site } from '../../../db/models';
+import { defaultProgramFormWhere } from '../../program/form/common';
 import { findSession } from '../common';
 
 export interface FormAnswerInput {
@@ -18,13 +19,13 @@ export interface LoadSessionAndFormOptions {
 
 export async function findLatestFormWithAnswersForSession(
   sessionId: number,
-  programId: number
+  programId: number,
+  defaultProgramFormId?: number | null
 ): Promise<Form | null> {
   return Form.findOne({
-    where: {
-      programId,
+    where: defaultProgramFormWhere(programId, defaultProgramFormId, {
       version: { [Op.ne]: '' },
-    },
+    }),
     include: [{
       model: FormAnswer,
       as: 'answers',
@@ -52,7 +53,7 @@ export async function loadSessionAndForm(
         {
           model: Program,
           as: 'program',
-          attributes: ['id', 'formVersion'],
+          attributes: ['id', 'formVersion', 'defaultProgramFormId'],
         }
       ]
     }
@@ -86,7 +87,9 @@ export async function loadSessionAndForm(
       return null;
     }
     form = await Form.findOne({
-      where: { programId: program.id, version: explicitVersion },
+      where: defaultProgramFormWhere(program.id, program.defaultProgramFormId, {
+        version: explicitVersion,
+      }),
     });
     if (form?.version === '') {
       form = null;
@@ -97,11 +100,19 @@ export async function loadSessionAndForm(
     }
   } else {
     if (options?.preferLatestAnsweredVersion) {
-      form = await findLatestFormWithAnswersForSession(session.id, program.id);
+      form = await findLatestFormWithAnswersForSession(
+        session.id,
+        program.id,
+        program.defaultProgramFormId
+      );
     }
 
     if (!form && program.formVersion) {
-      form = await Form.findOne({ where: { programId: program.id, version: program.formVersion } });
+      form = await Form.findOne({
+        where: defaultProgramFormWhere(program.id, program.defaultProgramFormId, {
+          version: program.formVersion,
+        }),
+      });
       if (form?.version === '') {
         form = null;
       }
@@ -114,7 +125,9 @@ export async function loadSessionAndForm(
 
     if (!form) {
       form = await Form.findOne({
-        where: { programId: program.id, version: { [Op.ne]: '' } },
+        where: defaultProgramFormWhere(program.id, program.defaultProgramFormId, {
+          version: { [Op.ne]: '' },
+        }),
         order: [['updatedAt', 'DESC'], ['id', 'DESC']],
       });
 

@@ -497,28 +497,53 @@ export async function exportSessionReport(
       }
     }
 
+    const programMeta = involvedProgramIds.length > 0
+      ? await Program.findAll({
+        where: { id: { [Op.in]: involvedProgramIds } },
+        attributes: ['id', 'defaultProgramFormId'],
+      })
+      : [];
+    const defaultProgramFormIdByProgram = new Map<number, number>();
+    for (const program of programMeta) {
+      if (program.defaultProgramFormId != null) {
+        defaultProgramFormIdByProgram.set(program.id, program.defaultProgramFormId);
+      }
+    }
+
     const forms = involvedProgramIds.length > 0
       ? await Form.findAll({
         where: {
           programId: { [Op.in]: involvedProgramIds },
           version: { [Op.ne]: '' },
         },
-        attributes: ['id', 'programId', 'version'],
+        attributes: ['id', 'programId', 'programFormId', 'version'],
         order: [['programId', 'ASC'], ['createdAt', 'DESC'], ['id', 'DESC']],
       })
       : [];
 
+    const defaultForms = forms.filter((form) => {
+      const defaultProgramFormId = defaultProgramFormIdByProgram.get(form.programId);
+      if (defaultProgramFormId == null) {
+        return true;
+      }
+      return form.programFormId === defaultProgramFormId;
+    });
+
     const formIdByProgram = new Map<number, number>();
     const latestFormIdByProgram = new Map<number, number>();
-    for (const form of forms) {
+    for (const form of defaultForms) {
       if (!latestFormIdByProgram.has(form.programId)) {
         latestFormIdByProgram.set(form.programId, form.id);
       }
     }
 
-    for (const form of forms) {
+    for (const form of defaultForms) {
       const targetVersion = programVersionMap.get(form.programId);
-      if (targetVersion && form.version === targetVersion) {
+      if (
+        targetVersion
+        && form.version === targetVersion
+        && !formIdByProgram.has(form.programId)
+      ) {
         formIdByProgram.set(form.programId, form.id);
       }
     }

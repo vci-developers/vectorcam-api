@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Form, FormQuestion, Program } from '../../../db/models';
-import { programFormResponseSchema, serializeFormResponse } from './common';
+import { defaultProgramFormWhere, programFormResponseSchema, serializeFormResponse } from './common';
 
 export const schema = {
   tags: ['Programs'],
@@ -52,10 +52,15 @@ export async function getProgramForm(
     }
 
     let form: Form | null = null;
+    const formWhere = (version: unknown) => defaultProgramFormWhere(
+      programId,
+      program.defaultProgramFormId,
+      { version }
+    );
 
     if (targetVersion === '') {
       form = await Form.findOne({
-        where: { programId, version: '' },
+        where: formWhere(''),
         include: [
           { model: FormQuestion, as: 'questions', order: [['order', 'ASC'], ['id', 'ASC']] },
         ],
@@ -67,7 +72,7 @@ export async function getProgramForm(
     } else if (targetVersion === null) {
       // latest published
       form = await Form.findOne({
-        where: { programId, version: { [Op.ne]: '' } },
+        where: formWhere({ [Op.ne]: '' }),
         include: [
           { model: FormQuestion, as: 'questions', order: [['order', 'ASC'], ['id', 'ASC']] },
         ],
@@ -80,7 +85,7 @@ export async function getProgramForm(
       });
     } else {
       form = await Form.findOne({
-        where: { programId, version: targetVersion },
+        where: formWhere(targetVersion),
         include: [
           { model: FormQuestion, as: 'questions', order: [['order', 'ASC'], ['id', 'ASC']] },
         ],

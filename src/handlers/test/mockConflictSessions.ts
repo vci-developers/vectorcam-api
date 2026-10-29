@@ -12,6 +12,7 @@ import {
   SurveillanceForm,
 } from '../../db/models';
 import { assignCollectionCycleOnSessionUpload } from '../program/collectionCycle/common';
+import { defaultProgramFormWhere } from '../program/form/common';
 import { formatSessionResponse } from '../session/common';
 
 interface MockConflictSessionsBody {
@@ -186,7 +187,9 @@ function pickFormAnswerValue(
 async function findPublishedForm(program: Program): Promise<Form | null> {
   if (program.formVersion) {
     const form = await Form.findOne({
-      where: { programId: program.id, version: program.formVersion },
+      where: defaultProgramFormWhere(program.id, program.defaultProgramFormId, {
+        version: program.formVersion,
+      }),
     });
     if (form && form.version !== '') {
       return form;
@@ -194,10 +197,9 @@ async function findPublishedForm(program: Program): Promise<Form | null> {
   }
 
   return Form.findOne({
-    where: {
-      programId: program.id,
+    where: defaultProgramFormWhere(program.id, program.defaultProgramFormId, {
       version: { [Op.ne]: '' },
-    },
+    }),
     order: [['updatedAt', 'DESC'], ['id', 'DESC']],
   });
 }

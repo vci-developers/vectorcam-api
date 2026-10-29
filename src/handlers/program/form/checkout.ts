@@ -1,7 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import sequelize from '../../../db/index';
 import { Form, FormQuestion } from '../../../db/models';
-import { cloneQuestionsToForm, serializeQuestion } from './common';
+import {
+  cloneQuestionsToForm,
+  defaultProgramFormWhere,
+  loadProgramFormScope,
+  serializeQuestion,
+  syncProgramFormName,
+} from './common';
 
 export const schema = {
   tags: ['Programs'],
@@ -74,7 +80,16 @@ export async function checkoutProgramForm(
       return reply.code(400).send({ error: 'Version is required for checkout' });
     }
 
-    const sourceForm = await Form.findOne({ where: { programId, version }, transaction });
+    const scope = await loadProgramFormScope(programId, transaction);
+    if (!scope) {
+      await transaction.rollback();
+      return reply.code(404).send({ error: 'Program not found' });
+    }
+
+    const sourceForm = await Form.findOne({
+      where: defaultProgramFormWhere(scope.programId, scope.defaultProgramFormId, { version }),
+      transaction,
+    });
     if (!sourceForm) {
       await transaction.rollback();
       return reply.code(404).send({ error: 'Form not found for this program' });
@@ -104,6 +119,8 @@ export async function checkoutProgramForm(
       await draft.update({ name: sourceForm.name }, { transaction });
       await FormQuestion.destroy({ where: { formId: draft.id }, transaction });
     }
+
+    await syncProgramFormName(sourceForm.programFormId, sourceForm.name, transaction);
 
     const clonedQuestions = await cloneQuestionsToForm(sourceForm.id, draft.id, transaction);
 

@@ -1,5 +1,5 @@
-import { Transaction } from 'sequelize';
-import { Form } from '../../../db/models';
+import { Transaction, WhereOptions } from 'sequelize';
+import { Form, Program, ProgramForm } from '../../../db/models';
 import FormQuestion from '../../../db/models/FormQuestion';
 
 export interface FormQuestionInput {
@@ -40,6 +40,75 @@ export const questionDefinitionSchema = {
 };
 
 export const questionResponseSchema = { $ref: '#/definitions/question' };
+
+export const serializedQuestionSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    formId: { type: 'number' },
+    parentId: { type: ['number', 'null'] },
+    prerequisite: {},
+    label: { type: 'string' },
+    questionKey: { type: 'string' },
+    type: { type: 'string' },
+    required: { type: 'boolean' },
+    options: { type: ['array', 'null'] },
+    order: { type: ['number', 'null'] },
+    answerScope: { type: 'string' },
+    isUnitIdentityComponent: { type: 'boolean' },
+    createdAt: { type: ['number', 'null'] },
+    updatedAt: { type: ['number', 'null'] },
+  },
+};
+
+/**
+ * Limit form lookups to the program's default logical form when one is set.
+ * Programs that have not been backfilled yet keep the original program-wide lookup.
+ */
+export function defaultProgramFormWhere(
+  programId: number,
+  defaultProgramFormId: number | null | undefined,
+  extra: Record<string, unknown> = {}
+): WhereOptions {
+  const where: Record<string, unknown> = { programId, ...extra };
+  if (defaultProgramFormId != null) {
+    where.programFormId = defaultProgramFormId;
+  }
+  return where;
+}
+
+export async function loadProgramFormScope(
+  programId: number,
+  transaction?: Transaction
+): Promise<{ programId: number; defaultProgramFormId: number | null } | null> {
+  const program = await Program.findByPk(programId, {
+    attributes: ['id', 'defaultProgramFormId'],
+    transaction,
+  });
+  if (!program) {
+    return null;
+  }
+
+  return {
+    programId: program.id,
+    defaultProgramFormId: program.defaultProgramFormId ?? null,
+  };
+}
+
+export async function syncProgramFormName(
+  programFormId: number | null | undefined,
+  name: string,
+  transaction?: Transaction
+): Promise<void> {
+  if (programFormId == null) {
+    return;
+  }
+
+  await ProgramForm.update(
+    { name },
+    { where: { id: programFormId }, transaction }
+  );
+}
 
 export const programFormResponseSchema = {
   type: 'object',

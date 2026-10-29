@@ -75,7 +75,7 @@ export async function createProgramForm(
       return;
     }
 
-    const { programId } = routeContext;
+    const { programId, program } = routeContext;
     const name = request.body.name.trim();
     if (!name) {
       await transaction.rollback();
@@ -96,6 +96,13 @@ export async function createProgramForm(
       },
       { transaction }
     );
+
+    if (program.defaultProgramFormId == null) {
+      await program.update(
+        { defaultProgramFormId: programForm.id },
+        { transaction }
+      );
+    }
 
     await transaction.commit();
 

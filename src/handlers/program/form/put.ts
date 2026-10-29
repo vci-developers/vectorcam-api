@@ -1,5 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import sequelize from '../../../db/index';
 import { Form } from '../../../db/models';
+import { defaultProgramFormWhere, loadProgramFormScope, syncProgramFormName } from './common';
 
 interface UpdateFormBody {
   name?: string;
@@ -53,7 +55,14 @@ export async function updateProgramForm(
       return reply.code(400).send({ error: 'Invalid program id' });
     }
 
-    const form = await Form.findOne({ where: { programId, version: '' } });
+    const scope = await loadProgramFormScope(programId);
+    if (!scope) {
+      return reply.code(404).send({ error: 'Program not found' });
+    }
+
+    const form = await Form.findOne({
+      where: defaultProgramFormWhere(scope.programId, scope.defaultProgramFormId, { version: '' }),
+    });
     if (!form) {
       return reply.code(404).send({ error: 'Draft form not found for this program' });
     }
@@ -72,7 +81,17 @@ export async function updateProgramForm(
       return reply.code(400).send({ error: 'No updates provided' });
     }
 
-    await form.update(updates);
+    const transaction = await sequelize.transaction();
+    try {
+      await form.update(updates, { transaction });
+      if (updates.name !== undefined) {
+        await syncProgramFormName(form.programFormId, updates.name, transaction);
+      }
+      await transaction.commit();
+    } catch (updateError) {
+      await transaction.rollback();
+      throw updateError;
+    }
 
     return reply.send({
       message: 'Form updated successfully',

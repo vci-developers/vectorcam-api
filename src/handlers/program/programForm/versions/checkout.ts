@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import sequelize from '../../../../db/index';
 import { Form, FormQuestion } from '../../../../db/models';
-import { cloneQuestionsToForm, serializeQuestion } from '../../form/common';
+import { cloneQuestionsToForm, serializedQuestionSchema, serializeQuestion, syncProgramFormName } from '../../form/common';
 import { resolveProgramFormRouteContext } from '../common';
 
 export const schema = {
@@ -31,7 +31,10 @@ export const schema = {
             version: { type: 'string' },
             createdAt: { type: ['number', 'null'] },
             updatedAt: { type: ['number', 'null'] },
-            questions: { type: 'array' },
+            questions: {
+              type: 'array',
+              items: serializedQuestionSchema,
+            },
           },
         },
       },
@@ -93,6 +96,8 @@ export async function checkoutProgramFormVersion(
       await draft.update({ name: sourceForm.name }, { transaction });
       await FormQuestion.destroy({ where: { formId: draft.id }, transaction });
     }
+
+    await syncProgramFormName(context.programFormId, sourceForm.name, transaction);
 
     const clonedQuestions = await cloneQuestionsToForm(sourceForm.id, draft.id, transaction);
 

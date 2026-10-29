@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Form, FormQuestion, Program } from '../../../db/models';
-import { programFormResponseSchema, serializeFormResponse } from './common';
+import { defaultProgramFormWhere, programFormResponseSchema, serializeFormResponse } from './common';
 
 export const schema = {
   tags: ['Programs'],
@@ -36,7 +36,9 @@ export async function getProgramFormCurrent(
     let form: Form | null = null;
     if (program.formVersion) {
       form = await Form.findOne({
-        where: { programId, version: program.formVersion },
+        where: defaultProgramFormWhere(programId, program.defaultProgramFormId, {
+          version: program.formVersion,
+        }),
         include: [{ model: FormQuestion, as: 'questions', order: [['order', 'ASC'], ['id', 'ASC']] }],
         order: [
           [{ model: FormQuestion, as: 'questions' }, 'order', 'ASC'],
@@ -48,7 +50,9 @@ export async function getProgramFormCurrent(
       }
     } else {
       form = await Form.findOne({
-        where: { programId, version: { [Op.ne]: '' } },
+        where: defaultProgramFormWhere(programId, program.defaultProgramFormId, {
+          version: { [Op.ne]: '' },
+        }),
         include: [{ model: FormQuestion, as: 'questions', order: [['order', 'ASC'], ['id', 'ASC']] }],
         order: [
           ['updatedAt', 'DESC'],

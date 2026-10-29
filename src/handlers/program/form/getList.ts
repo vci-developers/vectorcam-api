@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { Form } from '../../../db/models';
+import { Form, Program } from '../../../db/models';
+import { defaultProgramFormWhere } from './common';
 
 export const schema = {
   tags: ['Programs'],
@@ -22,6 +23,7 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               programId: { type: 'number' },
+              programFormId: { type: 'number' },
               name: { type: 'string' },
               version: { type: 'string' },
               createdAt: { type: ['number', 'null'] },
@@ -45,8 +47,12 @@ export async function getProgramFormList(
       return reply.code(400).send({ error: 'Invalid program id' });
     }
 
+    const program = await Program.findByPk(programId, {
+      attributes: ['id', 'defaultProgramFormId'],
+    });
+
     const forms = await Form.findAll({
-      where: { programId },
+      where: defaultProgramFormWhere(programId, program?.defaultProgramFormId),
       order: [['updatedAt', 'DESC']],
     });
 
@@ -54,6 +60,7 @@ export async function getProgramFormList(
       forms: forms.map(form => ({
         id: form.id,
         programId: form.programId,
+        programFormId: form.programFormId,
         name: form.name,
         version: form.version,
         createdAt: form.createdAt?.getTime?.() ?? null,
