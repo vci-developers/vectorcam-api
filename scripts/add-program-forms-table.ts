@@ -237,6 +237,20 @@ async function addProgramFormsTable() {
 
     await enforceProgramFormIdNotNull();
 
+    const formIndexesBeforeDrop = (await queryInterface.showIndex('forms')) as IndexInfo[];
+    const hasProgramIdIndex = formIndexesBeforeDrop.some((index) => {
+      const fields = indexFields(index);
+      return fields.length === 1 && fields[0] === 'program_id' && index.name !== 'PRIMARY';
+    });
+    if (!hasProgramIdIndex) {
+      console.log('Adding index on forms.program_id for the program foreign key...');
+      await queryInterface.addIndex('forms', ['program_id'], {
+        name: 'forms_program_id',
+      });
+    } else {
+      console.log('Index on forms.program_id already exists');
+    }
+
     const formIndexes = (await queryInterface.showIndex('forms')) as IndexInfo[];
     for (const index of formIndexes) {
       const fields = indexFields(index);
