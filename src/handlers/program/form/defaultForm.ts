@@ -1,5 +1,5 @@
 import { Transaction } from 'sequelize';
-import { Form, FormQuestion } from '../../../db/models';
+import { Form, FormQuestion, Program, ProgramForm } from '../../../db/models';
 
 const DEFAULT_FORM_NAME = 'Default Surveillance Form';
 const DEFAULT_VERSION = '';
@@ -60,9 +60,23 @@ export async function createDefaultFormForProgram(
   programId: number,
   transaction: Transaction
 ): Promise<Form> {
+  const programForm = await ProgramForm.create(
+    {
+      programId,
+      name: DEFAULT_FORM_NAME,
+    },
+    { transaction }
+  );
+
+  await Program.update(
+    { defaultProgramFormId: programForm.id },
+    { where: { id: programId }, transaction }
+  );
+
   const form = await Form.create(
     {
       programId,
+      programFormId: programForm.id,
       name: DEFAULT_FORM_NAME,
       version: DEFAULT_VERSION,
     },

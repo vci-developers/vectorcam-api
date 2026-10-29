@@ -18,6 +18,19 @@ import {
   updateProgramFormQuestion,
   deleteProgramFormQuestion,
 } from '../handlers/program/form';
+import {
+  listProgramForms,
+  createProgramForm,
+  listProgramFormVersions,
+  getProgramFormVersion,
+  getProgramFormVersionCurrent,
+  updateProgramFormDraftVersion,
+  publishProgramFormVersion,
+  checkoutProgramFormVersion,
+  createProgramFormDefinitionQuestion,
+  updateProgramFormDefinitionQuestion,
+  deleteProgramFormDefinitionQuestion,
+} from '../handlers/program/programForm';
 import { getProgramList } from '../handlers/program/getList';
 import {
   requireAdminAuth,
@@ -61,6 +74,17 @@ import { schema as publishProgramFormSchema } from '../handlers/program/form/pub
 import { schema as createProgramFormQuestionSchema } from '../handlers/program/form/questions/post';
 import { schema as updateProgramFormQuestionSchema } from '../handlers/program/form/questions/put';
 import { schema as deleteProgramFormQuestionSchema } from '../handlers/program/form/questions/delete';
+import { schema as listProgramFormsSchema } from '../handlers/program/programForm/getList';
+import { schema as createProgramFormSchema } from '../handlers/program/programForm/post';
+import { schema as listProgramFormVersionsSchema } from '../handlers/program/programForm/versions/getList';
+import { schema as getProgramFormVersionSchema } from '../handlers/program/programForm/versions/get';
+import { schema as getProgramFormVersionCurrentSchema } from '../handlers/program/programForm/versions/getCurrent';
+import { schema as updateProgramFormDraftVersionSchema } from '../handlers/program/programForm/versions/put';
+import { schema as publishProgramFormVersionSchema } from '../handlers/program/programForm/versions/publish';
+import { schema as checkoutProgramFormVersionSchema } from '../handlers/program/programForm/versions/checkout';
+import { schema as createProgramFormDefinitionQuestionSchema } from '../handlers/program/programForm/questions/post';
+import { schema as updateProgramFormDefinitionQuestionSchema } from '../handlers/program/programForm/questions/put';
+import { schema as deleteProgramFormDefinitionQuestionSchema } from '../handlers/program/programForm/questions/delete';
 
 import { createLocationType } from '../handlers/program/locationType/post';
 import { getLocationTypeList } from '../handlers/program/locationType/getList';
@@ -178,6 +202,61 @@ export default async function programRoutes(fastify: FastifyInstance) {
     preHandler: [requireAdminOrSuperAdminAuth],
     schema: deleteLocationTypeSchema,
   }, deleteLocationType as any);
+
+  fastify.get('/:program_id/program-forms', {
+    preHandler: [requireAnyWhitelistedAuth],
+    schema: listProgramFormsSchema,
+  }, listProgramForms as any);
+
+  fastify.post('/:program_id/program-forms', {
+    preHandler: [requireSuperAdmin],
+    schema: createProgramFormSchema,
+  }, createProgramForm as any);
+
+  fastify.get('/:program_id/program-forms/:program_form_id/versions/current', {
+    preHandler: [requireAnyWhitelistedAuth],
+    schema: getProgramFormVersionCurrentSchema,
+  }, getProgramFormVersionCurrent as any);
+
+  fastify.get('/:program_id/program-forms/:program_form_id/versions', {
+    preHandler: [requireAnyWhitelistedAuth],
+    schema: listProgramFormVersionsSchema,
+  }, listProgramFormVersions as any);
+
+  fastify.put('/:program_id/program-forms/:program_form_id/versions', {
+    preHandler: [requireSuperAdmin],
+    schema: updateProgramFormDraftVersionSchema,
+  }, updateProgramFormDraftVersion as any);
+
+  fastify.post('/:program_id/program-forms/:program_form_id/versions/publish', {
+    preHandler: [requireSuperAdmin],
+    schema: publishProgramFormVersionSchema,
+  }, publishProgramFormVersion as any);
+
+  fastify.post('/:program_id/program-forms/:program_form_id/versions/:version/checkout', {
+    preHandler: [requireSuperAdmin],
+    schema: checkoutProgramFormVersionSchema,
+  }, checkoutProgramFormVersion as any);
+
+  fastify.get('/:program_id/program-forms/:program_form_id/versions/:version', {
+    preHandler: [requireAnyWhitelistedAuth],
+    schema: getProgramFormVersionSchema,
+  }, getProgramFormVersion as any);
+
+  fastify.post('/:program_id/program-forms/:program_form_id/questions', {
+    preHandler: [requireSuperAdmin],
+    schema: createProgramFormDefinitionQuestionSchema,
+  }, createProgramFormDefinitionQuestion as any);
+
+  fastify.put('/:program_id/program-forms/:program_form_id/questions/:question_id', {
+    preHandler: [requireSuperAdmin],
+    schema: updateProgramFormDefinitionQuestionSchema,
+  }, updateProgramFormDefinitionQuestion as any);
+
+  fastify.delete('/:program_id/program-forms/:program_form_id/questions/:question_id', {
+    preHandler: [requireSuperAdmin],
+    schema: deleteProgramFormDefinitionQuestionSchema,
+  }, deleteProgramFormDefinitionQuestion as any);
 
   fastify.get('/:program_id/forms', {
     preHandler: [requireAnyWhitelistedAuth],

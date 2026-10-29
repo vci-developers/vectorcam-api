@@ -7,6 +7,7 @@ import Program from './Program';
 class Form extends Model {
   declare id: number;
   declare programId: number;
+  declare programFormId: number;
   declare name: string;
   declare version: string;
   declare createdAt: Date;
@@ -29,6 +30,16 @@ Form.init(
       },
       field: 'program_id',
     },
+    programFormId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'program_forms',
+        key: 'id',
+      },
+      field: 'program_form_id',
+      onDelete: 'CASCADE',
+    },
     name: {
       type: DataTypes.STRING(255),
       allowNull: false,
@@ -47,7 +58,8 @@ Form.init(
     indexes: [
       {
         unique: true,
-        fields: ['program_id', 'version'],
+        fields: ['program_form_id', 'version'],
+        name: 'forms_program_form_version',
       },
     ],
   }

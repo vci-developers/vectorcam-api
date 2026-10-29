@@ -3,6 +3,7 @@ import Site from './Site';
 import Device from './Device';
 import Session from './Session';
 import SurveillanceForm from './SurveillanceForm';
+import ProgramForm from './ProgramForm';
 import Form from './Form';
 import FormQuestion from './FormQuestion';
 import FormAnswer from './FormAnswer';
@@ -37,6 +38,7 @@ export {
   Device,
   Session,
   SurveillanceForm,
+  ProgramForm,
   Form,
   FormQuestion,
   FormAnswer,

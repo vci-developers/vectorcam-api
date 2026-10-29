@@ -85,12 +85,16 @@ export async function checkoutProgramForm(
       return reply.code(400).send({ error: 'Source form is already a draft' });
     }
 
-    let draft = await Form.findOne({ where: { programId, version: '' }, transaction });
+    let draft = await Form.findOne({
+      where: { programFormId: sourceForm.programFormId, version: '' },
+      transaction,
+    });
 
     if (!draft) {
       draft = await Form.create(
         {
           programId,
+          programFormId: sourceForm.programFormId,
           name: sourceForm.name,
           version: '',
         },

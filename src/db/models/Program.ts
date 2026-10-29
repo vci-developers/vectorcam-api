@@ -10,6 +10,7 @@ class Program extends Model {
   declare country: string;
   declare accessCode: string;
   declare formVersion: string | null;
+  declare defaultProgramFormId: number | null;
   declare config: Record<string, unknown> | null;
   declare createdAt: Date;
   declare updatedAt: Date;
@@ -40,6 +41,16 @@ Program.init(
       type: DataTypes.STRING(64),
       allowNull: true,
       field: 'form_version',
+    },
+    defaultProgramFormId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'program_forms',
+        key: 'id',
+      },
+      field: 'default_program_form_id',
+      onDelete: 'SET NULL',
     },
     config: {
       type: DataTypes.JSON,

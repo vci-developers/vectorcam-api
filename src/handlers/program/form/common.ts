@@ -49,6 +49,7 @@ export const programFormResponseSchema = {
   properties: {
     id: { type: 'number' },
     programId: { type: 'number' },
+    programFormId: { type: 'number' },
     name: { type: 'string' },
     version: { type: 'string' },
     createdAt: { type: ['number', 'null'] },
@@ -129,6 +130,7 @@ export function serializeFormResponse(form: Form, questions: FormQuestion[]): an
   return {
     id: form.id,
     programId: form.programId,
+    programFormId: form.programFormId,
     name: form.name,
     version: form.version,
     createdAt: form.createdAt?.getTime?.() ?? null,

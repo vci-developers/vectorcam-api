@@ -79,8 +79,7 @@ export async function publishProgramForm(
 
     const duplicate = await Form.findOne({
       where: {
-        programId,
-        name: draft.name,
+        programFormId: draft.programFormId,
         version,
         id: { [Op.ne]: draft.id },
       },
@@ -95,6 +94,7 @@ export async function publishProgramForm(
     const published = await Form.create(
       {
         programId,
+        programFormId: draft.programFormId,
         name: draft.name,
         version,
       },
