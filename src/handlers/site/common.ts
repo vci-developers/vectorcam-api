@@ -433,3 +433,43 @@ export async function hasChildSites(siteId: number): Promise<boolean> {
   });
   return childCount > 0;
 }
+
+export async function validateSiteLocationTypeHierarchy(params: {
+  programId: number;
+  parentId?: number | null;
+  locationTypeId?: number | null;
+}): Promise<string | null> {
+  const { programId, parentId, locationTypeId } = params;
+  if (locationTypeId == null || parentId == null) {
+    return null;
+  }
+
+  const [parentSite, childLocationType] = await Promise.all([
+    Site.findByPk(parentId),
+    LocationType.findByPk(locationTypeId),
+  ]);
+
+  if (!parentSite) {
+    return 'Parent site not found';
+  }
+  if (parentSite.programId !== programId) {
+    return 'Parent site belongs to a different program';
+  }
+  if (!childLocationType || childLocationType.programId !== programId) {
+    return 'Location type not found for this program';
+  }
+
+  const parentLocationTypeId = parentSite.locationTypeId;
+  if (parentLocationTypeId == null) {
+    if (childLocationType.parentId != null) {
+      return 'Parent site must use the location type above this site in the hierarchy';
+    }
+    return null;
+  }
+
+  if (childLocationType.parentId !== parentLocationTypeId) {
+    return 'Site location type must be a direct child of the parent site location type';
+  }
+
+  return null;
+}

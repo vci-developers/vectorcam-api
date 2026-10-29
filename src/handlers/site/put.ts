@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { findSiteById, formatSiteResponse, findProgramById, rebuildLocationHierarchy } from './common';
+import { findSiteById, formatSiteResponse, findProgramById, rebuildLocationHierarchy, validateSiteLocationTypeHierarchy } from './common';
 
 interface UpdateSiteRequest {
   programId?: number;
@@ -99,6 +99,19 @@ export async function updateSite(
       if (!program) {
         return reply.code(404).send({ error: 'Program not found' });
       }
+    }
+
+    const nextProgramId = programId !== undefined ? programId : site.programId;
+    const nextParentId = parentId !== undefined ? parentId : site.parentId;
+    const nextLocationTypeId = locationTypeId !== undefined ? locationTypeId : site.locationTypeId;
+
+    const hierarchyError = await validateSiteLocationTypeHierarchy({
+      programId: nextProgramId,
+      parentId: nextParentId,
+      locationTypeId: nextLocationTypeId,
+    });
+    if (hierarchyError) {
+      return reply.code(400).send({ error: hierarchyError });
     }
 
     await site.update({

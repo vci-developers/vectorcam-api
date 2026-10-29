@@ -22,6 +22,7 @@ export const schema = {
             properties: {
               id: { type: 'number' },
               programId: { type: 'number' },
+              parentId: { type: ['number', 'null'] },
               name: { type: 'string' },
               level: { type: 'number' },
             },

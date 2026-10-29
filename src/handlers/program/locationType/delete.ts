@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { LocationType } from '../../../db/models';
-import { findProgramById, handleError, hasAssociatedSites } from './common';
+import { findProgramById, handleError, hasAssociatedSites, hasChildLocationTypes } from './common';
 
 export const schema = {
   tags: ['LocationTypes'],
@@ -57,11 +57,17 @@ export async function deleteLocationType(
       return reply.code(404).send({ error: 'Location type not found' });
     }
 
-    // Check if location type has associated sites
     const hasSites = await hasAssociatedSites(location_type_id);
     if (hasSites) {
       return reply.code(400).send({
         error: 'Location type cannot be deleted because it has associated sites',
+      });
+    }
+
+    const hasChildren = await hasChildLocationTypes(location_type_id);
+    if (hasChildren) {
+      return reply.code(400).send({
+        error: 'Location type cannot be deleted because it has child location types',
       });
     }
 

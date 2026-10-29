@@ -6,6 +6,7 @@ import Program from './Program';
 class LocationType extends Model {
   declare id: number;
   declare programId: number;
+  declare parentId: number | null;
   declare name: string;
   declare level: number;
   declare createdAt: Date;
@@ -27,6 +28,15 @@ LocationType.init(
         key: 'id',
       },
       field: 'program_id',
+    },
+    parentId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'location_types',
+        key: 'id',
+      },
+      field: 'parent_id',
     },
     name: {
       type: DataTypes.STRING(128),
@@ -54,6 +64,8 @@ LocationType.init(
 // Associations
 LocationType.hasMany(Site, { foreignKey: 'location_type_id', as: 'sites' });
 Site.belongsTo(LocationType, { foreignKey: 'location_type_id', as: 'locationType' });
+LocationType.belongsTo(LocationType, { foreignKey: 'parent_id', as: 'parent' });
+LocationType.hasMany(LocationType, { foreignKey: 'parent_id', as: 'children' });
 LocationType.belongsTo(Program, { foreignKey: 'program_id', as: 'program' });
 Program.hasMany(LocationType, { foreignKey: 'program_id', as: 'locationTypes' });
 

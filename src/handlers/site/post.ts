@@ -1,6 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Site } from '../../db/models';
-import { formatSiteResponse, findProgramById, rebuildLocationHierarchy } from './common';
+import { formatSiteResponse, findProgramById, rebuildLocationHierarchy, validateSiteLocationTypeHierarchy } from './common';
 
 interface CreateSiteRequest {
   programId: number;
@@ -101,6 +101,15 @@ export async function createSite(
     const program = await findProgramById(programId);
     if (!program) {
       return reply.code(404).send({ error: 'Program not found' });
+    }
+
+    const hierarchyError = await validateSiteLocationTypeHierarchy({
+      programId,
+      parentId,
+      locationTypeId,
+    });
+    if (hierarchyError) {
+      return reply.code(400).send({ error: hierarchyError });
     }
 
     const site = await Site.create({

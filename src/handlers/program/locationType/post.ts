@@ -1,10 +1,18 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { LocationType } from '../../../db/models';
-import { formatLocationTypeResponse, findProgramById, handleError } from './common';
+import {
+  formatLocationTypeResponse,
+  findProgramById,
+  findDuplicateLocationTypeName,
+  handleError,
+  resolveLocationTypePlacement,
+  validateLocationTypeParent,
+} from './common';
 
 interface CreateLocationTypeRequest {
   name: string;
   level?: number;
+  parentId?: number | null;
 }
 
 export const schema = {
@@ -22,6 +30,7 @@ export const schema = {
     properties: {
       name: { type: 'string' },
       level: { type: 'number' },
+      parentId: { type: ['number', 'null'] },
     },
   },
   response: {
@@ -34,10 +43,17 @@ export const schema = {
           properties: {
             id: { type: 'number' },
             programId: { type: 'number' },
+            parentId: { type: ['number', 'null'] },
             name: { type: 'string' },
             level: { type: 'number' },
           },
         },
+      },
+    },
+    400: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
       },
     },
     409: {
@@ -55,29 +71,42 @@ export async function createLocationType(
 ) {
   try {
     const { program_id } = request.params;
-    const { name, level } = request.body;
+    const { name, level, parentId } = request.body;
 
     const program = await findProgramById(program_id);
     if (!program) {
       return reply.code(404).send({ error: 'Program not found' });
     }
 
-    // If level not provided, assign next level in sequence for this program
-    let assignedLevel = level;
-    if (assignedLevel === undefined) {
-      const maxLevel = await LocationType.max('level', { where: { programId: program_id } }) as number | null;
-      assignedLevel = (maxLevel ?? 0) + 1;
+    let placement;
+    try {
+      placement = await resolveLocationTypePlacement(program_id, parentId, level);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'PARENT_NOT_FOUND') {
+        return reply.code(400).send({ error: 'Parent location type not found in this program' });
+      }
+      throw error;
     }
 
-    const duplicate = await LocationType.findOne({ where: { programId: program_id, name } });
+    const parentValidationError = await validateLocationTypeParent({
+      programId: program_id,
+      parentId: placement.parentId,
+      level: placement.level,
+    });
+    if (parentValidationError) {
+      return reply.code(400).send({ error: parentValidationError });
+    }
+
+    const duplicate = await findDuplicateLocationTypeName(program_id, name);
     if (duplicate) {
       return reply.code(409).send({ error: 'Location type name already exists for this program' });
     }
 
     const locationType = await LocationType.create({
       programId: program_id,
+      parentId: placement.parentId,
       name,
-      level: assignedLevel,
+      level: placement.level,
     });
 
     return reply.code(200).send({
@@ -88,5 +117,3 @@ export async function createLocationType(
     return handleError(error, request, reply);
   }
 }
-
-
