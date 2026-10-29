@@ -13,11 +13,12 @@ interface UpdateAnswersBody {
   answers: FormAnswerInput[];
   submittedAt?: number;
   formVersion?: string;
+  programFormId?: number;
 }
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Update or upsert form answers for a session',
+  description: 'Update or upsert form answers for a session. Omit programFormId to use the program default form.',
   params: {
     type: 'object',
     properties: {
@@ -31,6 +32,7 @@ export const schema = {
     properties: {
       submittedAt: { type: 'number' },
       formVersion: { type: 'string' },
+      programFormId: { type: 'number' },
       answers: {
         type: 'array',
         items: {
@@ -64,7 +66,13 @@ export async function updateSessionFormAnswers(
   const transaction = await sequelize.transaction();
 
   try {
-    const context = await loadSessionAndForm(request, reply, request.params.session_id, request.body.formVersion);
+    const context = await loadSessionAndForm(
+      request,
+      reply,
+      request.params.session_id,
+      request.body.formVersion,
+      { programFormId: request.body.programFormId }
+    );
     if (!context) {
       await transaction.rollback();
       return;

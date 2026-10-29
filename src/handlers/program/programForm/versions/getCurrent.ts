@@ -38,12 +38,15 @@ export async function getProgramFormVersionCurrent(
       return reply.code(404).send({ error: 'Program not found' });
     }
 
-    const form = await fetchCurrentPublishedFormVersion(context.programFormId, program);
-    if (!form) {
+    const result = await fetchCurrentPublishedFormVersion(context.programFormId, program);
+    if ('error' in result) {
+      if (result.error === 'invalid_pointer') {
+        return reply.code(400).send({ error: 'Program formVersion pointer is invalid or points to draft' });
+      }
       return reply.code(404).send({ error: 'No published form version found' });
     }
 
-    return sendFormVersionResponse(reply, form);
+    return sendFormVersionResponse(reply, result.form);
   } catch (error) {
     request.log.error(error);
     return reply.code(500).send({ error: 'Failed to get current form version' });

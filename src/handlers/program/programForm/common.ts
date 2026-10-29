@@ -198,10 +198,14 @@ export async function fetchFormVersionWithQuestions(
   });
 }
 
+export type CurrentPublishedFormResult =
+  | { form: Form }
+  | { error: 'invalid_pointer' | 'not_found' };
+
 export async function fetchCurrentPublishedFormVersion(
   programFormId: number,
   program: Program
-): Promise<Form | null> {
+): Promise<CurrentPublishedFormResult> {
   if (program.defaultProgramFormId === programFormId && program.formVersion) {
     const form = await Form.findOne({
       where: { programFormId, version: program.formVersion },
@@ -211,12 +215,13 @@ export async function fetchCurrentPublishedFormVersion(
         [{ model: FormQuestion, as: 'questions' }, 'id', 'ASC'],
       ],
     });
-    if (form && form.version !== '') {
-      return form;
+    if (!form || form.version === '') {
+      return { error: 'invalid_pointer' };
     }
+    return { form };
   }
 
-  return Form.findOne({
+  const form = await Form.findOne({
     where: { programFormId, version: { [Op.ne]: '' } },
     include: formWithQuestionsInclude,
     order: [
@@ -226,6 +231,10 @@ export async function fetchCurrentPublishedFormVersion(
       [{ model: FormQuestion, as: 'questions' }, 'id', 'ASC'],
     ],
   });
+  if (!form) {
+    return { error: 'not_found' };
+  }
+  return { form };
 }
 
 export function sendFormVersionResponse(

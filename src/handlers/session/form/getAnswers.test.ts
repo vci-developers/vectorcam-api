@@ -3,6 +3,7 @@ import { getSessionFormAnswers } from './getAnswers';
 import {
   Form,
   FormAnswer,
+  ProgramForm,
   Session,
 } from '../../../db/models';
 
@@ -13,6 +14,9 @@ jest.mock('../../../db/models', () => ({
   },
   Site: {},
   Program: {},
+  ProgramForm: {
+    findOne: jest.fn(),
+  },
   Form: {
     findOne: jest.fn(),
   },
@@ -30,7 +34,10 @@ function createReply() {
   };
 }
 
-function createRequest(params: { session_id: string }, query: { version?: string } = {}) {
+function createRequest(
+  params: { session_id: string },
+  query: { version?: string; programFormId?: number } = {}
+) {
   return {
     params,
     query,
@@ -38,8 +45,8 @@ function createRequest(params: { session_id: string }, query: { version?: string
   };
 }
 
-function buildSession(programFormVersion = 'v2') {
-  const program = { id: 10, formVersion: programFormVersion };
+function buildSession(programFormVersion = 'v2', defaultProgramFormId: number | null = null) {
+  const program = { id: 10, formVersion: programFormVersion, defaultProgramFormId };
   const site = {
     id: 5,
     programId: program.id,
@@ -201,6 +208,49 @@ describe('getSessionFormAnswers', () => {
         formId: 200,
         formVersion: 'v2',
         answers: [],
+      })
+    );
+  });
+
+  it('loads the requested program form instead of the default form', async () => {
+    (Session.findByPk as jest.Mock).mockResolvedValue(buildSession('v2', 3));
+    (ProgramForm.findOne as jest.Mock).mockResolvedValue({ id: 9 });
+    (Form.findOne as jest.Mock).mockResolvedValue(buildForm({ id: 300, name: 'Larval', version: '2.0' }));
+
+    const request = createRequest({ session_id: '42' }, { programFormId: 9 });
+    const reply = createReply();
+
+    await getSessionFormAnswers(request as any, reply as any);
+
+    expect(ProgramForm.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 9, programId: 10 },
+      })
+    );
+    expect(Form.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          programId: 10,
+          programFormId: 9,
+          version: { [Op.ne]: '' },
+        }),
+      })
+    );
+    expect(Form.findOne).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ version: 'v2' }),
+      })
+    );
+    expect(FormAnswer.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sessionId: 42, formId: 300 },
+      })
+    );
+    expect(reply.send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        formId: 300,
+        formName: 'Larval',
+        formVersion: '2.0',
       })
     );
   });

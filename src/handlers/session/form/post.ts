@@ -14,11 +14,12 @@ interface CreateAnswersBody {
   answers: FormAnswerInput[];
   submittedAt?: number;
   formVersion?: string;
+  programFormId?: number;
 }
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Submit answers for a published form for a session',
+  description: 'Submit answers for a published form for a session. Omit programFormId to use the program default form.',
   params: {
     type: 'object',
     properties: {
@@ -32,6 +33,7 @@ export const schema = {
     properties: {
       submittedAt: { type: 'number' },
       formVersion: { type: 'string' },
+      programFormId: { type: 'number' },
       answers: {
         type: 'array',
         items: {
@@ -89,7 +91,13 @@ export async function createSessionFormAnswers(
   const transaction = await sequelize.transaction();
 
   try {
-    const context = await loadSessionAndForm(request, reply, request.params.session_id, request.body.formVersion);
+    const context = await loadSessionAndForm(
+      request,
+      reply,
+      request.params.session_id,
+      request.body.formVersion,
+      { programFormId: request.body.programFormId }
+    );
     if (!context) {
       await transaction.rollback();
       return;

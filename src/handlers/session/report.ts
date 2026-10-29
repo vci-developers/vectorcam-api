@@ -558,9 +558,18 @@ export async function exportSessionReport(
     }
 
     const selectedFormIds = Array.from(new Set(formIdByProgram.values()));
-    const formQuestions = selectedFormIds.length > 0
+    const rawAnswers = sessionIds.length > 0
+      ? await FormAnswer.findAll({
+        where: { sessionId: { [Op.in]: sessionIds } },
+        attributes: ['sessionId', 'formId', 'questionId', 'value'],
+        order: [['formId', 'ASC'], ['questionId', 'ASC'], ['id', 'ASC']],
+      })
+      : [];
+    const answeredFormIds = Array.from(new Set(rawAnswers.map((answer) => answer.formId)));
+    const formIdsForQuestions = Array.from(new Set([...selectedFormIds, ...answeredFormIds]));
+    const formQuestions = formIdsForQuestions.length > 0
       ? await FormQuestion.findAll({
-        where: { formId: { [Op.in]: selectedFormIds } },
+        where: { formId: { [Op.in]: formIdsForQuestions } },
         attributes: ['id', 'formId', 'label', 'order'],
         order: [['formId', 'ASC'], ['order', 'ASC'], ['id', 'ASC']],
       })
@@ -576,16 +585,6 @@ export async function exportSessionReport(
         seenDynamicLabels.add(question.label);
       }
     }
-
-    const rawAnswers = selectedFormIds.length > 0
-      ? await FormAnswer.findAll({
-        where: {
-          sessionId: { [Op.in]: sessionIds },
-          formId: { [Op.in]: selectedFormIds },
-        },
-        attributes: ['sessionId', 'formId', 'questionId', 'value'],
-      })
-      : [];
 
     const answerMapBySession = new Map<number, HouseholdValueMap>();
     for (const answer of rawAnswers) {
@@ -625,6 +624,7 @@ export async function exportSessionReport(
 
     const sessionColumns = SESSION_FIELD_LABELS.map((item) => item.label);
     const includeSurveillanceColumns = sessions.some((session) => {
+      if (answerMapBySession.has(session.id)) return false;
       const site = session.get('site') as Site | undefined;
       const program = site?.get('program') as Program | undefined;
       if (!program) return true;
@@ -1078,10 +1078,11 @@ function extractHouseholdValuesForSession(
   const site = session.get('site') as Site | undefined;
   const program = site?.get('program') as Program | undefined;
   const selectedFormId = program ? formIdByProgram.get(program.id) : undefined;
+  const answerValues = answerMapBySession.get(session.id);
 
-  if (selectedFormId) {
-    const answerValues = answerMapBySession.get(session.id) ?? new Map<string, string>();
-    for (const [label, value] of answerValues.entries()) {
+  if (selectedFormId || answerValues) {
+    const resolvedAnswerValues = answerValues ?? new Map<string, string>();
+    for (const [label, value] of resolvedAnswerValues.entries()) {
       formValues.set(label, normalizeValue(value));
     }
     return { sessionValues, formValues };

@@ -147,7 +147,7 @@ function questionKeysInClause(
   return params.join(', ');
 }
 
-function numericAnswerSqlByKeys(
+export function numericAnswerSqlByKeys(
   questionKeys: readonly string[],
   alias: string,
   replacements: Record<string, string>
@@ -179,15 +179,11 @@ function buildNumericExpression(
         (${parts.join(' + ')}) AS ${alias}`;
 }
 
-function formAnswerJoins(scopeToDefaultProgramForm: boolean): string {
-  const formScope = scopeToDefaultProgramForm
-    ? 'AND f.program_id = :programId AND f.program_form_id = :defaultProgramFormId'
-    : 'AND f.program_id = :programId';
-
+export function formAnswerJoins(): string {
   return `
     LEFT JOIN form_answers fa ON fa.session_id = sess.id
-    LEFT JOIN forms f ON f.id = fa.form_id ${formScope}
-    LEFT JOIN form_questions fq ON fq.id = fa.question_id`;
+    LEFT JOIN forms f ON f.id = fa.form_id AND f.program_id = :programId
+    LEFT JOIN form_questions fq ON fq.id = fa.question_id AND fq.form_id = f.id`;
 }
 
 interface HouseholdMetricsRow {
@@ -257,7 +253,6 @@ async function loadFormHouseholdMetrics(
   startDate: Date,
   endDate: Date,
   programId: number,
-  defaultProgramFormId: number | null,
   mappings: SurveillanceQuestionMappings
 ): Promise<{ peopleInAllHousesInspected: number; rows: HouseholdMetricsRow[] }> {
   const peopleMapping = mappings.numPeopleSleptInHouse!;
@@ -275,10 +270,9 @@ async function loadFormHouseholdMetrics(
     startDate,
     endDate,
     programId,
-    ...(defaultProgramFormId != null ? { defaultProgramFormId } : {}),
     ...keyReplacements,
   };
-  const joins = formAnswerJoins(defaultProgramFormId != null);
+  const joins = formAnswerJoins();
 
   const perSessionQuery = `
     SELECT
@@ -454,7 +448,6 @@ export async function getMetrics(
 
     let useFormMetrics = false;
     let formMetricsProgramId: number | undefined;
-    let formMetricsProgramFormId: number | null = null;
     let questionMappings: SurveillanceQuestionMappings | undefined;
 
     if (metricsProgramId !== undefined) {
@@ -462,7 +455,6 @@ export async function getMetrics(
       if (formContext) {
         useFormMetrics = true;
         formMetricsProgramId = formContext.programId;
-        formMetricsProgramFormId = formContext.defaultProgramFormId;
         questionMappings = formContext.mappings;
       }
     }
@@ -483,7 +475,6 @@ export async function getMetrics(
         startDate,
         endDate,
         formMetricsProgramId,
-        formMetricsProgramFormId,
         questionMappings
       )
       : await loadLegacyHouseholdMetrics(sessionSiteIds, startDate, endDate);

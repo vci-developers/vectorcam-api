@@ -1,12 +1,11 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import sequelize from '../../../db/index';
-import { Form, FormQuestion } from '../../../db/models';
+import { Form, FormQuestion, ProgramForm } from '../../../db/models';
 import {
   cloneQuestionsToForm,
   defaultProgramFormWhere,
   loadProgramFormScope,
   serializeQuestion,
-  syncProgramFormName,
 } from './common';
 
 export const schema = {
@@ -106,21 +105,22 @@ export async function checkoutProgramForm(
     });
 
     if (!draft) {
+      const programForm = await ProgramForm.findByPk(sourceForm.programFormId, {
+        attributes: ['name'],
+        transaction,
+      });
       draft = await Form.create(
         {
           programId,
           programFormId: sourceForm.programFormId,
-          name: sourceForm.name,
+          name: programForm?.name ?? sourceForm.name,
           version: '',
         },
         { transaction }
       );
     } else {
-      await draft.update({ name: sourceForm.name }, { transaction });
       await FormQuestion.destroy({ where: { formId: draft.id }, transaction });
     }
-
-    await syncProgramFormName(sourceForm.programFormId, sourceForm.name, transaction);
 
     const clonedQuestions = await cloneQuestionsToForm(sourceForm.id, draft.id, transaction);
 

@@ -4,7 +4,7 @@ import { loadSessionAndForm } from './common';
 
 export const schema = {
   tags: ['Sessions'],
-  description: 'Get form answers for a session and form',
+  description: 'Get form answers for a session. Omit programFormId to use the program default form.',
   params: {
     type: 'object',
     properties: {
@@ -16,6 +16,7 @@ export const schema = {
     type: 'object',
     properties: {
       version: { type: 'string' },
+      programFormId: { type: 'number' },
     },
   },
   response: {
@@ -76,18 +77,24 @@ export const schema = {
 };
 
 export async function getSessionFormAnswers(
-  request: FastifyRequest<{ Params: { session_id: string }; Querystring: { version?: string } }>,
+  request: FastifyRequest<{
+    Params: { session_id: string };
+    Querystring: { version?: string; programFormId?: number };
+  }>,
   reply: FastifyReply
 ): Promise<void> {
   try {
-    const { version } = request.query;
+    const { version, programFormId } = request.query;
 
     const context = await loadSessionAndForm(
       request,
       reply,
       request.params.session_id,
       version,
-      { preferLatestAnsweredVersion: version === undefined }
+      {
+        preferLatestAnsweredVersion: version === undefined,
+        programFormId,
+      }
     );
     if (!context) return;
 
