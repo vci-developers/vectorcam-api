@@ -2,7 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { UniqueConstraintError } from 'sequelize';
 import { Workflow } from '../../../db/models';
 import { findProgramById } from '../common';
-import { serializeWorkflow, workflowResponseSchema } from './common';
+import { serializeWorkflow, unpublishedProgramFormError, workflowResponseSchema } from './common';
 
 interface CreateWorkflowBody {
   name: string;
@@ -54,6 +54,11 @@ export async function createProgramWorkflow(
     const name = request.body.name.trim();
     if (!name) {
       return reply.code(400).send({ error: 'name is required' });
+    }
+
+    const publishedError = await unpublishedProgramFormError(programId, request.body.schema);
+    if (publishedError) {
+      return reply.code(400).send({ error: publishedError });
     }
 
     const workflow = await Workflow.create({

@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Workflow } from '../../../db/models';
-import { serializeWorkflow, workflowResponseSchema } from './common';
+import { serializeWorkflow, unpublishedProgramFormError, workflowResponseSchema } from './common';
 
 interface UpdateWorkflowBody {
   name?: string;
@@ -56,6 +56,10 @@ export async function updateProgramWorkflow(
       updates.name = name;
     }
     if (request.body.schema !== undefined) {
+      const publishedError = await unpublishedProgramFormError(request.params.program_id, request.body.schema);
+      if (publishedError) {
+        return reply.code(400).send({ error: publishedError });
+      }
       updates.schema = request.body.schema;
     }
     if (request.body.isActive !== undefined) {
