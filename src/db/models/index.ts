@@ -32,6 +32,7 @@ import ProgramModel from './ProgramModel';
 import Workflow from './Workflow';
 import VectorAiInferenceResult from './VectorAiInferenceResult';
 import VectorAiModel from './VectorAiModel';
+import DataRecovery from './DataRecovery';
 
 export {
   Program,
@@ -68,4 +69,5 @@ export {
   Workflow,
   VectorAiInferenceResult,
   VectorAiModel,
+  DataRecovery,
 };
