@@ -14,7 +14,7 @@ interface UpdateImageDataRequestBody {
   species?: string;
   sex?: string;
   abdomenStatus?: string;
-  capturedAt?: number;
+  capturedAt?: number | null;
   inferenceResult?: {
     bboxTopLeftX: number;
     bboxTopLeftY: number;
@@ -50,7 +50,7 @@ export const schema = {
       species: { type: 'string' },
       sex: { type: 'string' },
       abdomenStatus: { type: 'string' },
-      capturedAt: { type: 'number' },
+      capturedAt: { type: ['number', 'null'] },
       inferenceResult: {
         type: 'object',
         properties: {
@@ -146,14 +146,32 @@ export async function updateImageData(
         }
       : null;
 
-    // Update image metadata
-    await image.update({
-      metadata: metadata !== undefined ? metadata : image.metadata,
-      species,
-      sex,
-      abdomenStatus,
-      capturedAt: capturedAt ? new Date(capturedAt) : null
-    });
+    // Partial update: omitted fields are left unchanged
+    const imageUpdates: {
+      metadata?: Record<string, unknown> | null;
+      species?: string;
+      sex?: string;
+      abdomenStatus?: string;
+      capturedAt?: Date | null;
+    } = {};
+    if (metadata !== undefined) {
+      imageUpdates.metadata = metadata;
+    }
+    if (species !== undefined) {
+      imageUpdates.species = species;
+    }
+    if (sex !== undefined) {
+      imageUpdates.sex = sex;
+    }
+    if (abdomenStatus !== undefined) {
+      imageUpdates.abdomenStatus = abdomenStatus;
+    }
+    if (capturedAt !== undefined) {
+      imageUpdates.capturedAt = capturedAt !== null ? new Date(capturedAt) : null;
+    }
+    if (Object.keys(imageUpdates).length > 0) {
+      await image.update(imageUpdates);
+    }
 
     // Update or create inference result
     let result = null;
