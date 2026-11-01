@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { config } from '../config/environment';
+import { markUnhandledCrash } from './sentry-http';
 
 export class SentryService {
   private static instance: SentryService;
@@ -20,16 +21,13 @@ export class SentryService {
       return;
     }
 
-    // Only initialize Sentry in production or if explicitly enabled
-    if (config.server.nodeEnv === 'production' || config.sentry.enabled) {
-      const dsn = process.env.SENTRY_DSN;
-      
-      if (!dsn) {
-        console.warn('SENTRY_DSN not provided, Sentry will not be initialized');
-        return;
-      }
+    const dsn = process.env.SENTRY_DSN;
+    if (!dsn) {
+      console.warn('SENTRY_DSN not provided, Sentry will not be initialized');
+      return;
+    }
 
-      Sentry.init({
+    Sentry.init({
         dsn,
         environment: config.server.nodeEnv,
         release: process.env.APP_VERSION || '1.0.0',
@@ -49,11 +47,11 @@ export class SentryService {
         debug: config.server.nodeEnv === 'development',
         
         // Configure beforeSend to filter out certain errors
-        beforeSend(event, hint) {
-          // Filter out health check errors or other noise
+        beforeSend(event) {
           if (event.request?.url?.includes('/health')) {
             return null;
           }
+          markUnhandledCrash(event);
           return event;
         },
         
@@ -67,9 +65,63 @@ export class SentryService {
         },
       });
 
-      this.initialized = true;
-      console.log('Sentry initialized successfully');
+    this.initialized = true;
+    console.log('Sentry initialized successfully');
+  }
+
+  public captureHttpStatus(input: {
+    statusCode: number;
+    method: string;
+    route: string;
+    message: string;
+    error?: Error;
+    user?: { id: number; email?: string };
+  }): void {
+    if (!this.initialized) {
+      return;
     }
+
+    const level = input.statusCode >= 500 ? 'error' : 'warning';
+    Sentry.withScope((scope) => {
+      scope.setLevel(level);
+      scope.setTag('http_status_code', String(input.statusCode));
+      scope.setTag('method', input.method);
+      scope.setTag('route', input.route);
+      if (input.user?.id != null) {
+        scope.setUser({
+          id: String(input.user.id),
+          email: input.user.email,
+        });
+      }
+
+      if (input.error) {
+        Sentry.captureException(input.error);
+        return;
+      }
+
+      scope.setFingerprint([
+        'http-response',
+        String(input.statusCode),
+        input.method,
+        input.route,
+        input.message,
+      ]);
+      Sentry.captureMessage(input.message);
+    });
+  }
+
+  public captureCrash(error: Error, context?: Record<string, any>): void {
+    if (!this.initialized) {
+      return;
+    }
+
+    Sentry.withScope((scope) => {
+      scope.setLevel('fatal');
+      scope.setTag('crash', 'true');
+      Sentry.captureException(error, {
+        extra: context,
+      });
+    });
   }
 
   public captureException(error: Error, context?: Record<string, any>): void {

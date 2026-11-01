@@ -1,11 +1,26 @@
 import { FastifyBaseLogger } from 'fastify';
+import { loggedError } from '../services/sentry-http';
 import { sentryService } from '../services/sentry.service';
+import { stashRequestError } from '../services/sentry-request-errors';
 
 export class SentryLogger implements FastifyBaseLogger {
   private logger: FastifyBaseLogger;
+  private bindings: Record<string, unknown>;
 
-  constructor(logger: FastifyBaseLogger) {
+  constructor(logger: FastifyBaseLogger, bindings: Record<string, unknown> = {}) {
     this.logger = logger;
+    this.bindings = bindings;
+  }
+
+  private rememberRequestError(obj: unknown, args: unknown[]): void {
+    const requestId = this.bindings.reqId;
+    if (requestId == null) {
+      return;
+    }
+    const error = loggedError(obj, args);
+    if (error) {
+      stashRequestError(String(requestId), error);
+    }
   }
 
   get level(): string {
@@ -36,44 +51,21 @@ export class SentryLogger implements FastifyBaseLogger {
 
   error(obj: unknown, ...args: any[]): void {
     this.logger.error(obj, ...args);
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
-    
-    // Check if this is a client error (4xx) that shouldn't be captured
-    let isClientError = false;
-    
-    if (args.length > 0 && args[0] instanceof Error) {
-      const error = args[0] as any;
-      // Only check for explicit 4xx status codes
-      if (error.statusCode >= 400 && error.statusCode < 500) {
-        isClientError = true;
-      }
-    }
-    
-    // Also check for common client error patterns in the message
-    if (msg.includes('Client error') || 
-        msg.includes('Validation error') ||
-        msg.includes('not captured in Sentry')) {
-      isClientError = true;
-    }
-    
-    // Don't capture client errors in Sentry
-    if (isClientError) {
+    this.rememberRequestError(obj, args);
+    if (this.bindings.reqId != null) {
       return;
     }
-    
-    // Capture actual server errors in Sentry
-    if (args.length > 0 && args[0] instanceof Error) {
-      sentryService.captureException(args[0], {
-        extra: {
-          message: msg,
-          additionalArgs: args.slice(1),
-        },
-      });
-    } else {
-      sentryService.captureMessage(msg, 'error', {
-        extra: args.length > 0 ? args : undefined,
-      });
+
+    const error = loggedError(obj, args);
+    if (error) {
+      sentryService.captureException(error);
+      return;
     }
+
+    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
+    sentryService.captureMessage(msg, 'error', {
+      extra: args.length > 0 ? args : undefined,
+    });
   }
 
   debug(obj: unknown, ...args: any[]): void {
@@ -89,22 +81,21 @@ export class SentryLogger implements FastifyBaseLogger {
 
   fatal(obj: unknown, ...args: any[]): void {
     this.logger.fatal(obj, ...args);
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
-    
-    // Capture fatal errors in Sentry
-    if (args.length > 0 && args[0] instanceof Error) {
-      sentryService.captureException(args[0], {
-        level: 'fatal',
-        extra: {
-          message: msg,
-          additionalArgs: args.slice(1),
-        },
-      });
-    } else {
-      sentryService.captureMessage(msg, 'fatal', {
-        extra: args.length > 0 ? args : undefined,
-      });
+    this.rememberRequestError(obj, args);
+    if (this.bindings.reqId != null) {
+      return;
     }
+
+    const error = loggedError(obj, args);
+    if (error) {
+      sentryService.captureException(error, { level: 'fatal' });
+      return;
+    }
+
+    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
+    sentryService.captureMessage(msg, 'fatal', {
+      extra: args.length > 0 ? args : undefined,
+    });
   }
 
   trace(obj: unknown, ...args: any[]): void {
@@ -123,8 +114,10 @@ export class SentryLogger implements FastifyBaseLogger {
     // Don't send silent logs to Sentry
   }
 
-  child(bindings: object): FastifyBaseLogger {
-    const childLogger = this.logger.child(bindings);
-    return new SentryLogger(childLogger);
+  child(bindings: object, options?: object): FastifyBaseLogger {
+    const childLogger = options
+      ? this.logger.child(bindings, options)
+      : this.logger.child(bindings);
+    return new SentryLogger(childLogger, { ...this.bindings, ...bindings });
   }
 } 

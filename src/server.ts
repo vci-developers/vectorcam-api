@@ -8,7 +8,7 @@ import { config } from './config/environment';
 import { testConnection } from './db';
 import registerRoutes from './routes';
 import { sentryService } from './services/sentry.service';
-import { sentryMiddleware, sentryErrorHandler } from './middleware/sentry.middleware';
+import { sentryErrorHandler, sentryOnSend } from './middleware/sentry.middleware';
 import { SentryLogger } from './utils/sentry-logger';
 import { questionDefinitionSchema } from './handlers/program/form/common';
 import { startActiveUserMetricsJob, stopActiveUserMetricsJob } from './jobs/activeUserMetricsJob';
@@ -27,10 +27,10 @@ const server: FastifyInstance = Fastify({
   trustProxy: true,
 });
 
-// Wrap the logger with Sentry integration
-if (config.sentry?.enabled) {
-  server.log = new SentryLogger(server.log);
-}
+server.setChildLoggerFactory((logger, bindings, opts) => {
+  const child = logger.child(bindings, opts);
+  return new SentryLogger(child, bindings);
+});
 
 // Register plugins
 async function setupServer(): Promise<void> {
@@ -110,10 +110,7 @@ async function setupServer(): Promise<void> {
     // Register all routes
     registerRoutes(server);
 
-    // Register Sentry middleware
-    server.addHook('onRequest', sentryMiddleware);
-    
-    // Set the Sentry error handler to handle all errors properly
+    server.addHook('onSend', sentryOnSend);
     server.setErrorHandler(sentryErrorHandler);
 
     // Start the server
@@ -129,7 +126,8 @@ async function setupServer(): Promise<void> {
   } catch (err) {
     console.log(err);
     server.log.error('Error starting server:', err);
-    sentryService.captureException(err as Error, { context: 'server_startup' });
+    sentryService.captureCrash(err as Error, { context: 'server_startup' });
+    await sentryService.flush(2000);
     process.exit(1);
   }
 }
