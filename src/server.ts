@@ -17,8 +17,8 @@ import { startVectorAiInferenceJob, stopVectorAiInferenceJob } from './jobs/vect
 // Create Fastify instance with built-in logger options
 const baseLogger = {
   level: config.server.logLevel || 'info',
-  transport: config.server.nodeEnv !== 'production' 
-    ? { target: 'pino-pretty' } 
+  transport: config.server.nodeEnv === 'development'
+    ? { target: 'pino-pretty' }
     : undefined,
 };
 
