@@ -3,6 +3,20 @@ import { loggedError } from '../services/sentry-http';
 import { sentryService } from '../services/sentry.service';
 import { stashRequestError } from '../services/sentry-request-errors';
 
+function logMessage(obj: unknown, args: unknown[]): string {
+  const message = args.find((arg) => typeof arg === 'string');
+  if (typeof message === 'string') {
+    return message;
+  }
+  if (typeof obj === 'string') {
+    return obj;
+  }
+  if (obj instanceof Error) {
+    return obj.message;
+  }
+  return 'log';
+}
+
 export class SentryLogger implements FastifyBaseLogger {
   private logger: FastifyBaseLogger;
   private bindings: Record<string, unknown>;
@@ -29,23 +43,19 @@ export class SentryLogger implements FastifyBaseLogger {
 
   info(obj: unknown, ...args: any[]): void {
     this.logger.info(obj, ...args);
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
     sentryService.addBreadcrumb({
       category: 'log',
-      message: msg,
+      message: logMessage(obj, args),
       level: 'info',
-      data: args.length > 0 ? args : undefined,
     });
   }
 
   warn(obj: unknown, ...args: any[]): void {
     this.logger.warn(obj, ...args);
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
     sentryService.addBreadcrumb({
       category: 'log',
-      message: msg,
+      message: logMessage(obj, args),
       level: 'warning',
-      data: args.length > 0 ? args : undefined,
     });
   }
 
@@ -62,20 +72,15 @@ export class SentryLogger implements FastifyBaseLogger {
       return;
     }
 
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
-    sentryService.captureMessage(msg, 'error', {
-      extra: args.length > 0 ? args : undefined,
-    });
+    sentryService.captureMessage(logMessage(obj, args), 'error');
   }
 
   debug(obj: unknown, ...args: any[]): void {
     this.logger.debug(obj, ...args);
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
     sentryService.addBreadcrumb({
       category: 'log',
-      message: msg,
+      message: logMessage(obj, args),
       level: 'debug',
-      data: args.length > 0 ? args : undefined,
     });
   }
 
@@ -92,20 +97,15 @@ export class SentryLogger implements FastifyBaseLogger {
       return;
     }
 
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
-    sentryService.captureMessage(msg, 'fatal', {
-      extra: args.length > 0 ? args : undefined,
-    });
+    sentryService.captureMessage(logMessage(obj, args), 'fatal');
   }
 
   trace(obj: unknown, ...args: any[]): void {
     this.logger.trace(obj, ...args);
-    const msg = typeof obj === 'string' ? obj : JSON.stringify(obj);
     sentryService.addBreadcrumb({
       category: 'log',
-      message: msg,
+      message: logMessage(obj, args),
       level: 'debug',
-      data: args.length > 0 ? args : undefined,
     });
   }
 
