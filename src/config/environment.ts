@@ -255,6 +255,10 @@ const configs = {
 export const config = configs[environment as keyof typeof configs] || developmentConfig;
 
 export function isProduction(): boolean {
+  if (config.server.nodeEnv === 'production') {
+    return true;
+  }
+
   let domainHost = config.server.domain;
   try {
     domainHost = new URL(config.server.domain).hostname;
