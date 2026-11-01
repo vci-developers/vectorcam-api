@@ -252,4 +252,14 @@ const configs = {
   production: productionConfig,
 };
 
-export const config = configs[environment as keyof typeof configs] || developmentConfig; 
+export const config = configs[environment as keyof typeof configs] || developmentConfig;
+
+export function isProduction(): boolean {
+  let domainHost = config.server.domain;
+  try {
+    domainHost = new URL(config.server.domain).hostname;
+  } catch {
+    domainHost = config.server.domain;
+  }
+  return domainHost === 'api.vectorcam.org';
+} 

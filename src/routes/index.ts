@@ -1,4 +1,5 @@
 import { FastifyInstance } from 'fastify';
+import { isProduction } from '../config/environment';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { signedUrlMiddleware } from '../middleware/signedUrl.middleware';
 import resourceRoutes from './resources';
@@ -44,8 +45,7 @@ export default async function routes(server: FastifyInstance): Promise<void> {
   // Register test routes
   server.register(testRoutes, { prefix: '/test' });
   
-  // Register Sentry test routes (only in development)
-  if (process.env.NODE_ENV === 'development') {
+  if (!isProduction()) {
     server.register(testSentryRoutes, { prefix: '/test-sentry' });
   }
 } 

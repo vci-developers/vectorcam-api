@@ -110,9 +110,9 @@ export class SentryService {
     });
   }
 
-  public captureCrash(error: Error, context?: Record<string, any>): void {
+  public captureCrash(error: Error, context?: Record<string, any>): boolean {
     if (!this.initialized) {
-      return;
+      return false;
     }
 
     Sentry.withScope((scope) => {
@@ -122,6 +122,7 @@ export class SentryService {
         extra: context,
       });
     });
+    return true;
   }
 
   public captureException(error: Error, context?: Record<string, any>): void {
