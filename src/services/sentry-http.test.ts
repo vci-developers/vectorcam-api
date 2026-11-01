@@ -1,4 +1,4 @@
-import { httpEventMessage, loggedError, markUnhandledCrash, responseErrorText, routeTemplate, shouldRecordHttpStatus } from './sentry-http';
+import { httpEventMessage, loggedError, markUnhandledCrash, requestPath, responseErrorText, routeTemplate, sentryBody, sentryHeaders, shouldRecordHttpStatus } from './sentry-http';
 
 describe('sentry http status capture', () => {
   it('records client and server responses only', () => {
@@ -45,6 +45,25 @@ describe('sentry http status capture', () => {
     markUnhandledCrash(event);
     expect(event.tags?.crash).toBeUndefined();
     expect(event.level).toBe('error');
+  });
+
+  it('keeps request details and redacts credentials', () => {
+    expect(requestPath('/programs/4/workflow?token=secret')).toBe('/programs/4/workflow');
+    expect(sentryHeaders({
+      authorization: 'Bearer secret',
+      cookie: 'session=abc',
+      'content-type': 'application/json',
+    })).toEqual({
+      authorization: '[redacted]',
+      cookie: '[redacted]',
+      'content-type': 'application/json',
+    });
+    expect(sentryBody({ name: 'Ada', password: 'secret', nested: { refreshToken: 'abc' } })).toEqual({
+      name: 'Ada',
+      password: '[redacted]',
+      nested: { refreshToken: '[redacted]' },
+    });
+    expect(sentryBody(JSON.stringify({ error: 'Workflow not found' }))).toEqual({ error: 'Workflow not found' });
   });
 
   it('finds the Error passed to a request logger', () => {

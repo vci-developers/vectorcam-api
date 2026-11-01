@@ -1,7 +1,7 @@
 import * as Sentry from '@sentry/node';
 import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { config } from '../config/environment';
-import { markUnhandledCrash } from './sentry-http';
+import { markUnhandledCrash, requestPath, sentryBody, sentryHeaders } from './sentry-http';
 
 export class SentryService {
   private static instance: SentryService;
@@ -73,7 +73,11 @@ export class SentryService {
     statusCode: number;
     method: string;
     route: string;
+    url: string;
     message: string;
+    headers?: Record<string, unknown>;
+    requestBody?: unknown;
+    responseBody?: unknown;
     error?: Error;
     user?: { id: number; email?: string };
   }): void {
@@ -87,6 +91,23 @@ export class SentryService {
       scope.setTag('http_status_code', String(input.statusCode));
       scope.setTag('method', input.method);
       scope.setTag('route', input.route);
+      scope.addEventProcessor((event) => {
+        event.request = {
+          ...event.request,
+          method: input.method,
+          url: requestPath(input.url),
+          headers: sentryHeaders(input.headers),
+          data: sentryBody(input.requestBody),
+        };
+        event.contexts = {
+          ...event.contexts,
+          response: {
+            status_code: input.statusCode,
+            body: sentryBody(input.responseBody),
+          },
+        };
+        return event;
+      });
       if (input.user?.id != null) {
         scope.setUser({
           id: String(input.user.id),

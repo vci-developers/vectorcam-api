@@ -22,6 +22,10 @@ export async function sentryOnSend(
     statusCode,
     method: request.method,
     route,
+    url: request.url,
+    headers: request.headers,
+    requestBody: request.body,
+    responseBody: payload,
     message: httpEventMessage(statusCode, request.method, route, detail),
     error: statusCode >= 500 ? loggedError : undefined,
     user: request.user,
@@ -40,10 +44,22 @@ export async function sentryErrorHandler(
   takeRequestError(String(request.id));
 
   const route = routeTemplate(request.routeOptions?.url, request.url);
+  const responseBody = statusCode >= 500
+    ? { error: 'Internal server error' }
+    : {
+        error: error.message || 'Client error',
+        ...((error as { validation?: unknown }).validation
+          ? { validation: (error as { validation?: unknown }).validation }
+          : {}),
+      };
   sentryService.captureHttpStatus({
     statusCode,
     method: request.method,
     route,
+    url: request.url,
+    headers: request.headers,
+    requestBody: request.body,
+    responseBody,
     message: httpEventMessage(statusCode, request.method, route, error.message),
     error,
     user: request.user,

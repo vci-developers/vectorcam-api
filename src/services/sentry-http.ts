@@ -59,6 +59,76 @@ export function markUnhandledCrash(event: {
   event.level = 'fatal';
 }
 
+const SENSITIVE_HEADER = /^(authorization|cookie|set-cookie|x-api-key|proxy-authorization)$/i;
+const SENSITIVE_FIELD = /password|token|secret|authorization|cookie|api[-_]?key/i;
+const MAX_BODY_CHARS = 8000;
+
+export function requestPath(url: string): string {
+  return url.split('?')[0];
+}
+
+export function sentryHeaders(headers: Record<string, unknown> | undefined): Record<string, string> | undefined {
+  if (!headers) {
+    return undefined;
+  }
+
+  const redacted: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (value == null) {
+      continue;
+    }
+    const text = Array.isArray(value) ? value.map(String).join(', ') : String(value);
+    redacted[key] = SENSITIVE_HEADER.test(key) ? '[redacted]' : text;
+  }
+  return redacted;
+}
+
+export function sentryBody(body: unknown): unknown {
+  if (body == null) {
+    return undefined;
+  }
+  if (Buffer.isBuffer(body)) {
+    return `[binary ${body.length} bytes]`;
+  }
+  if (typeof body === 'object' && 'pipe' in body) {
+    return '[stream]';
+  }
+
+  let value = body;
+  if (typeof body === 'string') {
+    try {
+      value = JSON.parse(body);
+    } catch {
+      return body.length > MAX_BODY_CHARS ? `${body.slice(0, MAX_BODY_CHARS)}…` : body;
+    }
+  }
+
+  try {
+    const redacted = redactValue(JSON.parse(JSON.stringify(value)));
+    const serialized = JSON.stringify(redacted);
+    if (serialized.length <= MAX_BODY_CHARS) {
+      return redacted;
+    }
+    return `${serialized.slice(0, MAX_BODY_CHARS)}…`;
+  } catch {
+    return undefined;
+  }
+}
+
+function redactValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(redactValue);
+  }
+  if (value && typeof value === 'object') {
+    const redacted: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      redacted[key] = SENSITIVE_FIELD.test(key) ? '[redacted]' : redactValue(child);
+    }
+    return redacted;
+  }
+  return value;
+}
+
 export function loggedError(obj: unknown, args: unknown[]): Error | undefined {
   if (obj instanceof Error) {
     return obj;
