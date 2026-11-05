@@ -8,7 +8,6 @@ import {
   parseSiteIds,
 } from '../site/common';
 import {
-  hasRequiredSurveillanceMappings,
   resolveSurveillanceQuestionMappings,
   SurveillanceQuestionMappings,
 } from './metricsSurveillanceQuestions';
@@ -150,9 +149,6 @@ export async function resolveMetricsFormContext(programId: number): Promise<{
   }
 
   const mappings = resolveSurveillanceQuestionMappings(Array.from(uniqueByKey.values()));
-  if (!hasRequiredSurveillanceMappings(mappings)) {
-    return null;
-  }
 
   return {
     programId,

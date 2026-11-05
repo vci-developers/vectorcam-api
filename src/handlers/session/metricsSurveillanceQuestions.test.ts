@@ -116,6 +116,33 @@ describe('resolveSurveillanceQuestionMappings', () => {
     });
   });
 
+  it('resolves IRS question keys from the default surveillance form', () => {
+    const mappings = resolveSurveillanceQuestionMappings([
+      ...program8DefaultFormQuestions,
+      {
+        id: 2,
+        label: 'Was IRS conducted?',
+        type: 'boolean',
+        questionKey: 'was_irs_conducted',
+      },
+      {
+        id: 3,
+        label: 'Months since IRS',
+        type: 'number',
+        questionKey: 'months_since_irs',
+      },
+    ]);
+
+    expect(mappings.wasIrsConducted).toEqual({
+      kind: 'single',
+      questionKeys: ['was_irs_conducted'],
+    });
+    expect(mappings.monthsSinceIrs).toEqual({
+      kind: 'single',
+      questionKeys: ['months_since_irs'],
+    });
+  });
+
   it('prefers single people-in-house when present and accepts nets alias keys', () => {
     const mappings = resolveSurveillanceQuestionMappings(program9NetsKeys);
 

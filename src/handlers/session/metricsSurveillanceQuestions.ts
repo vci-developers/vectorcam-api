@@ -1,7 +1,9 @@
 export type SurveillanceMetricField =
   | 'numPeopleSleptInHouse'
   | 'numLlinsAvailable'
-  | 'numPeopleSleptUnderLlin';
+  | 'numPeopleSleptUnderLlin'
+  | 'wasIrsConducted'
+  | 'monthsSinceIrs';
 
 export interface FormQuestionLike {
   id: number;
@@ -58,6 +60,12 @@ export const PRESET_SURVEILLANCE_QUESTION_KEYS: Record<
       ],
     ],
   },
+  wasIrsConducted: {
+    single: [['was_irs_conducted']],
+  },
+  monthsSinceIrs: {
+    single: [['months_since_irs']],
+  },
 };
 
 function collectQuestionKeys(questions: FormQuestionLike[]): Set<string> {
@@ -102,6 +110,8 @@ export function resolveSurveillanceQuestionMappings(
     'numPeopleSleptInHouse',
     'numLlinsAvailable',
     'numPeopleSleptUnderLlin',
+    'wasIrsConducted',
+    'monthsSinceIrs',
   ] as const) {
     const mapping = resolveFieldMapping(field, keySet);
     if (mapping) {

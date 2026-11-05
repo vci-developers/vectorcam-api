@@ -24,6 +24,7 @@ const METRIC_LABELS = {
   siteInformation: {
     housesUsedForCollection: 'Houses used for collection',
     peopleInAllHousesInspected: 'People in all houses inspected',
+    housesSprayedInLast12Months: 'Houses sprayed in the last 12 months',
   },
   entomologicalSummary: {
     totalFedAnopheles: 'Total fed anopheles',
@@ -60,7 +61,8 @@ export const schema = {
           type: 'object',
           properties: {
             housesUsedForCollection: { type: 'number' },
-            peopleInAllHousesInspected: { type: 'number' }
+            peopleInAllHousesInspected: { type: 'number' },
+            housesSprayedInLast12Months: { type: ['number', 'null'] },
           }
         },
         entomologicalSummary: {
@@ -68,14 +70,14 @@ export const schema = {
           properties: {
             totalFedAnopheles: { type: 'number' },
             malariaVectorDensity: { type: 'number' },
-            fedAnophelesToPeopleSleptRatio: { type: 'number' },
-            totalLlins: { type: 'number' },
-            totalPeopleSleptUnderLlin: { type: 'number' },
-            llinsPerPerson: { type: 'number' },
+            fedAnophelesToPeopleSleptRatio: { type: ['number', 'null'] },
+            totalLlins: { type: ['number', 'null'] },
+            totalPeopleSleptUnderLlin: { type: ['number', 'null'] },
+            llinsPerPerson: { type: ['number', 'null'] },
 
             // for backward compatibility
             vectorDensity: { type: 'number' },
-            fedMosquitoesToPeopleSleptRatio: { type: 'number' },
+            fedMosquitoesToPeopleSleptRatio: { type: ['number', 'null'] },
           }
         },
         metricLabels: {
@@ -85,7 +87,8 @@ export const schema = {
               type: 'object',
               properties: {
                 housesUsedForCollection: { type: 'string' },
-                peopleInAllHousesInspected: { type: 'string' }
+                peopleInAllHousesInspected: { type: 'string' },
+                housesSprayedInLast12Months: { type: 'string' },
               }
             },
             entomologicalSummary: {
@@ -98,7 +101,7 @@ export const schema = {
                 totalPeopleSleptUnderLlin: { type: 'string' },
                 llinsPerPerson: { type: 'string' },
                 vectorDensity: { type: 'string' },
-                fedMosquitoesToPeopleSleptRatio: { type: 'string' }
+                fedMosquitoesToPeopleSleptRatio: { type: 'string' },
               }
             }
           }
@@ -108,24 +111,37 @@ export const schema = {
   }
 };
 
-function emptyMetricsResponse() {
+function emptyMetricsResponse(options: {
+  useFormMetrics: boolean;
+  mappings?: SurveillanceQuestionMappings;
+} = { useFormMetrics: false }) {
+  const { useFormMetrics, mappings } = options;
+  const hasLlinsMapping = !useFormMetrics || Boolean(mappings?.numLlinsAvailable);
+  const hasUnderLlinMapping = !useFormMetrics || Boolean(mappings?.numPeopleSleptUnderLlin);
+  const hasIrsMapping = !useFormMetrics || hasIrsQuestionMappings(mappings);
+
   return {
     siteInformation: {
       housesUsedForCollection: 0,
       peopleInAllHousesInspected: 0,
+      housesSprayedInLast12Months: hasIrsMapping ? 0 : null,
     },
     entomologicalSummary: {
       totalFedAnopheles: 0,
       malariaVectorDensity: 0,
-      fedAnophelesToPeopleSleptRatio: 0,
-      totalLlins: 0,
-      totalPeopleSleptUnderLlin: 0,
-      llinsPerPerson: 0,
+      fedAnophelesToPeopleSleptRatio: hasUnderLlinMapping ? 0 : null,
+      totalLlins: hasLlinsMapping ? 0 : null,
+      totalPeopleSleptUnderLlin: hasUnderLlinMapping ? 0 : null,
+      llinsPerPerson: hasLlinsMapping ? 0 : null,
       vectorDensity: 0,
-      fedMosquitoesToPeopleSleptRatio: 0,
+      fedMosquitoesToPeopleSleptRatio: hasUnderLlinMapping ? 0 : null,
     },
     metricLabels: METRIC_LABELS,
   };
+}
+
+function hasIrsQuestionMappings(mappings: SurveillanceQuestionMappings | undefined): boolean {
+  return Boolean(mappings?.wasIrsConducted && mappings?.monthsSinceIrs);
 }
 
 let questionKeyParamCounter = 0;
@@ -159,6 +175,28 @@ export function numericAnswerSqlByKeys(
   END) AS ${alias}`;
 }
 
+export function booleanAnswerSqlByKeys(
+  questionKeys: readonly string[],
+  alias: string,
+  replacements: Record<string, string>
+): string {
+  const inClause = questionKeysInClause(questionKeys, alias, replacements);
+  return `MAX(CASE
+    WHEN fq.question_key IN (${inClause})
+    THEN CASE LOWER(TRIM(JSON_UNQUOTE(fa.value)))
+      WHEN 'true' THEN 1
+      WHEN '1' THEN 1
+      WHEN 'false' THEN 0
+      WHEN '0' THEN 0
+      ELSE NULL
+    END
+  END) AS ${alias}`;
+}
+
+function nullNumericColumn(alias: string): string {
+  return `NULL AS ${alias}`;
+}
+
 function buildNumericExpression(
   mapping: SurveillanceQuestionMapping,
   alias: string,
@@ -177,6 +215,17 @@ function buildNumericExpression(
 
   return `${selects.join(',\n        ')},
         (${parts.join(' + ')}) AS ${alias}`;
+}
+
+function buildBooleanExpression(
+  mapping: SurveillanceQuestionMapping,
+  alias: string,
+  replacements: Record<string, string>
+): string {
+  if (mapping.kind !== 'single') {
+    throw new Error(`Boolean metric ${alias} does not support sum mappings`);
+  }
+  return booleanAnswerSqlByKeys(mapping.questionKeys, alias, replacements);
 }
 
 export function formAnswerJoins(): string {
@@ -255,15 +304,17 @@ async function loadFormHouseholdMetrics(
   programId: number,
   mappings: SurveillanceQuestionMappings
 ): Promise<{ peopleInAllHousesInspected: number; rows: HouseholdMetricsRow[] }> {
-  const peopleMapping = mappings.numPeopleSleptInHouse!;
-  const llinsMapping = mappings.numLlinsAvailable!;
-  const underLlinMapping = mappings.numPeopleSleptUnderLlin!;
-
   resetQuestionKeyParamCounter();
   const keyReplacements: Record<string, string> = {};
-  const peopleExpr = buildNumericExpression(peopleMapping, 'num_people_slept_in_house', keyReplacements);
-  const llinsExpr = buildNumericExpression(llinsMapping, 'num_llins_available', keyReplacements);
-  const underExpr = buildNumericExpression(underLlinMapping, 'num_people_slept_under_llin', keyReplacements);
+  const peopleExpr = mappings.numPeopleSleptInHouse
+    ? buildNumericExpression(mappings.numPeopleSleptInHouse, 'num_people_slept_in_house', keyReplacements)
+    : nullNumericColumn('num_people_slept_in_house');
+  const llinsExpr = mappings.numLlinsAvailable
+    ? buildNumericExpression(mappings.numLlinsAvailable, 'num_llins_available', keyReplacements)
+    : nullNumericColumn('num_llins_available');
+  const underExpr = mappings.numPeopleSleptUnderLlin
+    ? buildNumericExpression(mappings.numPeopleSleptUnderLlin, 'num_people_slept_under_llin', keyReplacements)
+    : nullNumericColumn('num_people_slept_under_llin');
 
   const queryReplacements = {
     siteIds,
@@ -413,6 +464,91 @@ function sumHouseholdRows(rows: HouseholdMetricsRow[]): {
   return { totalLlins, totalPeopleSleptUnderLlin };
 }
 
+async function loadLegacyHousesSprayedInLast12Months(
+  siteIds: number[],
+  startDate: Date,
+  endDate: Date
+): Promise<number> {
+  const query = `
+    SELECT COUNT(DISTINCT sess.site_id) AS housesSprayed
+    FROM sessions sess
+    INNER JOIN sites s ON sess.site_id = s.id
+    LEFT JOIN surveillanceforms sf ON sess.id = sf.session_id
+    WHERE s.id IN (:siteIds)
+      AND sess.collection_date >= :startDate
+      AND sess.collection_date < :endDate
+      AND sess.type = 'SURVEILLANCE'
+      AND sf.was_irs_conducted = true
+      AND sf.months_since_irs IS NOT NULL
+      AND sf.months_since_irs <= 12
+  `;
+
+  const result = await sequelize.query(query, {
+    replacements: { siteIds, startDate, endDate },
+    type: QueryTypes.SELECT,
+  }) as Array<{ housesSprayed: number }>;
+
+  return result[0]?.housesSprayed || 0;
+}
+
+async function loadFormHousesSprayedInLast12Months(
+  siteIds: number[],
+  startDate: Date,
+  endDate: Date,
+  programId: number,
+  mappings: SurveillanceQuestionMappings
+): Promise<number> {
+  resetQuestionKeyParamCounter();
+  const keyReplacements: Record<string, string> = {};
+  const wasIrsExpr = buildBooleanExpression(
+    mappings.wasIrsConducted!,
+    'was_irs_conducted',
+    keyReplacements
+  );
+  const monthsExpr = buildNumericExpression(
+    mappings.monthsSinceIrs!,
+    'months_since_irs',
+    keyReplacements
+  );
+
+  const queryReplacements = {
+    siteIds,
+    startDate,
+    endDate,
+    programId,
+    ...keyReplacements,
+  };
+  const joins = formAnswerJoins();
+
+  const query = `
+    SELECT COUNT(DISTINCT site_id) AS housesSprayed
+    FROM (
+      SELECT
+        sess.site_id,
+        ${wasIrsExpr},
+        ${monthsExpr}
+      FROM sessions sess
+      INNER JOIN sites s ON sess.site_id = s.id
+      ${joins}
+      WHERE s.id IN (:siteIds)
+        AND sess.collection_date >= :startDate
+        AND sess.collection_date < :endDate
+        AND sess.type = 'SURVEILLANCE'
+      GROUP BY sess.site_id, sess.id
+    ) AS per_session
+    WHERE was_irs_conducted = 1
+      AND months_since_irs IS NOT NULL
+      AND months_since_irs <= 12
+  `;
+
+  const result = await sequelize.query(query, {
+    replacements: queryReplacements,
+    type: QueryTypes.SELECT,
+  }) as Array<{ housesSprayed: number }>;
+
+  return result[0]?.housesSprayed || 0;
+}
+
 export async function getMetrics(
   request: FastifyRequest,
   reply: FastifyReply
@@ -438,7 +574,18 @@ export async function getMetrics(
     }
 
     if (siteScope.filteredSiteIds.length === 0) {
-      return reply.send(emptyMetricsResponse());
+      const parsedProgramIdForEmpty = query.programId ? Number(query.programId) : undefined;
+      const metricsProgramIdForEmpty = parsedProgramIdForEmpty ?? (
+        siteScope.programIds.length === 1 ? siteScope.programIds[0] : undefined
+      );
+      let emptyFormContext: Awaited<ReturnType<typeof resolveMetricsFormContext>> | undefined;
+      if (metricsProgramIdForEmpty !== undefined) {
+        emptyFormContext = await resolveMetricsFormContext(metricsProgramIdForEmpty);
+      }
+      return reply.send(emptyMetricsResponse({
+        useFormMetrics: Boolean(emptyFormContext),
+        mappings: emptyFormContext?.mappings,
+      }));
     }
 
     const parsedProgramId = query.programId ? Number(query.programId) : undefined;
@@ -479,7 +626,34 @@ export async function getMetrics(
       )
       : await loadLegacyHouseholdMetrics(sessionSiteIds, startDate, endDate);
 
+    const hasLlinsMapping = useFormMetrics
+      ? Boolean(questionMappings?.numLlinsAvailable)
+      : true;
+    const hasUnderLlinMapping = useFormMetrics
+      ? Boolean(questionMappings?.numPeopleSleptUnderLlin)
+      : true;
+
     const { totalLlins, totalPeopleSleptUnderLlin } = sumHouseholdRows(householdMetrics.rows);
+    const resolvedTotalLlins = hasLlinsMapping ? totalLlins : null;
+    const resolvedTotalPeopleSleptUnderLlin = hasUnderLlinMapping ? totalPeopleSleptUnderLlin : null;
+
+    const hasIrsMapping = useFormMetrics
+      ? hasIrsQuestionMappings(questionMappings)
+      : true;
+    const housesSprayedInLast12Months = hasIrsMapping
+      ? (
+        useFormMetrics && formMetricsProgramId && questionMappings
+          ? await loadFormHousesSprayedInLast12Months(
+            sessionSiteIds,
+            startDate,
+            endDate,
+            formMetricsProgramId,
+            questionMappings
+          )
+          : await loadLegacyHousesSprayedInLast12Months(sessionSiteIds, startDate, endDate)
+      )
+      : null;
+
     const {
       totalFedAnopheles,
       totalAnopheles,
@@ -488,13 +662,14 @@ export async function getMetrics(
 
     const peopleInAllHousesInspected = householdMetrics.peopleInAllHousesInspected;
 
-    const llinsPerPerson = peopleInAllHousesInspected > 0
-      ? totalLlins / peopleInAllHousesInspected
-      : 0;
+    const llinsPerPerson = resolvedTotalLlins !== null && peopleInAllHousesInspected > 0
+      ? Number((resolvedTotalLlins / peopleInAllHousesInspected).toFixed(2))
+      : (resolvedTotalLlins === null ? null : 0);
 
-    const fedAnophelesToPeopleSleptRatio = totalPeopleSleptUnderLlin > 0
-      ? totalFedAnopheles / totalPeopleSleptUnderLlin
-      : 0;
+    const fedAnophelesToPeopleSleptRatio = resolvedTotalPeopleSleptUnderLlin !== null
+      && resolvedTotalPeopleSleptUnderLlin > 0
+      ? Number((totalFedAnopheles / resolvedTotalPeopleSleptUnderLlin).toFixed(2))
+      : (resolvedTotalPeopleSleptUnderLlin === null ? null : 0);
 
     const malariaVectorDensity = totalMosquitoes > 0
       ? totalAnopheles / totalMosquitoes
@@ -504,18 +679,19 @@ export async function getMetrics(
       siteInformation: {
         housesUsedForCollection,
         peopleInAllHousesInspected,
+        housesSprayedInLast12Months,
       },
       entomologicalSummary: {
         totalFedAnopheles,
         malariaVectorDensity: Number(malariaVectorDensity.toFixed(2)),
-        fedAnophelesToPeopleSleptRatio: Number(fedAnophelesToPeopleSleptRatio.toFixed(2)),
-        totalLlins,
-        totalPeopleSleptUnderLlin,
-        llinsPerPerson: Number(llinsPerPerson.toFixed(2)),
+        fedAnophelesToPeopleSleptRatio,
+        totalLlins: resolvedTotalLlins,
+        totalPeopleSleptUnderLlin: resolvedTotalPeopleSleptUnderLlin,
+        llinsPerPerson,
 
         // for backward compatibility
         vectorDensity: Number(malariaVectorDensity.toFixed(2)),
-        fedMosquitoesToPeopleSleptRatio: Number(fedAnophelesToPeopleSleptRatio.toFixed(2)),
+        fedMosquitoesToPeopleSleptRatio: fedAnophelesToPeopleSleptRatio,
       },
       metricLabels: METRIC_LABELS,
     });
