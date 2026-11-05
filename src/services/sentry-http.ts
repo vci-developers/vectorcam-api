@@ -2,6 +2,49 @@ export function shouldRecordHttpStatus(statusCode: number): boolean {
   return statusCode >= 400 && statusCode <= 599;
 }
 
+/**
+ * Skip responses that are internet background noise rather than API usage:
+ * - requests that matched no route (bots probing /.env, /wp-login.php, /favicon.ico, ...)
+ * - CORS preflight (OPTIONS) failures, which scanners trigger with `OPTIONS *`
+ * 404s returned by real route handlers (e.g. "Session not found") are still recorded.
+ */
+export function isBotNoise(request: { method: string; is404?: boolean }): boolean {
+  return request.is404 === true || request.method.toUpperCase() === 'OPTIONS';
+}
+
+/**
+ * The mobile app checks whether a record already exists before uploading it, so a
+ * 404 on these lookups is the normal "not uploaded yet" answer, not a failure.
+ */
+const MOBILE_EXISTENCE_CHECK_ROUTES = new Set([
+  'GET /specimens/:specimen_id/images/data/:image_id',
+  'GET /sessions/:session_id/specimens/:specimen_id',
+  'GET /sessions/:session_id',
+  'GET /sessions/:session_id/survey',
+]);
+
+/**
+ * Expected client responses that are not worth a Sentry event:
+ * - 401: missing/expired credentials are routine
+ * - 404 on the mobile app's "does it exist yet?" lookups (mobile token only)
+ * Other 4xx (including 403 and 404s from other routes) are still recorded.
+ */
+export function isExpectedClientResponse(input: {
+  statusCode: number;
+  method: string;
+  route: string;
+  isMobileApp?: boolean;
+}): boolean {
+  if (input.statusCode === 401) {
+    return true;
+  }
+  return (
+    input.statusCode === 404 &&
+    input.isMobileApp === true &&
+    MOBILE_EXISTENCE_CHECK_ROUTES.has(`${input.method.toUpperCase()} ${input.route}`)
+  );
+}
+
 export function routeTemplate(routeUrl: string | undefined, url: string): string {
   if (routeUrl) {
     return routeUrl;

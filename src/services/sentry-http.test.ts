@@ -1,4 +1,4 @@
-import { httpEventMessage, loggedError, markUnhandledCrash, requestPath, responseErrorText, routeTemplate, sentryBody, sentryHeaders, shouldRecordHttpStatus } from './sentry-http';
+import { httpEventMessage, isBotNoise, isExpectedClientResponse, loggedError, markUnhandledCrash, requestPath, responseErrorText, routeTemplate, sentryBody, sentryHeaders, shouldRecordHttpStatus } from './sentry-http';
 
 describe('sentry http status capture', () => {
   it('records client and server responses only', () => {
@@ -7,6 +7,46 @@ describe('sentry http status capture', () => {
     expect(shouldRecordHttpStatus(400)).toBe(true);
     expect(shouldRecordHttpStatus(404)).toBe(true);
     expect(shouldRecordHttpStatus(500)).toBe(true);
+  });
+
+  it('treats unmatched routes and OPTIONS preflights as bot noise', () => {
+    expect(isBotNoise({ method: 'GET', is404: true })).toBe(true);
+    expect(isBotNoise({ method: 'POST', is404: true })).toBe(true);
+    expect(isBotNoise({ method: 'OPTIONS', is404: false })).toBe(true);
+    expect(isBotNoise({ method: 'options' })).toBe(true);
+  });
+
+  it('keeps 4xx responses from real routes', () => {
+    expect(isBotNoise({ method: 'GET', is404: false })).toBe(false);
+    expect(isBotNoise({ method: 'POST', is404: false })).toBe(false);
+    expect(isBotNoise({ method: 'POST' })).toBe(false);
+  });
+
+  it('skips 401 responses', () => {
+    expect(isExpectedClientResponse({ statusCode: 401, method: 'GET', route: '/sessions/:session_id/forms/answers' })).toBe(true);
+    expect(isExpectedClientResponse({ statusCode: 401, method: 'POST', route: '/programs', isMobileApp: false })).toBe(true);
+  });
+
+  it('skips mobile existence-check 404s only for the mobile token', () => {
+    const routes = [
+      ['GET', '/specimens/:specimen_id/images/data/:image_id'],
+      ['GET', '/sessions/:session_id/specimens/:specimen_id'],
+      ['GET', '/sessions/:session_id'],
+      ['GET', '/sessions/:session_id/survey'],
+    ];
+    for (const [method, route] of routes) {
+      expect(isExpectedClientResponse({ statusCode: 404, method, route, isMobileApp: true })).toBe(true);
+      expect(isExpectedClientResponse({ statusCode: 404, method, route, isMobileApp: false })).toBe(false);
+      expect(isExpectedClientResponse({ statusCode: 404, method, route })).toBe(false);
+    }
+  });
+
+  it('keeps other 4xx responses, even with the mobile token', () => {
+    expect(isExpectedClientResponse({ statusCode: 404, method: 'GET', route: '/programs/:program_id/forms/current', isMobileApp: true })).toBe(false);
+    expect(isExpectedClientResponse({ statusCode: 404, method: 'POST', route: '/sessions/:session_id', isMobileApp: true })).toBe(false);
+    expect(isExpectedClientResponse({ statusCode: 400, method: 'POST', route: '/sessions/:session_id/forms/answers', isMobileApp: true })).toBe(false);
+    expect(isExpectedClientResponse({ statusCode: 403, method: 'GET', route: '/sessions/:session_id', isMobileApp: true })).toBe(false);
+    expect(isExpectedClientResponse({ statusCode: 409, method: 'GET', route: '/sessions/:session_id', isMobileApp: true })).toBe(false);
   });
 
   it('reads the error string from a JSON response', () => {
