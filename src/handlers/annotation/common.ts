@@ -100,6 +100,7 @@ export async function formatAnnotationResponse(
         thumbnailImageId: specimen.thumbnailImageId,
         shouldProcessFurther: specimen.shouldProcessFurther ?? false,
         expectedImages: specimen.expectedImages,
+        molecularSpecies: specimen.molecularSpecies ?? null,
         images: [],
         thumbnailImage: null,
       };

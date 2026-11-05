@@ -12,6 +12,7 @@ class Specimen extends Model {
   declare thumbnailImageId: number | null;
   declare shouldProcessFurther: boolean;
   declare expectedImages: number;
+  declare molecularSpecies: string | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -67,6 +68,11 @@ Specimen.init(
       allowNull: false,
       defaultValue: 0,
       field: 'expected_images',
+    },
+    molecularSpecies: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'molecular_species',
     },
   },
   {

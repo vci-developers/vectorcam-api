@@ -15,6 +15,7 @@ interface UpdateSpecimenRequest {
   thumbnailImageId?: number;
   shouldProcessFurther?: boolean;
   expectedImages?: number;
+  molecularSpecies?: string | null;
 }
 
 export const schema = {
@@ -33,7 +34,8 @@ export const schema = {
       sessionUnitId: { type: ['number', 'null'] },
       thumbnailImageId: { type: 'number' },
       shouldProcessFurther: { type: 'boolean' },
-      expectedImages: { type: 'number' }
+      expectedImages: { type: 'number' },
+      molecularSpecies: { type: ['string', 'null'], maxLength: 255 },
     }
   },
   response: {
@@ -68,6 +70,7 @@ export const schema = {
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
             expectedImages: { type: 'number' },
+            molecularSpecies: { type: ['string', 'null'] },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -103,7 +106,8 @@ export async function updateSpecimen(
 ): Promise<void> {
   try {
     const { specimen_id } = request.params;
-    const { specimenId, sessionUnitId, thumbnailImageId, shouldProcessFurther, expectedImages } = request.body;
+    const { specimenId, sessionUnitId, thumbnailImageId, shouldProcessFurther, expectedImages, molecularSpecies } =
+      request.body;
     
     const specimen = await Specimen.findByPk(specimen_id);
     if (!specimen) {
@@ -146,13 +150,21 @@ export async function updateSpecimen(
       return reply.code(400).send({ error: unitError });
     }
 
-    const trackedFields = ['specimenId', 'sessionUnitId', 'thumbnailImageId', 'shouldProcessFurther', 'expectedImages'];
+    const trackedFields = [
+      'specimenId',
+      'sessionUnitId',
+      'thumbnailImageId',
+      'shouldProcessFurther',
+      'expectedImages',
+      'molecularSpecies',
+    ];
     const beforeState: Record<string, unknown> = {
       specimenId: specimen.specimenId,
       sessionUnitId: specimen.sessionUnitId,
       thumbnailImageId: specimen.thumbnailImageId,
       shouldProcessFurther: specimen.shouldProcessFurther,
       expectedImages: specimen.expectedImages,
+      molecularSpecies: specimen.molecularSpecies ?? null,
     };
 
     // Update the specimen with the new data
@@ -161,7 +173,8 @@ export async function updateSpecimen(
       sessionUnitId: nextSessionUnitId ?? null,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
       shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther,
-      expectedImages: expectedImages !== undefined ? expectedImages : specimen.expectedImages
+      expectedImages: expectedImages !== undefined ? expectedImages : specimen.expectedImages,
+      molecularSpecies: molecularSpecies !== undefined ? molecularSpecies : specimen.molecularSpecies,
     });
 
     const afterState: Record<string, unknown> = {
@@ -170,6 +183,7 @@ export async function updateSpecimen(
       thumbnailImageId: specimen.thumbnailImageId,
       shouldProcessFurther: specimen.shouldProcessFurther,
       expectedImages: specimen.expectedImages,
+      molecularSpecies: specimen.molecularSpecies ?? null,
     };
     const changedFields = getChangedFields(beforeState, afterState, trackedFields);
     if (session) {

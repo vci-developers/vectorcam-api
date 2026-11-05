@@ -221,7 +221,7 @@ export async function exportSpecimensCSV(
     }
 
     // Generate CSV header
-    let csvHeader = 'SpecimenID,ShouldProcessFurther,ExpectedImages,ImageID,ImageUrl,ImageS3Key,FileMD5,ImageMetadata,Species,Sex,AbdomenStatus,AppSpecies,AppSex,AppAbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionUnitID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionGpsAccuracy,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionExpectedSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt';
+    let csvHeader = 'SpecimenID,ShouldProcessFurther,ExpectedImages,MolecularSpecies,ImageID,ImageUrl,ImageS3Key,FileMD5,ImageMetadata,Species,Sex,AbdomenStatus,AppSpecies,AppSex,AppAbdomenStatus,CapturedAt,ImageSubmittedAt,ImageUpdatedAt,SessionID,SessionUnitID,SessionFrontendID,SessionCollectorTitle,SessionCollectorName,SessionCollectionDate,SessionCollectionMethod,SessionSpecimenCondition,SessionNotes,SessionCreatedAt,SessionCompletedAt,SessionSubmittedAt,SessionUpdatedAt,SessionLatitude,SessionLongitude,SessionGpsAccuracy,SessionType,SessionCollectorLastTrainedOn,SessionHardwareID,SessionExpectedSpecimens,SessionState,SiteID,SiteDistrict,SiteSubCounty,SiteParish,SiteVillageName,SiteHouseNumber,SiteIsActive,SiteHealthCenter,SiteLatitude,SiteLongitude,SiteLocationHierarchy,ProgramID,ProgramName,ProgramCountry,DeviceID,DeviceModel,DeviceSSAID,DeviceRegisteredAt';
     
     // Add inference result columns if requested
     if (includeInferenceResult) {
@@ -253,6 +253,7 @@ export async function exportSpecimensCSV(
           escapeCSVField(specimen.specimenId),
           escapeCSVField(specimen.shouldProcessFurther),
           escapeCSVField(specimen.expectedImages),
+          escapeCSVField(specimen.molecularSpecies),
           escapeCSVField(img.id),
           escapeCSVField(imageUrl),
           escapeCSVField(img.imageKey),

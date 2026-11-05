@@ -27,7 +27,8 @@ export const schema = {
       sessionUnitId: { type: ['number', 'null'] },
       thumbnailImageId: { type: 'number' },
       shouldProcessFurther: { type: 'boolean' },
-      expectedImages: { type: 'number' }
+      expectedImages: { type: 'number' },
+      molecularSpecies: { type: ['string', 'null'], maxLength: 255 },
     }
   },
   response: {
@@ -62,6 +63,7 @@ export const schema = {
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
             expectedImages: { type: 'number' },
+            molecularSpecies: { type: ['string', 'null'] },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -92,11 +94,12 @@ export const schema = {
 };
 
 export async function updateSessionSpecimen(
-  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; sessionUnitId?: number | null; thumbnailImageId?: number; shouldProcessFurther?: boolean; expectedImages?: number } }>,
+  request: FastifyRequest<{ Params: { session_id: string; specimen_id: string }; Body: { specimenId?: string; sessionUnitId?: number | null; thumbnailImageId?: number; shouldProcessFurther?: boolean; expectedImages?: number; molecularSpecies?: string | null } }>,
   reply: FastifyReply
 ) {
   const { session_id, specimen_id } = request.params;
-  const { specimenId, sessionUnitId, thumbnailImageId, shouldProcessFurther, expectedImages } = request.body;
+  const { specimenId, sessionUnitId, thumbnailImageId, shouldProcessFurther, expectedImages, molecularSpecies } =
+    request.body;
   try {
     // Fetch session first
     const session = await findSession(session_id);
@@ -138,7 +141,8 @@ export async function updateSessionSpecimen(
       sessionUnitId: nextSessionUnitId ?? null,
       thumbnailImageId: thumbnailImageId !== undefined ? thumbnailImageId : specimen.thumbnailImageId,
       shouldProcessFurther: shouldProcessFurther !== undefined ? shouldProcessFurther : specimen.shouldProcessFurther,
-      expectedImages: expectedImages !== undefined ? expectedImages : specimen.expectedImages
+      expectedImages: expectedImages !== undefined ? expectedImages : specimen.expectedImages,
+      molecularSpecies: molecularSpecies !== undefined ? molecularSpecies : specimen.molecularSpecies,
     });
     const updated = await specimen.reload();
     const formatted = await formatSpecimenResponse(updated, false);

@@ -48,6 +48,7 @@ export const schema = {
         thumbnailImageId: { type: ['number', 'null'] },
         shouldProcessFurther: { type: 'boolean' },
         expectedImages: { type: 'number' },
+        molecularSpecies: { type: ['string', 'null'] },
         images: {
           type: 'array',
           items: {

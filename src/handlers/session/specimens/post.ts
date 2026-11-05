@@ -25,7 +25,8 @@ export const schema = {
       specimenId: { type: 'string' },
       sessionUnitId: { type: ['number', 'null'] },
       shouldProcessFurther: { type: 'boolean' },
-      expectedImages: { type: 'number' }
+      expectedImages: { type: 'number' },
+      molecularSpecies: { type: ['string', 'null'], maxLength: 255 },
     }
   },
   response: {
@@ -60,6 +61,7 @@ export const schema = {
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
             expectedImages: { type: 'number' },
+            molecularSpecies: { type: ['string', 'null'] },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -90,11 +92,11 @@ export const schema = {
 };
 
 export async function createSessionSpecimen(
-  request: FastifyRequest<{ Params: { session_id: string }; Body: { specimenId: string; sessionUnitId?: number | null; shouldProcessFurther?: boolean; expectedImages?: number } }>,
+  request: FastifyRequest<{ Params: { session_id: string }; Body: { specimenId: string; sessionUnitId?: number | null; shouldProcessFurther?: boolean; expectedImages?: number; molecularSpecies?: string | null } }>,
   reply: FastifyReply
 ) {
   const { session_id } = request.params;
-  const { specimenId, sessionUnitId, shouldProcessFurther, expectedImages } = request.body;
+  const { specimenId, sessionUnitId, shouldProcessFurther, expectedImages, molecularSpecies } = request.body;
   try {
     // Check if session exists
     const session = await findSession(session_id);
@@ -116,6 +118,7 @@ export async function createSessionSpecimen(
       specimenId,
       shouldProcessFurther: shouldProcessFurther ?? false,
       expectedImages,
+      molecularSpecies: molecularSpecies ?? null,
     });
     const formatted = await formatSpecimenResponse(specimen, false);
     return reply.code(201).send({ message: 'Specimen created successfully', specimen: formatted });

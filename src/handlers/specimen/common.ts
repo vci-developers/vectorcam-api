@@ -216,6 +216,7 @@ export interface SpecimenResponse {
   thumbnailImageId: number | null;
   shouldProcessFurther: boolean;
   expectedImages: number;
+  molecularSpecies: string | null;
   images: Array<ImageResponse>;
   thumbnailImage: ImageResponse | null;
 }
@@ -329,6 +330,7 @@ export function formatSpecimenResponseFromImages(specimen: Specimen, images: Spe
     thumbnailImageId: specimen.thumbnailImageId,
     shouldProcessFurther: specimen.shouldProcessFurther,
     expectedImages: specimen.expectedImages,
+    molecularSpecies: specimen.molecularSpecies ?? null,
     images: imagesToReturn,
     thumbnailImage: thumbnailImageObj,
   };
@@ -376,6 +378,7 @@ export async function formatSpecimenResponse(specimen: Specimen, allImages: bool
     thumbnailImageId: specimen.thumbnailImageId,
     shouldProcessFurther: specimen.shouldProcessFurther,
     expectedImages: specimen.expectedImages,
+    molecularSpecies: specimen.molecularSpecies ?? null,
     images: imagesToReturn,
     thumbnailImage: thumbnailImageObj,
   };

@@ -15,6 +15,7 @@ interface CreateSpecimenRequest {
   sessionUnitId?: number | null;
   shouldProcessFurther?: boolean;
   expectedImages?: number;
+  molecularSpecies?: string | null;
 }
 
 export const schema = {
@@ -28,7 +29,8 @@ export const schema = {
       sessionId: { type: 'number' },
       sessionUnitId: { type: ['number', 'null'] },
       shouldProcessFurther: { type: 'boolean' },
-      expectedImages: { type: 'number' }
+      expectedImages: { type: 'number' },
+      molecularSpecies: { type: ['string', 'null'], maxLength: 255 },
     }
   },
   response: {
@@ -63,6 +65,7 @@ export const schema = {
             thumbnailImageId: { type: ['number', 'null'] },
             shouldProcessFurther: { type: 'boolean' },
             expectedImages: { type: 'number' },
+            molecularSpecies: { type: ['string', 'null'] },
             thumbnailImage: {
               anyOf: [
                 { type: 'null' },
@@ -103,6 +106,7 @@ export async function createSpecimen(
       sessionUnitId,
       shouldProcessFurther,
       expectedImages,
+      molecularSpecies,
     } = request.body;
 
     // Check if session exists
@@ -140,6 +144,7 @@ export async function createSpecimen(
       sessionUnitId: sessionUnitId ?? null,
       shouldProcessFurther: shouldProcessFurther ?? false,
       expectedImages,
+      molecularSpecies: molecularSpecies ?? null,
     });
 
     const formattedResponse = await formatSpecimenResponse(specimen, false);
