@@ -47,6 +47,17 @@ interface SpecimenCountRow {
   count: number;
 }
 
+interface SpecimenDetailRow {
+  specimenId: string;
+  sessionId: number;
+  district: string | null;
+  siteId: number;
+  collectionDate: Date | null;
+  species: string | null;
+  sex: string | null;
+  abdomenStatus: string | null;
+}
+
 interface GroupAccumulator {
   monthKey: string;
   siteId: number;
@@ -384,6 +395,10 @@ export async function exportSessionReport(
           name: 'Missing Data',
           rows: [['No matching sites found for provided filters.']],
         },
+        {
+          name: 'Specimens',
+          rows: [['No specimens found for provided filters.']],
+        },
       ]);
     }
 
@@ -409,6 +424,10 @@ export async function exportSessionReport(
         {
           name: 'Missing Data',
           rows: [['No leaf sites found for provided filters.']],
+        },
+        {
+          name: 'Specimens',
+          rows: [['No specimens found for provided filters.']],
         },
       ]);
     }
@@ -975,6 +994,9 @@ export async function exportSessionReport(
     const missingFirstSpecimenColumn = missingLastLocationColumn + 1;
     const missingLastSpecimenColumn = missingFirstSpecimenColumn + 2;
 
+    const specimenDetailRows = await getSpecimenDetailsBySession(sessionIds);
+    const specimensSheetRows = buildSpecimensSheetRows(specimenDetailRows);
+
     return await sendWorkbook(reply, [
       {
         name: 'Report',
@@ -997,10 +1019,76 @@ export async function exportSessionReport(
           specimen: [missingFirstSpecimenColumn, missingLastSpecimenColumn],
         },
       },
+      {
+        name: 'Specimens',
+        rows: specimensSheetRows,
+      },
     ]);
   } catch (error) {
     return handleError(error, request, reply, 'Failed to export report');
   }
+}
+
+function buildSpecimensSheetRows(rows: SpecimenDetailRow[]): Array<Array<string | number>> {
+  const headerRow = [
+    'Specimen ID',
+    'Session ID',
+    'District',
+    'Site',
+    'Collection Date',
+    'Species',
+    'Sex',
+    'Abdomen Status',
+  ];
+
+  if (rows.length === 0) {
+    return [headerRow, ['No specimens found for provided filters.']];
+  }
+
+  const dataRows = rows.map((row) => [
+    row.specimenId,
+    row.sessionId,
+    normalizeValue(row.district),
+    row.siteId,
+    row.collectionDate ? formatTimestamp(row.collectionDate) : '',
+    normalizeValue(row.species),
+    normalizeValue(row.sex),
+    normalizeValue(row.abdomenStatus),
+  ]);
+
+  return [headerRow, ...dataRows];
+}
+
+async function getSpecimenDetailsBySession(sessionIds: number[]): Promise<SpecimenDetailRow[]> {
+  if (sessionIds.length === 0) return [];
+
+  const query = `
+    SELECT
+      sp.specimen_id AS specimenId,
+      sp.session_id AS sessionId,
+      s.district AS district,
+      s.id AS siteId,
+      sess.collection_date AS collectionDate,
+      si.species AS species,
+      si.sex AS sex,
+      si.abdomen_status AS abdomenStatus
+    FROM specimens sp
+    INNER JOIN sessions sess ON sp.session_id = sess.id
+    INNER JOIN sites s ON sess.site_id = s.id
+    LEFT JOIN specimen_images si ON sp.thumbnail_image_id = si.id
+    WHERE sess.id IN (:sessionIds)
+    ORDER BY
+      sess.collection_date ASC,
+      sp.session_id ASC,
+      sp.specimen_id ASC
+  `;
+
+  const rows = await sequelize.query(query, {
+    replacements: { sessionIds },
+    type: QueryTypes.SELECT,
+  }) as SpecimenDetailRow[];
+
+  return rows;
 }
 
 async function getSpecimenCountsBySession(sessionIds: number[]): Promise<SpecimenCountRow[]> {
@@ -1145,7 +1233,7 @@ function styleSimpleHeaderRow(worksheet: ExcelJS.Worksheet): void {
   worksheet.eachRow((row) => {
     const firstCell = row.getCell(1);
     const firstValue = firstCell.value === null || firstCell.value === undefined ? '' : String(firstCell.value);
-    if (firstValue !== 'Site ID') return;
+    if (firstValue !== 'Site ID' && firstValue !== 'Specimen ID') return;
 
     row.eachCell((cell) => {
       cell.font = { bold: true };
