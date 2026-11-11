@@ -1,4 +1,13 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CreateMultipartUploadCommand, UploadPartCommand, CompleteMultipartUploadCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  CopyObjectCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { config } from '../config/environment';
 import pino from 'pino';
@@ -15,6 +24,31 @@ export const s3Client = new S3Client({
     secretAccessKey: config.aws.secretAccessKey || '',
   },
 });
+
+export function getMainS3Bucket(): string {
+  return config.aws.s3BucketName || '';
+}
+
+export function getDataRecoveryObjectPrefix(): string {
+  return (config.aws.s3RecoveryObjectPrefix || 'data-recoveries').replace(/\/+$/, '');
+}
+
+export async function copyObjectInMainBucket(sourceKey: string, destKey: string): Promise<void> {
+  const bucket = getMainS3Bucket();
+  if (!bucket) {
+    throw new Error('S3 bucket is not configured');
+  }
+  if (sourceKey === destKey) {
+    return;
+  }
+  const command = new CopyObjectCommand({
+    Bucket: bucket,
+    Key: destKey,
+    CopySource: `${bucket}/${sourceKey.split('/').map(encodeURIComponent).join('/')}`,
+  });
+  await s3Client.send(command);
+  logger.info(`Copied S3 object ${sourceKey} -> ${destKey}`);
+}
 
 export const uploadFile = async (
   key: string, 
@@ -95,6 +129,32 @@ export const getPresignedDownloadUrl = async (
     return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
   } catch (error) {
     logger.error('Error generating presigned download URL:', error);
+    throw error;
+  }
+};
+
+export const getFileStreamFromBucket = async (
+  bucket: string,
+  key: string
+): Promise<{ stream: Readable; contentType: string }> => {
+  try {
+    const command = new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+
+    if (!response.Body) {
+      throw new Error('Failed to get file stream');
+    }
+
+    const stream = response.Body as Readable;
+    const contentType = response.ContentType || 'application/octet-stream';
+
+    return { stream, contentType };
+  } catch (error) {
+    logger.error('Error getting file stream from S3:', error);
     throw error;
   }
 };

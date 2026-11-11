@@ -248,6 +248,12 @@ npm start
 - `GET /specimens/:specimen_id/images/uploads` - Get upload list
 - `GET /specimens/:specimen_id/images/uploads/:upload_id` - Get upload details
 
+### Data recovery
+- `POST /data-recoveries` - Store recovery metadata (mobile or admin)
+- TUS `POST /data-recoveries/:id/tus` - Upload image bytes for a recovery row
+- `GET /data-recoveries/:id/image` - Download uploaded recovery image (admin)
+- See [docs/data-recovery-image-upload.md](docs/data-recovery-image-upload.md) for the mobile flow.
+
 ### Documentation
 - `GET /documentation` - Interactive API documentation (Swagger UI)
 

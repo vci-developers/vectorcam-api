@@ -17,7 +17,9 @@ interface CreateDataRecoveryBody {
 
 export const schema = {
   tags: ['Data Recovery'],
-  description: 'Store an unstructured recovery payload. Correlation fields are optional and are not validated against other tables.',
+  description:
+    'Store an unstructured recovery payload. Correlation fields are optional and are not validated against other tables. ' +
+    'For stale specimen images, include filemd5 and related metadata in payload, then upload bytes via TUS at POST /data-recoveries/{id}/tus (Upload-Metadata: filemd5, contentType).',
   body: {
     type: 'object',
     required: ['idempotencyKey', 'payload'],

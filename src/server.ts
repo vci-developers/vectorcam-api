@@ -83,7 +83,8 @@ async function setupServer(): Promise<void> {
           { name: 'Specimens', description: 'Specimen management endpoints' },
           { name: 'Specimen Images', description: 'Specimen image management and multipart upload endpoints' },
           { name: 'DHIS2', description: 'DHIS2 integration and data synchronization endpoints (admin only)' },
-          { name: 'Vector AI', description: 'Vector AI inference proxy endpoints (admin, mobile, or developer only)' }
+          { name: 'Vector AI', description: 'Vector AI inference proxy endpoints (admin, mobile, or developer only)' },
+          { name: 'Data Recovery', description: 'Landing zone for payloads and TUS image uploads that could not be reconciled immediately' },
         ]
       }
     });
