@@ -235,6 +235,35 @@ export function formAnswerJoins(): string {
     LEFT JOIN form_questions fq ON fq.id = fa.question_id AND fq.form_id = f.id`;
 }
 
+export function legacySurveillanceFormsInRangeSql(): string {
+  return `
+    SELECT 1 AS found
+    FROM surveillanceforms sf
+    INNER JOIN sessions sess ON sess.id = sf.session_id
+    WHERE sess.site_id IN (:siteIds)
+      AND sess.collection_date >= :startDate
+      AND sess.collection_date < :endDate
+      AND sess.type = 'SURVEILLANCE'
+    LIMIT 1`;
+}
+
+async function hasLegacySurveillanceFormsInRange(
+  siteIds: number[],
+  startDate: Date,
+  endDate: Date
+): Promise<boolean> {
+  if (siteIds.length === 0) {
+    return false;
+  }
+
+  const rows = await sequelize.query(legacySurveillanceFormsInRangeSql(), {
+    replacements: { siteIds, startDate, endDate },
+    type: QueryTypes.SELECT,
+  });
+
+  return rows.length > 0;
+}
+
 interface HouseholdMetricsRow {
   site_id: number;
   num_people_slept_in_house: number | null;
@@ -598,11 +627,18 @@ export async function getMetrics(
     let questionMappings: SurveillanceQuestionMappings | undefined;
 
     if (metricsProgramId !== undefined) {
-      const formContext = await resolveMetricsFormContext(metricsProgramId);
-      if (formContext) {
-        useFormMetrics = true;
-        formMetricsProgramId = formContext.programId;
-        questionMappings = formContext.mappings;
+      const legacyFormsInRange = await hasLegacySurveillanceFormsInRange(
+        siteScope.filteredSiteIds,
+        startDate,
+        endDate
+      );
+      if (!legacyFormsInRange) {
+        const formContext = await resolveMetricsFormContext(metricsProgramId);
+        if (formContext) {
+          useFormMetrics = true;
+          formMetricsProgramId = formContext.programId;
+          questionMappings = formContext.mappings;
+        }
       }
     }
 

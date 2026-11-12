@@ -1,4 +1,8 @@
-import { formAnswerJoins, numericAnswerSqlByKeys } from './getMetrics';
+import {
+  formAnswerJoins,
+  legacySurveillanceFormsInRangeSql,
+  numericAnswerSqlByKeys,
+} from './getMetrics';
 
 describe('household metric answer pick', () => {
   it('uses the largest numeric answer when a question key matches more than once', () => {
@@ -13,6 +17,17 @@ describe('household metric answer pick', () => {
     expect(sql).toContain('fq.question_key IN (:num_people_slept_in_house_0)');
     expect(sql).toContain('CAST(JSON_UNQUOTE(fa.value) AS DECIMAL(20, 4))');
     expect(replacements.num_people_slept_in_house_0).toBe('number_of_people_who_slept_in_the_house');
+  });
+
+  it('treats any legacy surveillance form in the requested range as the legacy-metrics switch', () => {
+    const sql = legacySurveillanceFormsInRangeSql();
+
+    expect(sql).toContain('FROM surveillanceforms sf');
+    expect(sql).toContain('sess.site_id IN (:siteIds)');
+    expect(sql).toContain('sess.collection_date >= :startDate');
+    expect(sql).toContain('sess.collection_date < :endDate');
+    expect(sql).toContain("sess.type = 'SURVEILLANCE'");
+    expect(sql).toContain('LIMIT 1');
   });
 
   it('joins every form in the program and only questions on that form', () => {
