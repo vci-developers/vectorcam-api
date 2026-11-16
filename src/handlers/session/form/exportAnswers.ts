@@ -127,7 +127,7 @@ export async function exportFormAnswersCSV(
       order: [['submittedAt', 'DESC']],
     });
 
-    let csv = 'AnswerID,FormID,FormName,FormVersion,ProgramID,ProgramName,SessionID,SessionFrontendID,SiteID,QuestionID,QuestionLabel,QuestionType,Required,Value,DataType,SubmittedAt,CreatedAt,UpdatedAt\n';
+    let csv = 'AnswerID,FormID,FormName,FormVersion,ProgramID,ProgramName,SessionID,SessionFrontendID,SiteID,QuestionID,QuestionLabel,QuestionType,Required,Value,DataType,SubmittedAt,CreatedAt,UpdatedAt,SessionUnitID,AnswerScope,QuestionKey\n';
 
     for (const answer of answers) {
       const form = answer.get('form') as Form | undefined;
@@ -161,6 +161,9 @@ export async function exportFormAnswersCSV(
         answer.submittedAt?.toISOString() ?? '',
         answer.createdAt?.toISOString() ?? '',
         answer.updatedAt?.toISOString() ?? '',
+        answer.sessionUnitId ?? '',
+        escapeCSVField(question?.answerScope ?? ''),
+        escapeCSVField(question?.questionKey ?? ''),
       ].join(',');
 
       csv += row + '\n';
