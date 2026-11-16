@@ -123,7 +123,10 @@ class DHIS2AggregationService {
 
   private async getHouseholdData(whereClause: any): Promise<HouseholdData[]> {
     const sessions = await Session.findAll({
-      where: whereClause,
+      where: {
+        ...whereClause,
+        type: 'SURVEILLANCE',
+      },
       include: [
         {
           model: Site,
