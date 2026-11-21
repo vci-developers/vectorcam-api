@@ -1,10 +1,20 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import sequelize from '../../db';
 import { UserWhitelist, Site, SiteUser, User, Program } from '../../db/models';
+import {
+  getUserRoleAssignments,
+  legacyPrivilegeAssignment,
+  RoleAssignmentInput,
+  RoleValidationError,
+  setUserRoleAssignments,
+} from '../../services/roles.service';
+import { roleAssignmentInputSchema, roleAssignmentSchema } from '../role/common';
 
 interface WhitelistBody {
   email: string;
   programId?: number;
   adminPrivilege?: number;
+  roles?: RoleAssignmentInput[];
   districtAccess?: string;
   siteIds?: number[];
 }
@@ -31,8 +41,13 @@ export const addToWhitelistSchema: any = {
       },
       adminPrivilege: { 
         type: 'number',
-        description: 'Optional privilege: 0=view one site, 1=view all in program, 2=write/push one site, 3=write/push all in program, 4=write/push all in program + annotate',
+        description: 'Deprecated, use roles. Assigns the matching built-in role: 0=Viewer on assigned sites, 1=Viewer for the program, 2=Editor on assigned sites, 3=Program Manager, 4=Program Admin',
         enum: [0, 1, 2, 3, 4]
+      },
+      roles: {
+        type: 'array',
+        items: roleAssignmentInputSchema,
+        description: 'Role assignments that replace the user\'s current roles. Cannot be combined with adminPrivilege.'
       },
       districtAccess: {
         type: 'string',
@@ -64,9 +79,10 @@ export const addToWhitelistSchema: any = {
             id: { type: 'number' },
             email: { type: 'string' },
             name: { type: ['string', 'null'] },
-            privilege: { type: 'number' },
+            privilege: { type: 'number', description: 'Deprecated: legacy level derived from roles' },
             isDeveloper: { type: 'boolean' },
             programId: { type: 'number' },
+            roles: { type: 'array', items: roleAssignmentSchema },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
           },
         },
@@ -90,9 +106,10 @@ export const addToWhitelistSchema: any = {
             id: { type: 'number' },
             email: { type: 'string' },
             name: { type: ['string', 'null'] },
-            privilege: { type: 'number' },
+            privilege: { type: 'number', description: 'Deprecated: legacy level derived from roles' },
             isDeveloper: { type: 'boolean' },
             programId: { type: 'number' },
+            roles: { type: 'array', items: roleAssignmentSchema },
             sitesGranted: { type: 'number', description: 'Number of sites granted access to' },
           },
         },
@@ -221,7 +238,7 @@ export const removeFromWhitelistSchema: any = {
  */
 export async function addToWhitelistHandler(request: FastifyRequest<{ Body: WhitelistBody }>, reply: FastifyReply): Promise<void> {
   try {
-    const { email, programId: providedProgramId, adminPrivilege, districtAccess, siteIds } = request.body;
+    const { email, programId: providedProgramId, adminPrivilege, roles, districtAccess, siteIds } = request.body;
 
     // Validate input
     if (!email) {
@@ -237,6 +254,9 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
     // Validate admin privilege if provided
     if (adminPrivilege !== undefined && ![0, 1, 2, 3, 4].includes(adminPrivilege)) {
       return reply.code(400).send({ error: 'Invalid privilege. Must be 0, 1, 2, 3, or 4' });
+    }
+    if (adminPrivilege !== undefined && roles !== undefined) {
+      return reply.code(400).send({ error: 'Provide either roles or adminPrivilege, not both' });
     }
 
     // Check if email is already whitelisted
@@ -283,12 +303,23 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
     let whitelistEntry = existingEntry;
 
     if (user) {
-      // User exists, assign program and grant privileges/site access
-      const updateData: any = { programId };
-      if (adminPrivilege !== undefined) {
-        updateData.privilege = adminPrivilege;
+      // User exists, assign program and roles
+      const transaction = await sequelize.transaction();
+      try {
+        await user.update({ programId }, { transaction });
+        const assignments = roles
+          ?? (adminPrivilege !== undefined ? [await legacyPrivilegeAssignment(adminPrivilege, transaction)] : undefined);
+        if (assignments) {
+          await setUserRoleAssignments(user, assignments, transaction);
+        }
+        await transaction.commit();
+      } catch (error) {
+        await transaction.rollback();
+        if (error instanceof RoleValidationError) {
+          return reply.code(400).send({ error: error.message });
+        }
+        throw error;
       }
-      await user.update(updateData);
 
       // Collect site IDs to grant access to (merge districtAccess sites and explicit siteIds)
       const mergedSiteIdSet = new Set<number>();
@@ -353,6 +384,7 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         privilege: user.privilege,
         isDeveloper: user.isDeveloper,
         programId: user.programId,
+        roles: await getUserRoleAssignments(user.id),
         sitesGranted
       };
     }
@@ -379,8 +411,8 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         ? 'Email was already whitelisted.' 
         : 'Email added to whitelist successfully.';
       
-      if (adminPrivilege !== undefined || hasSiteAccess) {
-        message = `${baseMessage} User assigned to program ${programId}, privileges updated and ${sitesGranted} sites granted access.`;
+      if (adminPrivilege !== undefined || roles !== undefined || hasSiteAccess) {
+        message = `${baseMessage} User assigned to program ${programId}, roles updated and ${sitesGranted} sites granted access.`;
       } else {
         message = `${baseMessage} User assigned to program ${programId}.`;
       }
@@ -389,11 +421,11 @@ export async function addToWhitelistHandler(request: FastifyRequest<{ Body: Whit
         ? 'Email was already whitelisted.' 
         : 'Email added to whitelist successfully.';
         
-      const hasPrivilegeRequest = adminPrivilege !== undefined;
+      const hasRoleRequest = adminPrivilege !== undefined || roles !== undefined;
       
-      if (hasPrivilegeRequest || hasSiteAccess) {
+      if (hasRoleRequest || hasSiteAccess) {
         const warnings = [];
-        if (hasPrivilegeRequest) warnings.push('admin privileges');
+        if (hasRoleRequest) warnings.push('roles');
         if (hasSiteAccess) warnings.push('site access');
         
         message = `${baseMessage} Program ${programId} recorded. WARNING: User not found - ${warnings.join(' and ')} could not be granted. User will need to register first to receive these privileges.`;

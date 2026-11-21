@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Transaction } from 'sequelize';
 import sequelize from '../../db';
 import { AnnotationTask, Annotation } from '../../db/models';
+import { canAccessTaskOwner, managedTaskOwnerIds } from '../annotation/access';
 
 interface DeleteAnnotationTaskParams {
   taskId: number;
@@ -19,7 +20,7 @@ interface DeleteAnnotationTaskRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Delete annotation task',
-  description: 'Delete annotation task. Pass force=true to delete all associated annotations first (requires admin token only)',
+  description: 'Delete annotation task. Pass force=true to delete all associated annotations first (requires annotation:manage)',
   params: {
     type: 'object',
     required: ['taskId'],
@@ -71,7 +72,7 @@ export default async function deleteAnnotationTask(
 
     const task = await AnnotationTask.findByPk(taskId, { transaction });
 
-    if (!task) {
+    if (!task || !canAccessTaskOwner(await managedTaskOwnerIds(request), task.userId)) {
       await transaction.rollback();
       return reply.code(404).send({ error: 'Annotation task not found' });
     }

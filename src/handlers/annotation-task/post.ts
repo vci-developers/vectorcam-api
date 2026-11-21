@@ -12,6 +12,7 @@ import {
   CollectionCycle,
 } from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
+import { findActiveUsersWithProgramPermission } from '../../services/roles.service';
 
 interface CreateAnnotationTasksBody {
   title?: string;
@@ -41,7 +42,7 @@ export const schema = {
   tags: ['Annotations'],
   summary: 'Create annotation tasks for specimens in a collection cycle',
   description:
-    'Creates annotation tasks by assigning unassigned specimens from the given collection cycle to superadmins in the same program, with overlapping duplicate specimens and unique base specimens per annotator (requires admin token)',
+    'Creates annotation tasks by assigning unassigned specimens from the given collection cycle to users with annotation:annotate in the same program, with overlapping duplicate specimens and unique base specimens per annotator (requires annotation:manage)',
   body: {
     type: 'object',
     properties: {
@@ -163,6 +164,11 @@ export default async function createAnnotationTasks(
       return reply.code(400).send({ error: 'At least one of duplicates or base must be greater than 0' });
     }
 
+    if (!request.access.canAccessProgram(programId)) {
+      await transaction.rollback();
+      return reply.code(403).send({ error: 'Forbidden: Program access denied' });
+    }
+
     const program = await Program.findByPk(programId, { transaction });
     if (!program) {
       await transaction.rollback();
@@ -181,19 +187,9 @@ export default async function createAnnotationTasks(
       });
     }
 
-    const superAdminUsers = await User.findAll({
-      where: {
-        programId,
-        privilege: {
-          [Op.gte]: 4,
-        },
-        isActive: true,
-      },
-      order: [['id', 'ASC']],
-      transaction,
-    });
+    const annotators = await findActiveUsersWithProgramPermission(programId, 'annotation:annotate', transaction);
 
-    if (superAdminUsers.length === 0) {
+    if (annotators.length === 0) {
       await transaction.rollback();
       return reply.code(400).send({
         error: `No active annotation users found for program ${programId} to assign tasks to`,
@@ -244,7 +240,7 @@ export default async function createAnnotationTasks(
       });
     }
 
-    const annotatorCount = superAdminUsers.length;
+    const annotatorCount = annotators.length;
     const shuffledSpecimens = shuffleArray(availableSpecimens);
     const duplicateCount = Math.min(duplicates, shuffledSpecimens.length);
     const duplicateSpecimens = shuffledSpecimens.slice(0, duplicateCount);
@@ -263,7 +259,7 @@ export default async function createAnnotationTasks(
     const userTasks: { [userId: number]: AnnotationTask } = {};
     const userSpecimenAssignments: { [userId: number]: SpecimenWithAssociations[] } = {};
 
-    for (const user of superAdminUsers) {
+    for (const user of annotators) {
       userSpecimenAssignments[user.id] = [];
 
       const task = await AnnotationTask.create(
@@ -283,18 +279,18 @@ export default async function createAnnotationTasks(
     for (let specimenIndex = 0; specimenIndex < duplicateSpecimens.length; specimenIndex++) {
       const specimen = duplicateSpecimens[specimenIndex];
       for (let offset = 0; offset < DUPLICATE_WINDOW_SIZE; offset++) {
-        const adminIndex = (specimenIndex + offset) % superAdminUsers.length;
-        const user = superAdminUsers[adminIndex];
+        const adminIndex = (specimenIndex + offset) % annotators.length;
+        const user = annotators[adminIndex];
         userSpecimenAssignments[user.id].push(specimen);
       }
     }
 
-    const basePerAdmin = Math.floor(baseSpecimens.length / superAdminUsers.length);
-    const extraBaseCount = baseSpecimens.length % superAdminUsers.length;
+    const basePerAdmin = Math.floor(baseSpecimens.length / annotators.length);
+    const extraBaseCount = baseSpecimens.length % annotators.length;
     let baseIndex = 0;
-    for (let adminIndex = 0; adminIndex < superAdminUsers.length; adminIndex++) {
+    for (let adminIndex = 0; adminIndex < annotators.length; adminIndex++) {
       const count = basePerAdmin + (adminIndex < extraBaseCount ? 1 : 0);
-      const user = superAdminUsers[adminIndex];
+      const user = annotators[adminIndex];
       for (let j = 0; j < count; j++) {
         userSpecimenAssignments[user.id].push(baseSpecimens[baseIndex]);
         baseIndex++;
@@ -308,7 +304,7 @@ export default async function createAnnotationTasks(
       status: string;
     }> = [];
 
-    for (const user of superAdminUsers) {
+    for (const user of annotators) {
       const task = userTasks[user.id];
       const assignedSpecimens = userSpecimenAssignments[user.id];
 

@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Transaction, Op } from 'sequelize';
 import sequelize from '../../db';
 import { AnnotationTask, Annotation } from '../../db/models';
+import { canAccessTaskOwner, managedTaskOwnerIds } from '../annotation/access';
 
 interface BulkDeleteAnnotationsParams {
   taskId: number;
@@ -31,7 +32,7 @@ function parseAnnotationIdsParam(value?: string): number[] {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Bulk delete annotations from a task',
-  description: 'Deletes annotations under a specific annotation task. Omit annotationIds or leave it empty to delete all annotations on the task (requires admin token)',
+  description: 'Deletes annotations under a specific annotation task. Omit annotationIds or leave it empty to delete all annotations on the task (requires annotation:manage)',
   params: {
     type: 'object',
     required: ['taskId'],
@@ -87,7 +88,7 @@ export default async function bulkDeleteAnnotations(
     const uniqueAnnotationIds = parseAnnotationIdsParam(request.query.annotationIds);
 
     const task = await AnnotationTask.findByPk(taskId, { transaction });
-    if (!task) {
+    if (!task || !canAccessTaskOwner(await managedTaskOwnerIds(request), task.userId)) {
       await transaction.rollback();
       return reply.code(404).send({ error: 'Annotation task not found' });
     }

@@ -1,7 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { getUserSiteAccess } from '../../middleware/siteAccess.middleware';
 import { Site } from '../../db/models';
 import { formatSiteResponse, siteCoordinatesResponseSchema } from '../site/common';
+import { getUserRoleAssignments } from '../../services/roles.service';
+import { Permission } from '../../services/permissions';
 
 interface PermissionsQuery {
   siteId?: string;
@@ -65,7 +66,7 @@ export const getPermissionsSchema: any = {
                       }
                     }
                   },
-                  description: 'Array of site objects user has access to within their assigned program.'
+                  description: 'Sites the user can read within their assigned program, including child sites of assigned sites.'
                 },
               },
             },
@@ -74,6 +75,36 @@ export const getPermissionsSchema: any = {
               properties: {
                 viewAndWriteAnnotationTasks: { type: 'boolean' },
               },
+            },
+            grants: {
+              type: 'array',
+              description: 'Every permission the user holds and the scope it applies to (program, assigned_sites, or all)',
+              items: {
+                type: 'object',
+                properties: {
+                  permission: { type: 'string' },
+                  scope: { type: 'string' },
+                },
+              },
+            },
+            roles: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  roleId: { type: 'number' },
+                  key: { type: 'string' },
+                  name: { type: 'string' },
+                  programId: { type: ['number', 'null'] },
+                  isSystem: { type: 'boolean' },
+                  scope: { type: 'string' },
+                },
+              },
+            },
+            assignedSiteIds: {
+              type: 'array',
+              description: 'Sites the user is directly assigned to',
+              items: { type: 'number' },
             },
           },
         },
@@ -107,18 +138,9 @@ export const getPermissionsSchema: any = {
 };
 
 /**
- * Get current user permissions handler
- * Maps authenticated user permissions into structured format based on privilege level and site associations
- * 
- * All access is scoped to the user's assigned program. No cross-program access is allowed.
- * 
- * Permission mapping logic:
- * - 0: READ/VIEW assigned site(s) within program
- * - 1: READ/VIEW all sites within program
- * - 2: READ/VIEW + WRITE + PUSH assigned site(s) within program
- * - 3: READ/VIEW + WRITE + PUSH all sites within program
- * - 4: READ/VIEW + WRITE + PUSH all sites within program + ANNOTATE
- * - Regular User: No access
+ * Get current user permissions handler.
+ * The site booleans are kept for existing clients; `grants` lists the full permission set.
+ * With `siteId`, each site boolean also requires the permission to cover that site.
  */
 export async function getPermissionsHandler(
   request: FastifyRequest<{ Querystring: PermissionsQuery }>,
@@ -127,7 +149,6 @@ export async function getPermissionsHandler(
   try {
     const { siteId } = request.query;
 
-    // Get user ID from authenticated user in request
     if (!request.user) {
       return reply.code(401).send({ error: 'Authentication required' });
     }
@@ -140,7 +161,6 @@ export async function getPermissionsHandler(
       return reply.code(500).send({ error: 'Internal server error: user program not configured' });
     }
 
-    // Validate siteId parameter if provided
     let parsedSiteId: number | undefined;
     if (siteId) {
       parsedSiteId = parseInt(siteId);
@@ -149,79 +169,49 @@ export async function getPermissionsHandler(
       }
     }
 
-    // Get site access using the shared function from middleware (program-scoped)
-    const siteAccess = await getUserSiteAccess(user.id, user.isWhitelisted, user.privilege, user.programId);
-
-    // Structure the permissions response
-    let hasAccessToQueriedSite = true;
-
-    // If siteId query parameter is provided, filter permissions for that specific site
-    if (parsedSiteId !== undefined) {
-      if (siteAccess.userSites.length === 0) {
-        // No sites accessible (e.g. no program assigned)
-        hasAccessToQueriedSite = false;
-      } else {
-        // Check if the site is in user's site list (program-scoped)
-        hasAccessToQueriedSite = siteAccess.userSites.includes(parsedSiteId);
-      }
-    }
-
-    // Determine site permissions
-    let sitePermissions = {
-      viewSiteMetadata: false,
-      writeSiteMetadata: false,
-      pushSiteMetadata: false,
-      canAccessSites: [] as any[],
+    const access = request.access;
+    const programId = user.programId;
+    const programSiteIds = async (): Promise<number[]> => {
+      const sites = await Site.findAll({ where: { programId }, attributes: ['id'] });
+      return sites.map((site) => site.id);
     };
 
-    // Determine annotation permissions
-    let annotationPermissions = {
-      viewAndWriteAnnotationTasks: false,
+    // Unrestricted users (developers) are reported against their own program's sites
+    const sitesFor = async (permission: Permission): Promise<number[]> =>
+      (await access.siteIdsFor(permission)) ?? programSiteIds();
+
+    const holdsForQueriedSite = async (permission: Permission): Promise<boolean> => {
+      if (!access.has(permission)) return false;
+      if (parsedSiteId === undefined) return true;
+      return (await sitesFor(permission)).includes(parsedSiteId);
     };
 
-    if (user.privilege >= 3) {
-      // Program-wide data access (scoped to program)
-      sitePermissions.viewSiteMetadata = true;
-      sitePermissions.writeSiteMetadata = true;
-      sitePermissions.pushSiteMetadata = true;
-      annotationPermissions.viewAndWriteAnnotationTasks = user.privilege >= 4;
-    } else if (user.privilege === 2) {
-      // Per-site writer/pusher
-      sitePermissions.viewSiteMetadata = hasAccessToQueriedSite && siteAccess.canRead;
-      sitePermissions.writeSiteMetadata = hasAccessToQueriedSite && siteAccess.canWrite;
-      sitePermissions.pushSiteMetadata = hasAccessToQueriedSite && siteAccess.canPush;
-      annotationPermissions.viewAndWriteAnnotationTasks = false;
-    } else if (user.privilege === 1) {
-      // Read-only all sites within program
-      sitePermissions.viewSiteMetadata = siteAccess.canRead;
-      sitePermissions.writeSiteMetadata = false;
-      sitePermissions.pushSiteMetadata = false;
-      annotationPermissions.viewAndWriteAnnotationTasks = false;
-    } else if (siteAccess.canRead) {
-      // Privilege 0 / whitelisted read-only per site
-      sitePermissions.viewSiteMetadata = hasAccessToQueriedSite;
-      sitePermissions.writeSiteMetadata = false;
-      sitePermissions.pushSiteMetadata = false;
-      annotationPermissions.viewAndWriteAnnotationTasks = false;
-    }
+    const [viewSiteMetadata, writeSiteMetadata, pushSiteMetadata, readableSiteIds, roles] = await Promise.all([
+      holdsForQueriedSite('site:read'),
+      holdsForQueriedSite('site:write'),
+      holdsForQueriedSite('dhis2:push'),
+      sitesFor('site:read'),
+      getUserRoleAssignments(user.id),
+    ]);
 
-    // Fetch site objects for all privilege levels (sites are now always program-scoped)
-    if (siteAccess.userSites.length > 0) {
-      sitePermissions.canAccessSites = await Site.findAll({
-        where: {
-          id: siteAccess.userSites,
-        },
-      });
-    }
-
-    sitePermissions.canAccessSites = await Promise.all(
-      sitePermissions.canAccessSites.map(site => formatSiteResponse(site))
-    );
+    const readableSites = readableSiteIds.length > 0
+      ? await Site.findAll({ where: { id: readableSiteIds } })
+      : [];
 
     const permissions = {
       devMode: !!user.isDeveloper,
-      sites: sitePermissions,
-      annotations: annotationPermissions,
+      sites: {
+        viewSiteMetadata,
+        writeSiteMetadata,
+        pushSiteMetadata,
+        canAccessSites: await Promise.all(readableSites.map((site) => formatSiteResponse(site))),
+      },
+      annotations: {
+        viewAndWriteAnnotationTasks: access.has('annotation:annotate'),
+      },
+      grants: access.grants(),
+      roles,
+      assignedSiteIds: [...access.assignedSiteIds],
     };
 
     return reply.code(200).send({

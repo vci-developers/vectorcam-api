@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { longRunningTest } from '../handlers/test/longRunning';
 import { mockConflictSessions, schema as mockConflictSessionsSchema } from '../handlers/test/mockConflictSessions';
-import { requireAdminAuth } from '../middleware/auth.middleware';
+import { requirePermission } from '../middleware/permission.middleware';
 
 export default async function testRoutes(server: FastifyInstance) {
   /**
@@ -18,7 +18,7 @@ export default async function testRoutes(server: FastifyInstance) {
    * @access  Admin token or developer user
    */
   server.post('/mock-conflict-sessions', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: mockConflictSessionsSchema,
   }, mockConflictSessions as any);
 }

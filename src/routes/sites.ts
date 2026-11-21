@@ -16,66 +16,49 @@ import { schema as getSchema } from '../handlers/site/get';
 import { schema as updateSchema } from '../handlers/site/put';
 import { schema as deleteSchema } from '../handlers/site/delete';
 import { schema as getListSchema } from '../handlers/site/getList';
-import { requireAdminAuth } from '../middleware/auth.middleware';
-import { 
-  siteAccessMiddleware,
-  requireSiteReadAccess,
-  requireSiteWriteAccess,
-  requireSpecificSiteReadAccess,
-  requireSpecificSiteWriteAccess
-} from '../middleware/siteAccess.middleware';
+import { requirePermission, siteFromParams } from '../middleware/permission.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
-  // Register site access middleware for all routes
-  fastify.addHook('preHandler', siteAccessMiddleware);
-
-  // Get all sites with filters (requires read access)
+  // Get all sites with filters (list is limited to the sites the caller can read)
   fastify.get('/', {
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requirePermission('site:read')],
     schema: getListSchema
   }, getSiteList as any);
 
-  // Register a new site (requires write access)
+  // Register a new site in the caller's program
   fastify.post('/register', {
-    preHandler: [requireSiteWriteAccess],
+    preHandler: [requirePermission('site:create')],
     schema: createSchema
   }, createSite as any);
 
-  // Get site details (requires access to specific site)
   fastify.get('/:site_id', {
-    preHandler: [requireSpecificSiteReadAccess],
+    preHandler: [requirePermission('site:read', { site: siteFromParams })],
     schema: getSchema
   }, getSiteDetails as any);
 
-  // Update an existing site (requires write access to specific site)
   fastify.put('/:site_id', {
-    preHandler: [requireSpecificSiteWriteAccess],
+    preHandler: [requirePermission('site:write', { site: siteFromParams })],
     schema: updateSchema
   }, updateSite as any);
 
-  // Delete a site (requires write access to specific site)
   fastify.delete('/:site_id', {
-    preHandler: [requireSpecificSiteWriteAccess],
+    preHandler: [requirePermission('site:write', { site: siteFromParams })],
     schema: deleteSchema
   }, deleteSite as any);
 
-  // Site user management routes (requires admin privileges and site access)
-  
-  // Get all admin users for a site
+  // Site user management routes (system administrators only)
   fastify.get('/:siteId/users', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getSiteUsersSchema,
   }, getSiteUsersHandler as any);
 
-  // Add admin user to site
   fastify.post('/:siteId/users', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: addSiteUserSchema,
   }, addSiteUserHandler as any);
 
-  // Remove admin user from site
   fastify.delete('/:siteId/users/:userId', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: deleteSiteUserSchema,
   }, deleteSiteUserHandler as any);
 

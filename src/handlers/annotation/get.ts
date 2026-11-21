@@ -1,5 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { Op } from 'sequelize';
 import { certifiedByResponseSchema } from '../session/common';
+import { viewableTaskOwnerIds } from './access';
 import { 
   Annotation, 
   AnnotationTask, 
@@ -25,7 +27,7 @@ interface GetAnnotationRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Get annotation details',
-  description: 'Get detailed annotation information with related data (requires admin token or superadmin user access)',
+  description: 'Get detailed annotation information with related data (requires annotation:annotate, annotation:read, or annotation:manage; annotators without read or manage only see their own tasks)',
   params: {
     type: 'object',
     required: ['annotationId'],
@@ -182,14 +184,13 @@ export default async function getAnnotation(
   try {
     const { annotationId } = request.params;
 
-    // First check if user has access to this annotation
-    if (!request.isAdminToken && request.user) {
-      // For superadmin users, check if the annotation belongs to one of their tasks
+    const ownerIds = await viewableTaskOwnerIds(request);
+    if (ownerIds !== null) {
       const annotation = await Annotation.findByPk(annotationId, {
         include: [{
           model: AnnotationTask,
           as: 'annotationTask',
-          where: { userId: request.user.id },
+          where: { userId: { [Op.in]: ownerIds } },
           attributes: ['id']
         }]
       });

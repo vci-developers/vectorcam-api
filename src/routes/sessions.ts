@@ -62,162 +62,153 @@ import { schema as resolveConflictSchema } from '../handlers/session/resolveConf
 import { schema as getConflictLogsSchema } from '../handlers/session/getConflictLogs';
 import { schema as getReviewActionLogsSchema } from '../handlers/session/getReviewActionLogs';
 import { requireSignedResourceAuth } from '../middleware/signedUrl.middleware';
-import { 
-  siteAccessMiddleware,
-  requireSiteReadAccess,
-  requireSiteWriteAccess,
-  requireSpecificSiteReadAccess
-} from '../middleware/siteAccess.middleware';
-import {
-  requireSpecificSessionReadAccess,
-  requireSpecificSessionWriteAccess
-} from '../middleware/sessionAccess.middleware';
+import { requirePermission, siteFromParams, siteOfSession } from '../middleware/permission.middleware';
 
 export default function (fastify: FastifyInstance, opts: object, done: () => void): void {
-  // Register site access middleware for all routes
-  fastify.addHook('preHandler', siteAccessMiddleware);
+  const canReadSession = requirePermission('session:read', { site: siteOfSession });
+  const canWriteSession = requirePermission('session:write', { site: siteOfSession });
 
   // Get all sessions with comprehensive filters (requires read access)
   fastify.get('/', {
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requirePermission('session:read')],
     schema: getListSchema
   }, getSessionList as any);
 
   // Get session review grouped by district and month (requires read access)
   fastify.get('/review/task', {
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requirePermission('session:read')],
     schema: getReviewTaskSchema
     }, getSessionReviewTask as any);
 
   // Get metrics for a specific district/month/year (requires read access)
   fastify.get('/metrics', {
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requirePermission('session:read')],
     schema: getMetricsSchema
   }, getMetrics as any);
 
   // Get review action logs (requires read access)
   fastify.get('/review/logs', {
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requirePermission('session:read')],
     schema: getReviewActionLogsSchema,
   }, getReviewActionLogs as any);
 
   // Submit a new session (requires write access)
   fastify.post('/', {
-    preHandler: [requireSiteWriteAccess],
+    preHandler: [requirePermission('session:write')],
     schema: submitSchema
   }, submitSession as any);
 
   // Get session details by ID or frontendId (requires access to specific session)
   fastify.get('/:session_id', {
-    preHandler: [requireSpecificSessionReadAccess],
+    preHandler: [canReadSession],
     schema: getSchema
   }, getSessionDetails as any);
 
   // Update an existing session (requires write access to specific session)
   fastify.put('/:session_id', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: updateSchema
   }, updateSession as any);
 
   // Delete a session (requires write access to specific session)
   fastify.delete('/:session_id', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: deleteSchema
   }, deleteSession as any);
 
   // Get sessions by user (requires read access)
   fastify.get('/users/:user_id', {
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requirePermission('session:read')],
     schema: getByUserSchema
   }, getSessionsByUser as any);
 
   // Get sessions by site (requires access to specific site)
   fastify.get('/sites/:site_id', {
-    preHandler: [requireSpecificSiteReadAccess],
+    preHandler: [requirePermission('session:read', { site: siteFromParams })],
     schema: getBySiteSchema
   }, getSessionsBySite as any);
 
   // Get specimens for a session (requires access to specific session)
   fastify.get('/:session_id/specimens', {
-    preHandler: [requireSpecificSessionReadAccess],
+    preHandler: [requirePermission('specimen:read', { site: siteOfSession })],
     schema: getSpecimensSchema
   }, getSessionSpecimens as any);
 
   // Create a specimen under a session (requires write access to specific session)
   fastify.post('/:session_id/specimens', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [requirePermission('specimen:write', { site: siteOfSession })],
     schema: createSessionSpecimenSchema
   }, sessionSpecimenHandlers.createSessionSpecimen as any);
 
   // Get a single specimen under a session (requires access to specific session)
   fastify.get('/:session_id/specimens/:specimen_id', {
-    preHandler: [requireSpecificSessionReadAccess],
+    preHandler: [requirePermission('specimen:read', { site: siteOfSession })],
     schema: getSessionSpecimenSchema
   }, sessionSpecimenHandlers.getSessionSpecimen as any);
 
   // Update a specimen under a session (requires write access to specific session)
   fastify.put('/:session_id/specimens/:specimen_id', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [requirePermission('specimen:write', { site: siteOfSession })],
     schema: updateSessionSpecimenSchema
   }, sessionSpecimenHandlers.updateSessionSpecimen as any);
 
   // Delete a specimen under a session (requires write access to specific session)
   fastify.delete('/:session_id/specimens/:specimen_id', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [requirePermission('specimen:write', { site: siteOfSession })],
     schema: deleteSessionSpecimenSchema
   }, sessionSpecimenHandlers.deleteSessionSpecimen as any);
 
   // Get session surveillance form (requires access to specific session)
   fastify.get('/:session_id/survey', {
-    preHandler: [requireSpecificSessionReadAccess],
+    preHandler: [canReadSession],
     schema: getSurveySchema
   }, getSessionSurvey as any);
 
   // Create session surveillance form (requires write access to specific session)
   fastify.post('/:session_id/survey', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: createSurveySchema
   }, createSurvey as any);
 
   // Update session surveillance form (requires write access to specific session)
   fastify.put('/:session_id/survey', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: updateSurveySchema
   }, updateSurvey as any);
 
   // Dynamic custom forms
   fastify.get('/:session_id/forms/answers', {
-    preHandler: [requireSpecificSessionReadAccess],
+    preHandler: [canReadSession],
     schema: getSessionFormAnswersSchema
   }, getSessionFormAnswers as any);
 
   fastify.post('/:session_id/forms/answers', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: createSessionFormAnswersSchema
   }, createSessionFormAnswers as any);
 
   fastify.put('/:session_id/forms/answers', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: updateSessionFormAnswersSchema
   }, updateSessionFormAnswers as any);
 
   fastify.post('/:session_id/units', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: createSessionUnitSchema,
   }, sessionUnitHandlers.createSessionUnit as any);
 
   fastify.get('/:session_id/units', {
-    preHandler: [requireSpecificSessionReadAccess],
+    preHandler: [canReadSession],
     schema: getSessionUnitsSchema,
   }, sessionUnitHandlers.getSessionUnits as any);
 
   fastify.put('/:session_id/units/:session_unit_id', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: updateSessionUnitSchema,
   }, sessionUnitHandlers.updateSessionUnit as any);
 
   fastify.delete('/:session_id/units/:session_unit_id', {
-    preHandler: [requireSpecificSessionWriteAccess],
+    preHandler: [canWriteSession],
     schema: deleteSessionUnitSchema,
   }, sessionUnitHandlers.deleteSessionUnit as any);
 
@@ -247,13 +238,13 @@ export default function (fastify: FastifyInstance, opts: object, done: () => voi
 
   // Resolve session conflicts (requires write access)
   fastify.post('/conflicts/resolve', {
-    preHandler: [requireSiteWriteAccess],
+    preHandler: [requirePermission('session:write')],
     schema: resolveConflictSchema
   }, resolveConflict as any);
 
   // Get conflict resolution logs (requires read access)
   fastify.get('/conflicts/logs', {
-    preHandler: [requireSiteReadAccess],
+    preHandler: [requirePermission('session:read')],
     schema: getConflictLogsSchema
   }, getConflictLogs as any);
 

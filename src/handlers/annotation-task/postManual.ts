@@ -16,7 +16,7 @@ interface CreateManualAnnotationTaskRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Create an annotation task manually',
-  description: 'Creates an empty annotation task assigned to a specific annotator (requires admin token)',
+  description: 'Creates an empty annotation task assigned to a specific annotator (requires annotation:manage)',
   body: {
     type: 'object',
     properties: {
@@ -85,7 +85,10 @@ export default async function createManualAnnotationTask(
     }
 
     const annotator = await User.findByPk(annotatorId);
-    if (!annotator) {
+    const canAssign = annotator?.programId == null
+      ? request.access.allPrograms
+      : request.access.canAccessProgram(annotator.programId);
+    if (!annotator || !canAssign) {
       return reply.code(404).send({ error: `User not found with ID: ${annotatorId}` });
     }
 

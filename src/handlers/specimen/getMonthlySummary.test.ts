@@ -2,7 +2,7 @@ import { Op } from 'sequelize';
 import { getSpecimenMonthlySummary } from './getMonthlySummary';
 import { Site } from '../../db/models';
 import sequelize from '../../db/index';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { assignedSitesAccess, unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db/models', () => ({
   Site: {
@@ -18,7 +18,6 @@ jest.mock('../../db/index', () => ({
 }));
 
 jest.mock('../site/common', () => ({
-  expandSiteIdsWithDescendants: jest.fn(),
   buildSiteSubtreeWhere: jest.fn(() => ({ __subtree: true })),
 }));
 
@@ -35,7 +34,6 @@ describe('getSpecimenMonthlySummary', () => {
   });
 
   it('returns month buckets with from/to timestamps and grouped counts', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([]); // accessible user sites
     (Site.findAll as jest.Mock).mockResolvedValue([{ id: 2 }, { id: 3 }]);
     (sequelize.query as jest.Mock).mockResolvedValue([
       { monthStart: '2026-01-01', species: 'Anopheles gambiae', sex: 'Female', abdomenStatus: 'Fully Fed', count: 5 },
@@ -49,16 +47,12 @@ describe('getSpecimenMonthlySummary', () => {
         districts: 'Adjumani',
         siteIds: '1',
       },
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
 
     await getSpecimenMonthlySummary(request, reply as any);
-
-    // requested siteIds should no longer be pre-expanded via expandSiteIdsWithDescendants
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledTimes(1);
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([]);
 
     const whereArg = (Site.findAll as jest.Mock).mock.calls[0][0].where;
     expect(whereArg.hasData).toBe(true);
@@ -86,7 +80,6 @@ describe('getSpecimenMonthlySummary', () => {
   });
 
   it('excludes non-mosquitoes from sex counts and males from abdomen status counts', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([]);
     (Site.findAll as jest.Mock).mockResolvedValue([{ id: 1 }]);
     (sequelize.query as jest.Mock).mockResolvedValue([
       // Non-mosquito: species counted, sex/abdomen N/A and excluded
@@ -109,7 +102,7 @@ describe('getSpecimenMonthlySummary', () => {
 
     const request: any = {
       query: { startDate: '2026-01-01', endDate: '2026-01-31' },
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -153,21 +146,17 @@ describe('getSpecimenMonthlySummary', () => {
   });
 
   it('filters by accessibleSiteIds and the requested subtree via JSON siteIds', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([10, 11]); // accessible user sites expansion
     (Site.findAll as jest.Mock).mockResolvedValue([{ id: 11 }]);
     (sequelize.query as jest.Mock).mockResolvedValue([]);
 
     const request: any = {
       query: { siteIds: '11' },
-      siteAccess: { canRead: true, userSites: [10] },
+      access: assignedSitesAccess([10, 11]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
 
     await getSpecimenMonthlySummary(request, reply as any);
-
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledTimes(1);
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([10]);
 
     const whereArg = (Site.findAll as jest.Mock).mock.calls[0][0].where;
     expect(whereArg.id[Op.in]).toEqual([10, 11]);

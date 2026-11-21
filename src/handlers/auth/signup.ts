@@ -1,7 +1,9 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import sequelize from '../../db';
 import { User, UserWhitelist, Program } from '../../db/models';
+import { assignDefaultRole } from '../../services/roles.service';
 import { config } from '../../config/environment';
 import { validatePassword, validateEmail } from '../../utils/validation';
 import { UserAuthEventType } from '../../db/models/UserAuthEvent';
@@ -138,11 +140,15 @@ export async function signupHandler(request: FastifyRequest<{ Body: SignupBody }
     const whitelistEntry = await UserWhitelist.findOne({ where: { email } });
 
     // Create user (programId may come from request, whitelist, or remain null)
-    const user = await User.create({
-      email,
-      name: name?.trim() || null,
-      passwordHash,
-      programId: programId ?? whitelistEntry?.programId ?? null,
+    const user = await sequelize.transaction(async (transaction) => {
+      const createdUser = await User.create({
+        email,
+        name: name?.trim() || null,
+        passwordHash,
+        programId: programId ?? whitelistEntry?.programId ?? null,
+      }, { transaction });
+      await assignDefaultRole(createdUser, transaction);
+      return createdUser;
     });
 
     // Generate tokens

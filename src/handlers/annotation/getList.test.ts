@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import getAnnotationList from './getList';
 import { Annotation, AnnotationTask } from '../../db/models';
 import { buildSiteSubtreeWhere } from '../site/common';
+import { unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db/models', () => ({
   Annotation: {
@@ -49,7 +50,7 @@ describe('getAnnotationList filters', () => {
         district: 'Arua',
         siteId: 10,
       },
-      isAdminToken: true,
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -82,7 +83,7 @@ describe('getAnnotationList filters', () => {
         startDate: '2026-02-01',
         endDate: '2026-01-31',
       },
-      isAdminToken: true,
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();

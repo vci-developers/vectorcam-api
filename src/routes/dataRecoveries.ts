@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import { requireAdminAuth, requireAdminOrMobileAuth } from '../middleware/auth.middleware';
+import { requirePermission } from '../middleware/permission.middleware';
 import {
   createDataRecovery,
   deleteDataRecovery,
@@ -20,12 +20,12 @@ const RECOVERY_BODY_LIMIT = 10 * 1024 * 1024;
 
 export default async function dataRecoveryRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getDataRecoveryListSchema,
   }, getDataRecoveryList as any);
 
   fastify.post('/', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requirePermission('mobile:app')],
     schema: createDataRecoverySchema,
     bodyLimit: RECOVERY_BODY_LIMIT,
   }, createDataRecovery as any);
@@ -35,30 +35,30 @@ export default async function dataRecoveryRoutes(fastify: FastifyInstance): Prom
   });
 
   fastify.all('/:id/tus', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requirePermission('mobile:app')],
   }, tusHandler);
 
   fastify.all('/:id/tus/*', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requirePermission('mobile:app')],
   }, tusHandler);
 
   fastify.get('/:id/image', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getDataRecoveryImageSchema,
   }, getDataRecoveryImage as any);
 
   fastify.get('/:id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getDataRecoverySchema,
   }, getDataRecovery as any);
 
   fastify.put('/:id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: updateDataRecoverySchema,
   }, updateDataRecovery as any);
 
   fastify.delete('/:id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: deleteDataRecoverySchema,
   }, deleteDataRecovery as any);
 }

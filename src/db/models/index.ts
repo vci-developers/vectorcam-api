@@ -14,6 +14,9 @@ import MultipartUpload from './MultipartUpload';
 import User from './User';
 import UserWhitelist from './UserWhitelist';
 import SiteUser from './SiteUser';
+import Role from './Role';
+import RolePermission from './RolePermission';
+import UserRole from './UserRole';
 import AnnotationTask from './AnnotationTask';
 import Annotation from './Annotation';
 import Dhis2Cache from './Dhis2Cache';
@@ -51,6 +54,9 @@ export {
   User,
   UserWhitelist,
   SiteUser,
+  Role,
+  RolePermission,
+  UserRole,
   AnnotationTask,
   Annotation,
   Dhis2Cache,

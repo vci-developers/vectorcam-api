@@ -4,7 +4,6 @@ import { Form, FormQuestion, Program, Site } from '../../db/models';
 import { defaultProgramFormWhere } from '../program/form/common';
 import {
   buildSiteSubtreeWhere,
-  expandSiteIdsWithDescendants,
   parseSiteIds,
 } from '../site/common';
 import {
@@ -30,12 +29,6 @@ export async function resolveMetricsSiteScope(
   reply: FastifyReply,
   query: MetricsSiteScopeQuery
 ): Promise<MetricsSiteScope | null> {
-  const siteAccess = request.siteAccess;
-  if (!siteAccess?.canRead) {
-    reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access session metrics' });
-    return null;
-  }
-
   const { district, programId: programIdRaw, siteIds: siteIdsRaw } = query;
   const parsedProgramId = programIdRaw !== undefined && programIdRaw !== ''
     ? Number(programIdRaw)
@@ -46,7 +39,7 @@ export async function resolveMetricsSiteScope(
   }
 
   const requestedSiteIds = parseSiteIds(siteIdsRaw);
-  const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
+  const accessibleSiteIds = await request.access.siteIdsFor('session:read');
 
   if (!district && parsedProgramId === undefined && requestedSiteIds.length === 0) {
     reply.code(400).send({ error: 'At least one of district, programId, or siteIds is required' });
@@ -60,7 +53,7 @@ export async function resolveMetricsSiteScope(
   if (parsedProgramId !== undefined) {
     siteWhere.programId = parsedProgramId;
   }
-  if (accessibleSiteIds.length > 0) {
+  if (accessibleSiteIds !== null) {
     siteWhere.id = { [Op.in]: accessibleSiteIds };
   }
   if (requestedSiteIds.length > 0) {

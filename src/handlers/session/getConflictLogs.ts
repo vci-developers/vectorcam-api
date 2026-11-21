@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { SessionConflictResolution, Site } from '../../db/models';
 import sequelize from '../../db/index';
 import { Op } from 'sequelize';
-import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants, siteIdInSubtreeOfLiteral } from '../site/common';
+import { buildSiteSubtreeWhere, siteIdInSubtreeOfLiteral } from '../site/common';
 
 interface GetConflictLogsQuery {
   siteId?: string;
@@ -97,10 +97,9 @@ export async function getConflictLogs(
     const where: any = {};
 
     // Check site access and filter by user's sites if necessary
-    const siteAccess = request.siteAccess;
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
+    const accessibleSiteIds = await request.access.siteIdsFor('session:read');
 
-    if (accessibleSiteIds.length > 0) {
+    if (accessibleSiteIds !== null) {
       // User has limited site access - only show logs for their sites
       if (siteId) {
         const requestedSiteId = parseInt(siteId, 10);

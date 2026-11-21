@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { getUnassignedProgramSessions } from './getUnassigned';
 import { Session, Site } from '../../../db/models';
-import { expandSiteIdsWithDescendants } from '../../site/common';
+import { assignedSitesAccess, unrestrictedAccess } from '../../../test/access';
 
 jest.mock('../../../db/models', () => ({
   Session: {
@@ -11,10 +11,6 @@ jest.mock('../../../db/models', () => ({
   Site: {
     findAll: jest.fn(),
   },
-}));
-
-jest.mock('../../site/common', () => ({
-  expandSiteIdsWithDescendants: jest.fn(),
 }));
 
 jest.mock('../../session/common', () => ({
@@ -37,19 +33,16 @@ describe('getUnassignedProgramSessions', () => {
   });
 
   it('restricts program sites to accessible site ids', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([10, 11]);
-
     const request: any = {
       params: { program_id: 2 },
       query: {},
-      siteAccess: { userSites: [10] },
+      access: assignedSitesAccess([10, 11]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
 
     await getUnassignedProgramSessions(request, reply as any);
 
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([10]);
     expect(Site.findAll).toHaveBeenCalledWith({
       where: {
         programId: 2,
@@ -67,12 +60,10 @@ describe('getUnassignedProgramSessions', () => {
   });
 
   it('does not apply site access restriction for unrestricted callers', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
-
     const request: any = {
       params: { program_id: 2 },
       query: {},
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();

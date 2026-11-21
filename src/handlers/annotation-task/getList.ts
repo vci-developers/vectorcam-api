@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op, WhereOptions, fn, col, literal } from 'sequelize';
 import { AnnotationTask, Annotation, User } from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
+import { listableTaskOwnerIds } from '../annotation/access';
 
 interface GetAnnotationTaskListQuery {
   page?: number;
@@ -19,7 +20,7 @@ interface GetAnnotationTaskListRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Get annotation tasks list',
-  description: 'Get list of annotation tasks with filtering and pagination (requires admin token or superadmin user access)',
+  description: 'Get list of annotation tasks with filtering and pagination (requires annotation:annotate, annotation:read, or annotation:manage; annotators without read or manage only see their own tasks)',
   querystring: {
     type: 'object',
     properties: {
@@ -90,13 +91,10 @@ export default async function getAnnotationTaskList(
     // Build where conditions
     const whereConditions: WhereOptions = {};
 
-    // If admin token: show all tasks
-    // If annotation user (privilege >= 4): only show their own tasks
-    if (!request.isAdminToken && request.user) {
-      // Superadmin user - only their own tasks
-      whereConditions.userId = request.user.id;
+    const ownerIds = await listableTaskOwnerIds(request);
+    if (ownerIds !== null) {
+      whereConditions.userId = { [Op.in]: ownerIds };
     }
-    // If isAdminToken is true, no user filtering (show all tasks)
 
     // Add filters
     if (startDate || endDate) {

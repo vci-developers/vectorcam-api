@@ -3,7 +3,7 @@ import { CollectionCycle, Session, Site } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { certifierInclude, certifiedByResponseSchema, formatSessionResponse } from './common';
 import { Op, Order } from 'sequelize';
-import { expandSiteIdsWithDescendants, parseSiteIds, siteIdsInSubtreesOfLiteral } from '../site/common';
+import { parseSiteIds, siteIdsInSubtreesOfLiteral } from '../site/common';
 
 export const schema = {
   tags: ['Sessions'],
@@ -136,10 +136,7 @@ export async function getSessionList(
     // Build where clause
     const whereClause: any = {};
     const include: any[] = [];
-    
-    // Apply site access restrictions first
-    const siteAccess = request.siteAccess;
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
+    const accessibleSiteIds = await request.access.siteIdsFor('session:read');
     
     // If programId or district filter is provided, find matching sites
     if (programId || district) {
@@ -155,7 +152,7 @@ export async function getSessionList(
       siteWhere.hasData = true;
       
       // If user has limited access, intersect with their accessible sites
-      if (accessibleSiteIds.length > 0) {
+      if (accessibleSiteIds !== null) {
         siteWhere.id = { [Op.in]: accessibleSiteIds };
       }
       
@@ -172,7 +169,7 @@ export async function getSessionList(
       } else {
         whereClause.siteId = { [Op.in]: matchingSiteIds };
       }
-    } else if (accessibleSiteIds.length > 0) {
+    } else if (accessibleSiteIds !== null) {
       // No programId/district filter, but user has limited access
       whereClause.siteId = { [Op.in]: accessibleSiteIds };
     }
@@ -183,7 +180,7 @@ export async function getSessionList(
     // When the user has limited access, AND with their accessible sites so the SQL enforces both.
     if (requestedSiteIds.length > 0) {
       const subtreeLiteral = siteIdsInSubtreesOfLiteral(requestedSiteIds);
-      if (accessibleSiteIds.length > 0) {
+      if (accessibleSiteIds !== null) {
         whereClause[Op.and] = [
           ...((whereClause[Op.and] as any[]) ?? []),
           { siteId: { [Op.in]: accessibleSiteIds } },

@@ -3,6 +3,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op, WhereOptions } from 'sequelize';
 import { Annotation, AnnotationTask, User, Specimen, Session, Site, SpecimenImage, SessionUnit } from '../../db/models';
 import { formatAnnotationResponse } from './common';
+import { listableTaskOwnerIds } from './access';
 import { getSpecimenImageInferenceInclude, specimenImageInferenceResponseSchemaProperties } from '../specimen/common';
 import { buildSiteSubtreeWhere, siteCoordinatesResponseSchema } from '../site/common';
 
@@ -25,7 +26,7 @@ interface GetAnnotationListRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Get annotations list',
-  description: 'Get list of annotations with filtering and pagination (requires admin token or superadmin user access)',
+  description: 'Get list of annotations with filtering and pagination (requires annotation:annotate, annotation:read, or annotation:manage; annotators without read or manage only see their own tasks)',
   querystring: {
     type: 'object',
     properties: {
@@ -203,12 +204,10 @@ export default async function getAnnotationList(
     const whereConditions: any = {};
     const siteWhere: any = { hasData: true };
 
-    // If admin token: show all annotations
-    // If superadmin user: only show annotations for their own tasks
-    if (!request.isAdminToken && request.user) {
-      // For superadmin users, we need to filter by their annotation tasks
+    const ownerIds = await listableTaskOwnerIds(request);
+    if (ownerIds !== null) {
       const userTasks = await AnnotationTask.findAll({
-        where: { userId: request.user.id },
+        where: { userId: { [Op.in]: ownerIds } },
         attributes: ['id']
       });
       const userTaskIds = userTasks.map((task: any) => task.id);
@@ -241,7 +240,6 @@ export default async function getAnnotationList(
         whereConditions.annotationTaskId = { [Op.in]: userTaskIds };
       }
     } else if (taskId) {
-      // Admin token with taskId filter
       whereConditions.annotationTaskId = taskId;
     }
 

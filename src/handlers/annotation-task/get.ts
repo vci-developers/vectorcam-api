@@ -1,6 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import { Op } from 'sequelize';
 import { AnnotationTask, Annotation, User } from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
+import { viewableTaskOwnerIds } from '../annotation/access';
 
 interface GetAnnotationTaskParams {
   annotationTaskId: number;
@@ -13,7 +15,7 @@ interface GetAnnotationTaskRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Get annotation task details',
-  description: 'Get annotation task by ID with annotation counts (requires admin token or superadmin user access)',
+  description: 'Get annotation task by ID with annotation counts (requires annotation:annotate, annotation:read, or annotation:manage; annotators without read or manage only see their own tasks)',
   params: {
     type: 'object',
     required: ['annotationTaskId'],
@@ -70,9 +72,10 @@ export default async function getAnnotationTask(
   try {
     const { annotationTaskId } = request.params;
 
-    const whereClause: { id: number; userId?: number } = { id: annotationTaskId };
-    if (!request.isAdminToken && request.user) {
-      whereClause.userId = request.user.id;
+    const whereClause: Record<string, unknown> = { id: annotationTaskId };
+    const ownerIds = await viewableTaskOwnerIds(request);
+    if (ownerIds !== null) {
+      whereClause.userId = { [Op.in]: ownerIds };
     }
 
     const task = await AnnotationTask.findOne({

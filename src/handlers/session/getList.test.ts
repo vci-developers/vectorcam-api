@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { getSessionList } from './getList';
 import { Session, Site } from '../../db/models';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { assignedSitesAccess, unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db/models', () => ({
   CollectionCycle: {},
@@ -16,7 +16,6 @@ jest.mock('../../db/models', () => ({
 }));
 
 jest.mock('../site/common', () => ({
-  expandSiteIdsWithDescendants: jest.fn(),
   parseSiteIds: jest.fn((value?: string) =>
     value
       ? value.split(',').map((entry) => Number(entry.trim())).filter((id) => Number.isInteger(id) && id > 0)
@@ -51,30 +50,26 @@ describe('getSessionList hierarchy filtering', () => {
     (Site.findAll as jest.Mock).mockResolvedValue([]);
   });
 
-  it('expands accessible site ids at endpoint level', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([10, 11]);
-
+  it('restricts sessions to accessible site ids', async () => {
     const request: any = {
       query: {},
-      siteAccess: { userSites: [10] },
+      access: assignedSitesAccess([10, 11]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
 
     await getSessionList(request, reply as any);
 
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([10]);
     const countWhere = (Session.count as jest.Mock).mock.calls[0][0].where;
     expect(countWhere.siteId[Op.in]).toEqual([10, 11]);
   });
 
   it('uses hasData in db query when filtering sites by program/district', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([5, 6]);
     (Site.findAll as jest.Mock).mockResolvedValue([{ id: 6 }]);
 
     const request: any = {
       query: { programId: 2, district: 'Arua' },
-      siteAccess: { userSites: [5] },
+      access: assignedSitesAccess([5, 6]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -93,11 +88,9 @@ describe('getSessionList hierarchy filtering', () => {
   });
 
   it('filters sessions by collection cycle id', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
-
     const request: any = {
       query: { collectionCycleId: 123 },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -115,11 +108,9 @@ describe('getSessionList hierarchy filtering', () => {
   });
 
   it('filters unassigned sessions when collectionCycleId is null', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
-
     const request: any = {
       query: { collectionCycleId: 'null' },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -133,14 +124,12 @@ describe('getSessionList hierarchy filtering', () => {
   });
 
   it('filters sessions by assigned collection cycle date range', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
-
     const request: any = {
       query: {
         cycleStartDate: '2026-04-01',
         cycleEndDate: '2026-04-30',
       },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -165,11 +154,9 @@ describe('getSessionList hierarchy filtering', () => {
   });
 
   it('filters sessions by requested siteIds subtree', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
-
     const request: any = {
       query: { siteIds: '10,20' },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();

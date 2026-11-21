@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import { getSiteList } from './getList';
 import { Site } from '../../db/models';
+import { unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db/models', () => ({
   Site: {
@@ -37,7 +38,7 @@ describe('getSiteList location hierarchy filter', () => {
     const request: any = {
       query: { locationTypeKey: 'district', locationTypeValue: 'Kampala' },
       log: { error: jest.fn() },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
     };
     const reply = createReply();
 

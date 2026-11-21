@@ -32,14 +32,8 @@ import {
   deleteProgramFormDefinitionQuestion,
 } from '../handlers/program/programForm';
 import { getProgramList } from '../handlers/program/getList';
-import {
-  requireAdminAuth,
-  requireAnyWhitelistedAuth,
-  requireAdminOrMobileAuth,
-  requireAdminOrMobileOrSuperAdminAuth,
-  requireAdminOrSuperAdminAuth,
-  requireSuperAdmin,
-} from '../middleware/auth.middleware';
+import { requireAnyWhitelistedAuth } from '../middleware/auth.middleware';
+import { requirePermission } from '../middleware/permission.middleware';
 import {
   createCollectionSchedule,
   changeProgramCollectionSchedule,
@@ -121,6 +115,13 @@ import { schema as downloadProgramModelSchema } from '../handlers/program/model/
 
 const MAX_MODEL_FILE_SIZE = 100 * 1024 * 1024;
 
+const PROGRAM_PARAM = { programParam: 'program_id' };
+const requireSystemAdmin = requirePermission('system:admin');
+const requireMobileApp = requirePermission('mobile:app');
+const requireFormManagement = requirePermission('program:forms', PROGRAM_PARAM);
+const requireLocationManagement = requirePermission('program:locations', PROGRAM_PARAM);
+const requireLocationRead = requirePermission(['mobile:app', 'program:locations'], PROGRAM_PARAM);
+
 export default async function programRoutes(fastify: FastifyInstance) {
   fastify.register(fastifyMultipart, { limits: { fileSize: MAX_MODEL_FILE_SIZE } });
   // Get all programs with filters
@@ -133,7 +134,7 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, verifyProgramAccessCode as any);
 
   fastify.post('/', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: createSchema,
   }, createProgram as any);
 
@@ -143,12 +144,12 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, getCollectionScheduleList as any);
 
   fastify.post('/:program_id/collection-schedules', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: createCollectionScheduleSchema,
   }, createCollectionSchedule as any);
 
   fastify.post('/:program_id/collection-schedules/change', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: changeCollectionScheduleSchema,
   }, changeProgramCollectionSchedule as any);
 
@@ -163,53 +164,53 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, getCollectionCycle as any);
 
   fastify.post('/:program_id/collection-cycles', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: createCollectionCycleSchema,
   }, createCollectionCycle as any);
 
   fastify.get('/:program_id/sessions/unassigned', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireMobileApp],
     schema: getUnassignedProgramSessionsSchema,
   }, getUnassignedProgramSessions as any);
 
   fastify.get('/:program_id', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireMobileApp],
     schema: getSchema,
   }, getProgramDetails as any);
 
   fastify.put('/:program_id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: updateSchema,
   }, updateProgram as any);
 
   fastify.delete('/:program_id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: deleteSchema,
   }, deleteProgram as any);
 
   // Location types under programs
   fastify.get('/:program_id/location-types', {
-    preHandler: [requireAdminOrMobileOrSuperAdminAuth],
+    preHandler: [requireLocationRead],
     schema: getLocationTypeListSchema,
   }, getLocationTypeList as any);
 
   fastify.post('/:program_id/location-types', {
-    preHandler: [requireAdminOrSuperAdminAuth],
+    preHandler: [requireLocationManagement],
     schema: createLocationTypeSchema,
   }, createLocationType as any);
 
   fastify.get('/:program_id/location-types/:location_type_id', {
-    preHandler: [requireAdminOrMobileOrSuperAdminAuth],
+    preHandler: [requireLocationRead],
     schema: getLocationTypeSchema,
   }, getLocationType as any);
 
   fastify.put('/:program_id/location-types/:location_type_id', {
-    preHandler: [requireAdminOrSuperAdminAuth],
+    preHandler: [requireLocationManagement],
     schema: updateLocationTypeSchema,
   }, updateLocationType as any);
 
   fastify.delete('/:program_id/location-types/:location_type_id', {
-    preHandler: [requireAdminOrSuperAdminAuth],
+    preHandler: [requireLocationManagement],
     schema: deleteLocationTypeSchema,
   }, deleteLocationType as any);
 
@@ -219,7 +220,7 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, listProgramForms as any);
 
   fastify.post('/:program_id/program-forms', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: createProgramFormSchema,
   }, createProgramForm as any);
 
@@ -234,17 +235,17 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, listProgramFormVersions as any);
 
   fastify.put('/:program_id/program-forms/:program_form_id/versions', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: updateProgramFormDraftVersionSchema,
   }, updateProgramFormDraftVersion as any);
 
   fastify.post('/:program_id/program-forms/:program_form_id/versions/publish', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: publishProgramFormVersionSchema,
   }, publishProgramFormVersion as any);
 
   fastify.post('/:program_id/program-forms/:program_form_id/versions/:version/checkout', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: checkoutProgramFormVersionSchema,
   }, checkoutProgramFormVersion as any);
 
@@ -254,17 +255,17 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, getProgramFormVersion as any);
 
   fastify.post('/:program_id/program-forms/:program_form_id/questions', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: createProgramFormDefinitionQuestionSchema,
   }, createProgramFormDefinitionQuestion as any);
 
   fastify.put('/:program_id/program-forms/:program_form_id/questions/:question_id', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: updateProgramFormDefinitionQuestionSchema,
   }, updateProgramFormDefinitionQuestion as any);
 
   fastify.delete('/:program_id/program-forms/:program_form_id/questions/:question_id', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: deleteProgramFormDefinitionQuestionSchema,
   }, deleteProgramFormDefinitionQuestion as any);
 
@@ -274,17 +275,17 @@ export default async function programRoutes(fastify: FastifyInstance) {
   }, getProgramWorkflow as any);
 
   fastify.post('/:program_id/workflow', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: createProgramWorkflowSchema,
   }, createProgramWorkflow as any);
 
   fastify.put('/:program_id/workflow', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: updateProgramWorkflowSchema,
   }, updateProgramWorkflow as any);
 
   fastify.delete('/:program_id/workflow', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: deleteProgramWorkflowSchema,
   }, deleteProgramWorkflow as any);
 
@@ -304,60 +305,60 @@ export default async function programRoutes(fastify: FastifyInstance) {
     schema: getProgramFormSchema,
   }, getProgramForm as any);
 
-  // update program form (superadmin only)
+  // update program form
   fastify.put('/:program_id/forms', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: updateProgramFormSchema,
   }, updateProgramForm as any);
 
   fastify.post('/:program_id/forms/:version/checkout', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: checkoutProgramFormSchema,
   }, checkoutProgramForm as any);
 
   fastify.post('/:program_id/forms/publish', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: publishProgramFormSchema,
   }, publishProgramForm as any);
 
-  // Questions under a form (superadmin only, draft only)
+  // Questions under a form (draft only)
   fastify.post('/:program_id/forms/questions', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: createProgramFormQuestionSchema,
   }, createProgramFormQuestion as any);
 
   fastify.put('/:program_id/forms/questions/:question_id', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: updateProgramFormQuestionSchema,
   }, updateProgramFormQuestion as any);
 
   fastify.delete('/:program_id/forms/questions/:question_id', {
-    preHandler: [requireSuperAdmin],
+    preHandler: [requireFormManagement],
     schema: deleteProgramFormQuestionSchema,
   }, deleteProgramFormQuestion as any);
 
   fastify.get('/:program_id/models/:model_id/download', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireMobileApp],
     schema: downloadProgramModelSchema,
   }, downloadProgramModel as any);
 
   fastify.get('/:program_id/models', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireMobileApp],
     schema: getProgramModelListSchema,
   }, getProgramModelList as any);
 
   fastify.get('/:program_id/models/:model_id', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requireMobileApp],
     schema: getProgramModelSchema,
   }, getProgramModel as any);
 
   fastify.post('/:program_id/models', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: uploadProgramModelSchema,
   }, uploadProgramModel as any);
 
   fastify.put('/:program_id/models/:model_id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requireSystemAdmin],
     schema: updateProgramModelSchema,
   }, updateProgramModel as any);
 } 

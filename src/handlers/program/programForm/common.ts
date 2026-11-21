@@ -42,15 +42,7 @@ export function enforceUserProgramScope(
   reply: FastifyReply,
   programId: number
 ): boolean {
-  if (request.authType !== 'user' || !request.user) {
-    return true;
-  }
-
-  if (request.user.isDeveloper) {
-    return true;
-  }
-
-  if (request.user.programId == null || request.user.programId !== programId) {
+  if (!request.access.canAccessProgram(programId)) {
     reply.code(403).send({ error: 'Forbidden: Program access denied' });
     return false;
   }

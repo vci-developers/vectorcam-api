@@ -4,11 +4,13 @@ import { config } from '../config/environment';
 import { HookHandlerDoneFunction } from 'fastify';
 import { UserWhitelist, User } from '../db/models';
 import { recordUserActivity } from '../services/userActivity.service';
+import { AccessContext } from '../services/accessContext';
+import { loadUserAccess } from '../services/access.service';
+import { MOBILE_APP_PERMISSIONS } from '../services/permissions';
 
 interface JwtPayload {
   userId: number;
   email: string;
-  privilege: number;
 }
 
 // Extend FastifyRequest to include unified auth info
@@ -18,10 +20,10 @@ declare module 'fastify' {
       id: number;
       email: string;
       isWhitelisted: boolean;
-      privilege: number;
       isDeveloper: boolean;
       programId: number | null;
     };
+    access: AccessContext;
     isAdminToken?: boolean;
     isMobileApp?: boolean;
     authType?: 'admin' | 'user' | 'mobile' | 'none';
@@ -30,13 +32,14 @@ declare module 'fastify' {
 
 /**
  * Unified authentication middleware that checks for all possible auth types
- * Priority order: admin token -> user JWT -> mobile token
- * Fills in appropriate user info based on token type
+ * Priority order: admin token -> mobile token -> user JWT
+ * Fills in user info and the request's access context (permissions and site scope)
  */
 export async function authMiddleware(
   request: FastifyRequest,
   reply: FastifyReply
 ): Promise<void> {
+  request.access = AccessContext.none();
   const authHeader = request.headers['authorization'];
 
   // If no auth header, mark as unauthenticated and continue
@@ -52,15 +55,15 @@ export async function authMiddleware(
   if (expectedAdminToken && token === expectedAdminToken) {
     request.isAdminToken = true;
     request.authType = 'admin';
-    // Admin token doesn't provide specific user info, just admin access
+    request.access = AccessContext.unrestricted();
     return;
   }
 
-  // 2. Finally check for mobile token
+  // 2. Then check for mobile token
   if (token === config.mobileAuthToken) {
     request.isMobileApp = true;
     request.authType = 'mobile';
-    // Mobile token doesn't provide specific user info, just mobile app access
+    request.access = AccessContext.unrestricted(MOBILE_APP_PERMISSIONS);
     return;
   }
 
@@ -68,38 +71,40 @@ export async function authMiddleware(
   try {
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
 
-    // Initialize user with token data, but we'll refresh privilege and programId from DB
     request.user = {
       id: decoded.userId,
       email: decoded.email,
       isWhitelisted: false,
-      privilege: decoded.privilege, // Will be updated below
-      isDeveloper: false, // Will be updated from DB below
-      programId: null, // Will be updated from DB below
+      isDeveloper: false,
+      programId: null,
     };
-    
+    request.authType = 'user';
+
     try {
-      // Fetch current user data from database to get fresh privilege level and programId
+      // Fetch current user data from database so access changes apply immediately
       const [user, userWhitelist] = await Promise.all([
-        User.findByPk(decoded.userId, { attributes: ['privilege', 'isDeveloper', 'programId'] }),
+        User.findByPk(decoded.userId, { attributes: ['isDeveloper', 'programId'] }),
         UserWhitelist.findOne({ where: { email: decoded.email } })
       ]);
-      
+
       if (user) {
-        request.user.privilege = user.privilege;
         request.user.isDeveloper = user.isDeveloper;
         request.user.programId = user.programId;
       }
-      
       request.user.isWhitelisted = !!userWhitelist;
-      request.authType = 'user';
+
+      if (request.user.isDeveloper) {
+        request.access = AccessContext.unrestricted();
+      } else if (request.user.isWhitelisted) {
+        request.access = await loadUserAccess(request.user.id, request.user.programId);
+      }
+
       recordUserActivity(decoded.userId);
-      return;
     } catch (dbError) {
-      // If DB query fails, use token values as fallback
-      request.authType = 'user';
-      return;
+      // Without fresh user data the request keeps no permissions
+      request.log.error(dbError);
     }
+    return;
   } catch (jwtError) {
     // JWT verification failed
   }
@@ -119,24 +124,6 @@ export function requireAnyWhitelistedAuth(
 ): void {
   if (request.authType === 'none' || (request.authType === 'user' && !request.user?.isWhitelisted)) {
     reply.code(401).send({ error: 'Unauthorized: Authentication required' });
-    return done(new Error('Unauthorized'));
-  }
-  
-  done();
-}
-
-/**
- * Middleware to require admin authentication specifically
- */
-export function requireAdminAuth(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
-): void {
-  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-
-  if (!request.isAdminToken && !isDeveloperUser) {
-    reply.code(401).send({ error: 'Unauthorized: Admin token or developer user required' });
     return done(new Error('Unauthorized'));
   }
   
@@ -182,121 +169,5 @@ export function requireNonWhitelistedUserAuth(
     return done(new Error('Unauthorized'));
   }
   
-  done();
-}
-
-/**
- * Middleware to require mobile authentication specifically
- */
-export function requireMobileAuth(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
-): void {
-  if (!request.isMobileApp) {
-    reply.code(401).send({ error: 'Unauthorized: Mobile token required' });
-    return done(new Error('Unauthorized'));
-  }
-  
-  done();
-}
-
-/**
- * Middleware to require either admin or mobile authentication
- */
-export function requireAdminOrMobileAuth(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
-): void {
-  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-
-  if (!request.isAdminToken && !request.isMobileApp && !isDeveloperUser) {
-    reply.code(401).send({ error: 'Unauthorized: Admin/developer or mobile token required' });
-    return done(new Error('Unauthorized'));
-  }
-  
-  done();
-}
-
-/**
- * Middleware to require admin, developer, or program-wide user (privilege >= 3) authentication
- */
-export function requireAdminOrSuperAdminAuth(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
-): void {
-  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-  const isProgramWideUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
-
-  if (!request.isAdminToken && !isDeveloperUser && !isProgramWideUser) {
-    reply.code(401).send({ error: 'Unauthorized: Admin, developer, or program-wide user authentication required' });
-    return done(new Error('Unauthorized'));
-  }
-
-  done();
-}
-
-/**
- * Middleware to require admin, developer, program-wide user (privilege >= 3), or mobile authentication
- */
-export function requireAdminOrMobileOrSuperAdminAuth(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
-): void {
-  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-  const isProgramWideUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
-
-  if (!request.isAdminToken && !request.isMobileApp && !isDeveloperUser && !isProgramWideUser) {
-    reply.code(401).send({ error: 'Unauthorized: Admin, developer, program-wide user, or mobile token required' });
-    return done(new Error('Unauthorized'));
-  }
-
-  done();
-}
-
-/**
- * Middleware to require admin privileges (for user JWT tokens with privilege >= 2)
- */
-export function requireAdmin(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
-): void {
-  // Admin token always has admin privileges
-  if (request.isAdminToken) {
-    return done();
-  }
-
-  // For user tokens, check privilege level
-  if (!request.user || request.user.privilege < 2) {
-    reply.code(403).send({ error: 'Forbidden: Admin privileges required' });
-    return done(new Error('Forbidden'));
-  }
-
-  done();
-}
-
-/**
- * Middleware to require annotation privileges (for user JWT tokens with privilege >= 4)
- */
-export function requireSuperAdmin(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  done: HookHandlerDoneFunction
-): void {
-  // Admin token always has annotation privileges
-  if (request.isAdminToken) {
-    return done();
-  }
-
-  // For user tokens, check privilege level
-  if (!request.user || request.user.privilege < 4) {
-    reply.code(403).send({ error: 'Forbidden: Annotation privileges required' });
-    return done(new Error('Forbidden'));
-  }
-
   done();
 }

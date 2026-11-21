@@ -158,19 +158,13 @@ export async function getSpecimenCount(
       }
     }
 
-    // Apply site access restrictions
-    const siteAccess = request.siteAccess;
-    if (!siteAccess?.canRead) {
-      return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access specimen data' });
-    }
-
     // Build site restrictions based on user access and district filter
     const siteWhere: any = {};
     let hasSiteFilter = false;
-    if (siteAccess.userSites.length > 0) {
-      // User has limited site access, restrict to their sites
+    const accessibleSiteIds = await request.access.siteIdsFor('specimen:read');
+    if (accessibleSiteIds !== null) {
       siteWhere.id = {
-        [Op.in]: siteAccess.userSites
+        [Op.in]: accessibleSiteIds
       };
       hasSiteFilter = true;
     }

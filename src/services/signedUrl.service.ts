@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { config } from '../config/environment';
+import { Permission } from './permissions';
 
 export const STATIC_SIGNABLE_RESOURCE_PATHS = [
   '/sessions/export/csv',
@@ -13,12 +14,25 @@ export const STATIC_SIGNABLE_RESOURCE_PATHS = [
 
 export type StaticSignableResourcePath = (typeof STATIC_SIGNABLE_RESOURCE_PATHS)[number];
 
-export type ResourcePathAuthRequirement =
-  | 'adminOrSuperAdmin'
-  | 'adminOrDeveloper'
-  | 'siteRead'
-  | 'annotation'
-  | 'specimenRead';
+const STATIC_RESOURCE_PATH_PERMISSIONS: Record<StaticSignableResourcePath, Permission> = {
+  '/sessions/export/csv': 'data:export',
+  '/sessions/export/surveillance-forms/csv': 'data:export',
+  '/sessions/export/forms/csv': 'data:export',
+  '/sessions/report': 'session:read',
+  '/users/auth-events/report': 'system:admin',
+  '/specimens/export/csv': 'data:export',
+  '/annotations/export': 'annotation:read',
+};
+
+/** Signable exports whose data must stay within the requesting user's program. */
+export const PROGRAM_SCOPED_RESOURCE_PATHS: ReadonlySet<string> = new Set<StaticSignableResourcePath>([
+  '/sessions/export/csv',
+  '/sessions/export/surveillance-forms/csv',
+  '/sessions/export/forms/csv',
+  '/sessions/report',
+  '/specimens/export/csv',
+  '/annotations/export',
+]);
 
 const SIGNATURE_QUERY_PARAM = 'signature';
 const SPECIMEN_IMAGE_PATH_REGEX = /^\/specimens\/(\d+)\/images\/([^/]+)$/;
@@ -52,28 +66,16 @@ export function isSignablePath(pathname: string): boolean {
   return isStaticSignableResourcePath(pathname) || isSpecimenImagePath(pathname);
 }
 
-export function getResourcePathAuthRequirement(pathname: string): ResourcePathAuthRequirement | null {
+export function getResourcePathPermission(pathname: string): Permission | null {
   if (isSpecimenImagePath(pathname)) {
-    return 'specimenRead';
+    return 'specimen:read';
   }
 
   if (!isStaticSignableResourcePath(pathname)) {
     return null;
   }
 
-  if (pathname === '/sessions/report') {
-    return 'siteRead';
-  }
-
-  if (pathname === '/annotations/export') {
-    return 'annotation';
-  }
-
-  if (pathname === '/users/auth-events/report') {
-    return 'adminOrDeveloper';
-  }
-
-  return 'adminOrSuperAdmin';
+  return STATIC_RESOURCE_PATH_PERMISSIONS[pathname];
 }
 
 export function getSignedUrlExpiresInSeconds(pathname: string): number {

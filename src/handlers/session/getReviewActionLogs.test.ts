@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { getReviewActionLogs } from './getReviewActionLogs';
 import { ReviewActionLog, Site, User } from '../../db/models';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { assignedSitesAccess, unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db/models', () => ({
   ReviewActionLog: {
@@ -17,7 +17,6 @@ jest.mock('../../db/models', () => ({
 }));
 
 jest.mock('../site/common', () => ({
-  expandSiteIdsWithDescendants: jest.fn(),
   buildSiteSubtreeWhere: jest.fn(() => ({ __subtree: true })),
   siteIdInSubtreeOfLiteral: jest.fn(() => ({ __literal: true })),
 }));
@@ -38,20 +37,15 @@ describe('getReviewActionLogs hierarchy filtering', () => {
     (Site.count as jest.Mock).mockResolvedValue(1);
   });
 
-  it('only expands accessible site ids and pushes the requested subtree to SQL', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([1, 2]);
-
+  it('restricts to accessible site ids and pushes the requested subtree to SQL', async () => {
     const request: any = {
       query: { siteId: 2 },
-      siteAccess: { userSites: [1] },
+      access: assignedSitesAccess([1, 2]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
 
     await getReviewActionLogs(request, reply as any);
-
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledTimes(1);
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([1]);
 
     const where = (ReviewActionLog.count as jest.Mock).mock.calls[0][0].where;
     expect(where[Op.and]).toEqual([
@@ -61,12 +55,11 @@ describe('getReviewActionLogs hierarchy filtering', () => {
   });
 
   it('returns 403 when the requested subtree does not overlap with accessible sites', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([1]);
     (Site.count as jest.Mock).mockResolvedValueOnce(0);
 
     const request: any = {
       query: { siteId: 99 },
-      siteAccess: { userSites: [1] },
+      access: assignedSitesAccess([1]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -77,11 +70,9 @@ describe('getReviewActionLogs hierarchy filtering', () => {
   });
 
   it('filters logs by collectionCycleId', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([]);
-
     const request: any = {
       query: { collectionCycleId: 12 },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -93,11 +84,9 @@ describe('getReviewActionLogs hierarchy filtering', () => {
   });
 
   it('filters logs by specimenId', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValueOnce([]);
-
     const request: any = {
       query: { specimenId: 55 },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();

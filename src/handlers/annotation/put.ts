@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Annotation, AnnotationTask } from '../../db/models';
 import { formatAnnotationResponse } from './common';
+import { canAccessTaskOwner, managedTaskOwnerIds } from './access';
 
 interface UpdateAnnotationParams {
   annotationId: number;
@@ -26,7 +27,7 @@ interface UpdateAnnotationRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Update annotation',
-  description: 'Update annotation data (requires admin token or superadmin user access)',
+  description: 'Update annotation data (requires annotation:manage, or annotation:annotate for annotations in your own tasks)',
   params: {
     type: 'object',
     required: ['annotationId'],
@@ -93,28 +94,20 @@ export default async function updateAnnotation(
     const { annotationId } = request.params;
     const updates = request.body;
 
-    // Find the annotation with access control
-    let annotation;
-    if (!request.isAdminToken && request.user) {
-      // For superadmin users, check if the annotation belongs to one of their tasks
-      annotation = await Annotation.findByPk(annotationId, {
-        include: [{
-          model: AnnotationTask,
-          as: 'annotationTask',
-          where: { userId: request.user.id },
-        }]
-      });
-    } else {
-      // Admin token can access any annotation
-      annotation = await Annotation.findByPk(annotationId, {
-        include: [{
-          model: AnnotationTask,
-          as: 'annotationTask',
-        }]
-      });
-    }
+    const annotation = await Annotation.findByPk(annotationId, {
+      include: [{
+        model: AnnotationTask,
+        as: 'annotationTask',
+      }]
+    });
+    const taskOwnerId = (annotation?.get('annotationTask') as AnnotationTask | undefined)?.userId;
+    const isOwnTask = taskOwnerId !== undefined
+      && request.access.has('annotation:annotate')
+      && taskOwnerId === request.user?.id;
+    const canManage = taskOwnerId !== undefined
+      && canAccessTaskOwner(await managedTaskOwnerIds(request), taskOwnerId);
 
-    if (!annotation) {
+    if (!annotation || (!isOwnTask && !canManage)) {
       return reply.code(404).send({ error: 'Annotation not found or access denied' });
     }
 

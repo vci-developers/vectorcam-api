@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AnnotationTask } from '../../db/models';
 import { formatAnnotationTaskResponse } from './common';
+import { canAccessTaskOwner, managedTaskOwnerIds } from '../annotation/access';
 
 interface UpdateAnnotationTaskParams {
   taskId: number;
@@ -20,7 +21,7 @@ interface UpdateAnnotationTaskRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Update annotation task',
-  description: 'Update annotation task data (requires admin token or superadmin user access - superadmin users can only update status)',
+  description: 'Update annotation task data (requires annotation:manage; with only annotation:annotate, the status of your own tasks can be updated)',
   params: {
     type: 'object',
     required: ['taskId'],
@@ -73,22 +74,15 @@ export default async function updateAnnotationTask(
     const { taskId } = request.params;
     const updates = request.body;
 
-    // Find the annotation task with access control
-    let task;
-    if (!request.isAdminToken && request.user) {
-      // For superadmin users, check if they own the task
-      task = await AnnotationTask.findOne({
-        where: { 
-          id: taskId,
-          userId: request.user.id 
-        }
-      });
-      
-      if (!task) {
-        return reply.code(404).send({ error: 'Annotation task not found or access denied' });
-      }
-      
-      // Superadmin users can only update status
+    const task = await AnnotationTask.findByPk(taskId);
+    const isOwnTask = !!task && request.access.has('annotation:annotate') && task.userId === request.user?.id;
+    const canManageTask = !!task && canAccessTaskOwner(await managedTaskOwnerIds(request), task.userId);
+    if (!task || (!canManageTask && !isOwnTask)) {
+      return reply.code(404).send({ error: 'Annotation task not found or access denied' });
+    }
+
+    if (!canManageTask) {
+      // Annotators can only move their own tasks through statuses
       const allowedFields = ['status'];
       const filteredUpdates: Partial<typeof updates> = {};
       
@@ -99,20 +93,11 @@ export default async function updateAnnotationTask(
       }
       
       if (Object.keys(filteredUpdates).length === 0) {
-        return reply.code(400).send({ error: 'Superadmin users can only update status field' });
+        return reply.code(400).send({ error: 'Annotators can only update the status field' });
       }
       
-      // Update with filtered fields
       await task.update(filteredUpdates);
     } else {
-      // Admin token can access and update any task with any fields
-      task = await AnnotationTask.findByPk(taskId);
-      
-      if (!task) {
-        return reply.code(404).send({ error: 'Annotation task not found' });
-      }
-      
-      // Update the task with all provided fields
       await task.update(updates);
     }
 

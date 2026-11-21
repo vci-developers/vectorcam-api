@@ -16,7 +16,6 @@ jest.mock('../../db/index', () => ({
 }));
 
 jest.mock('../site/common', () => ({
-  expandSiteIdsWithDescendants: jest.fn(async (ids: number[]) => ids),
   buildSiteSubtreeWhere: jest.fn(),
   parseSiteIds: jest.fn((value?: string) =>
     value
@@ -26,6 +25,7 @@ jest.mock('../site/common', () => ({
 }));
 
 import sequelize from '../../db/index';
+import { assignedSitesAccess, unrestrictedAccess } from '../../test/access';
 
 function createReply() {
   return {
@@ -42,7 +42,7 @@ describe('getSpecimenSessionCount', () => {
   it('returns 400 when programId is missing', async () => {
     const request: any = {
       query: {},
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -59,7 +59,7 @@ describe('getSpecimenSessionCount', () => {
 
     const request: any = {
       query: { programId: 5 },
-      siteAccess: { canRead: true, userSites: [10] },
+      access: assignedSitesAccess([10]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -96,7 +96,7 @@ describe('getSpecimenSessionCount', () => {
 
     const request: any = {
       query: { programId: 1 },
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -121,7 +121,7 @@ describe('getSpecimenSessionCount', () => {
   it('returns 400 when start date is after end date', async () => {
     const request: any = {
       query: { programId: 1, startDate: '2025-02-01', endDate: '2025-01-01' },
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -144,7 +144,7 @@ describe('getSpecimenSessionCount', () => {
         startDate: '2025-01-01',
         endDate: '2025-01-31',
       },
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -167,7 +167,7 @@ describe('getSpecimenSessionCount', () => {
 
     const request: any = {
       query: { programId: 1, hasImages: true },
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();

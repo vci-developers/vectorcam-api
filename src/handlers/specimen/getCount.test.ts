@@ -1,6 +1,7 @@
 import { Op } from 'sequelize';
 import { getSpecimenCount } from './getCount';
 import { Site } from '../../db/models';
+import { unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db/models', () => ({
   Specimen: {},
@@ -50,7 +51,7 @@ describe('getSpecimenCount location hierarchy filter', () => {
   it('builds site filter against ordered hierarchy array', async () => {
     const request: any = {
       query: { locationTypeKey: 'district', locationTypeValue: 'Kampala' },
-      siteAccess: { canRead: true, userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();

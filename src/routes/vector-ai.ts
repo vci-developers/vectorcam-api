@@ -9,7 +9,7 @@ import {
   MAX_INFERENCE_BODY_BYTES,
   SUPPORTED_BINARY_CONTENT_TYPES,
 } from '../handlers/vector-ai/inference/post';
-import { requireAdminAuth, requireAdminOrMobileAuth } from '../middleware/auth.middleware';
+import { requirePermission } from '../middleware/permission.middleware';
 
 export default function vectorAiRoutes(fastify: FastifyInstance, opts: object, done: () => void): void {
   for (const contentType of SUPPORTED_BINARY_CONTENT_TYPES) {
@@ -23,16 +23,14 @@ export default function vectorAiRoutes(fastify: FastifyInstance, opts: object, d
   }
 
   fastify.post('/inference', {
-    preHandler: [requireAdminOrMobileAuth],
+    preHandler: [requirePermission('mobile:app')],
     schema: inferenceSchema,
     bodyLimit: MAX_INFERENCE_BODY_BYTES,
-    config: { skipSiteAccess: true },
   }, invokeInference as any);
 
   fastify.post('/specimens/:specimen_id/images/:image_id/inference', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: specimenImageInferenceSchema,
-    config: { skipSiteAccess: true },
   }, runSpecimenImageVectorAiInference as any);
 
   done();

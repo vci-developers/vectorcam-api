@@ -17,6 +17,7 @@ import annotationRoutes from './annotations';
 import dhis2Routes from './dhis2';
 import vectorAiRoutes from './vector-ai';
 import dataRecoveryRoutes from './dataRecoveries';
+import roleRoutes from './roles';
 
 /**
  * Register all routes with the Fastify instance
@@ -31,6 +32,7 @@ export default async function routes(server: FastifyInstance): Promise<void> {
   
   server.register(authRoutes, { prefix: '/auth' });
   server.register(userRoutes, { prefix: '/users' });
+  server.register(roleRoutes, { prefix: '/roles' });
   server.register(programRoutes, { prefix: '/programs' });
   server.register(siteRoutes, { prefix: '/sites' });
   server.register(deviceRoutes, { prefix: '/devices' });

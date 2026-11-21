@@ -13,8 +13,11 @@ import {
   getActiveUserMetricsHandler, getActiveUserMetricsSchema,
   getUserAuthEventsHandler, getUserAuthEventsSchema,
   exportUserAuthEventsReportHandler, exportUserAuthEventsReportSchema,
+  getUserRolesHandler, getUserRolesSchema,
+  updateUserRolesHandler, updateUserRolesSchema,
 } from '../handlers/user';
-import { requireAdminAuth, requireNonWhitelistedUserAuth, requireUserAuth } from '../middleware/auth.middleware';
+import { requireNonWhitelistedUserAuth, requireUserAuth } from '../middleware/auth.middleware';
+import { requirePermission } from '../middleware/permission.middleware';
 import { requireSignedResourceAuth } from '../middleware/signedUrl.middleware';
 
 /**
@@ -47,13 +50,13 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
 
   // Get all users (requires admin auth token)
   server.get('/', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getUsersSchema,
   }, getUsersHandler as any);
 
   // List active user metrics snapshots (requires admin token or developer user)
   server.get('/active-metrics', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getActiveUserMetricsSchema,
   }, getActiveUserMetricsHandler as any);
 
@@ -65,37 +68,47 @@ export default async function userRoutes(server: FastifyInstance): Promise<void>
 
   // List user auth events (requires admin token or developer user)
   server.get('/auth-events', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getUserAuthEventsSchema,
   }, getUserAuthEventsHandler as any);
 
   // Add email to whitelist (requires admin auth token)
   server.post('/whitelist', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: addToWhitelistSchema,
   }, addToWhitelistHandler as any);
 
   // Get whitelist entries (requires admin auth token)
   server.get('/whitelist', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: getWhitelistSchema,
   }, getWhitelistHandler);
 
   // Remove email from whitelist (requires admin auth token)
   server.delete('/whitelist/:id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: removeFromWhitelistSchema,
   }, removeFromWhitelistHandler as any);
 
-  // Modify user privileges (requires admin auth token)
+  // Modify user fields and roles
   server.put('/:id', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: modifyUserSchema,
   }, modifyUserHandler as any);
 
+  server.get('/:id/roles', {
+    preHandler: [requirePermission('system:admin')],
+    schema: getUserRolesSchema,
+  }, getUserRolesHandler as any);
+
+  server.put('/:id/roles', {
+    preHandler: [requirePermission('system:admin')],
+    schema: updateUserRolesSchema,
+  }, updateUserRolesHandler as any);
+
   // Reset user password (requires admin auth token)
   server.put('/:id/reset-password', {
-    preHandler: [requireAdminAuth],
+    preHandler: [requirePermission('system:admin')],
     schema: resetPasswordSchema,
   }, resetPasswordHandler as any);
 }

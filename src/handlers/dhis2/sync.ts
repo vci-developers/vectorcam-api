@@ -16,7 +16,7 @@ import { config } from '../../config/environment';
 import { CollectionCycle, Dhis2SyncEvent, Dhis2SyncTask, Site, Session } from '../../db/models';
 import { SessionState } from '../../db/models/Session';
 import { getYearMonthInTimezone } from '../program/collectionCycle/common';
-import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere } from '../site/common';
 
 const DHIS2_SYNC_TIMEOUT_SECONDS = 300;
 
@@ -328,11 +328,6 @@ async function buildSyncTaskInput(
         throw new HttpError(400, 'collectionCycleId and siteId must be provided together.');
     }
 
-    const siteAccess = request.siteAccess;
-    if (!siteAccess) {
-        throw new HttpError(500, 'Site access information not available');
-    }
-
     if (collectionCycleId != null && siteId != null) {
         const [cycle, site] = await Promise.all([
             CollectionCycle.findByPk(collectionCycleId),
@@ -351,11 +346,8 @@ async function buildSyncTaskInput(
             throw new HttpError(400, 'Collection cycle and site must belong to the same program.');
         }
 
-        if (!request.isAdminToken) {
-            const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
-            if (!accessibleSiteIds.includes(siteId)) {
-                throw new HttpError(403, 'No access to the requested site.');
-            }
+        if (!(await request.access.canAccessSite('dhis2:push', siteId))) {
+            throw new HttpError(403, 'No access to the requested site.');
         }
 
         const cycleStartDate = new Date(cycle.startDate);
@@ -407,12 +399,13 @@ async function buildSyncTaskInput(
         throw new HttpError(400, `No sites in district "${district}" match the provided siteIds filter.`);
     }
 
-    if (request.isAdminToken) {
+    const accessibleSiteIds = await request.access.siteIdsFor('dhis2:push');
+    if (accessibleSiteIds === null) {
         allowedSiteIds = districtSiteIds;
-        request.log.info(`Admin token queued DHIS2 sync for ${allowedSiteIds.length} sites in district "${district}"`);
+        request.log.info(`Unrestricted caller queued DHIS2 sync for ${allowedSiteIds.length} sites in district "${district}"`);
     } else {
-        const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
-        allowedSiteIds = districtSiteIds.filter((siteId) => accessibleSiteIds.includes(siteId));
+        const accessibleSiteIdSet = new Set(accessibleSiteIds);
+        allowedSiteIds = districtSiteIds.filter((siteId) => accessibleSiteIdSet.has(siteId));
 
         if (allowedSiteIds.length === 0) {
             throw new HttpError(403, `No accessible sites in district "${district}" within your program.`);

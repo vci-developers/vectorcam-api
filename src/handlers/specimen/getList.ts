@@ -6,7 +6,7 @@ import {
   formatSpecimenResponseFromImages,
 } from './common';
 import { Op, Order } from 'sequelize';
-import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere } from '../site/common';
 
 export const schema = {
   tags: ['Specimens'],
@@ -198,8 +198,6 @@ export async function getSpecimenList(
       required: false,
     });
 
-    // Apply site access restrictions first
-    const siteAccess = request.siteAccess;
     const sessionInclude: any = {
       model: Session,
       as: 'session',
@@ -210,7 +208,7 @@ export async function getSpecimenList(
 
     // Build site restrictions based on user access
     const siteWhere: any = {};
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
+    const accessibleSiteIds = await request.access.siteIdsFor('specimen:read');
     
     // If district filter is provided, find sites in that district
     if (district) {
@@ -218,7 +216,7 @@ export async function getSpecimenList(
       districtSiteWhere.hasData = true;
       
       // If user has limited access, intersect with their accessible sites
-      if (accessibleSiteIds.length > 0) {
+      if (accessibleSiteIds !== null) {
         districtSiteWhere.id = { [Op.in]: accessibleSiteIds };
       }
       
@@ -235,7 +233,7 @@ export async function getSpecimenList(
       } else {
         siteWhere.id = { [Op.in]: districtSiteIds };
       }
-    } else if (accessibleSiteIds.length > 0) {
+    } else if (accessibleSiteIds !== null) {
       // No district filter, but user has limited access
       siteWhere.id = { [Op.in]: accessibleSiteIds };
     }

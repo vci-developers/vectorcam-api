@@ -3,6 +3,7 @@ import { Transaction, Op } from 'sequelize';
 import sequelize from '../../db';
 import { AnnotationTask, Annotation, Specimen } from '../../db/models';
 import { formatAnnotationResponse } from '../annotation/common';
+import { canAccessTaskOwner, managedTaskOwnerIds } from '../annotation/access';
 
 interface BulkAddAnnotationsParams {
   taskId: number;
@@ -20,7 +21,7 @@ interface BulkAddAnnotationsRequest extends FastifyRequest {
 export const schema = {
   tags: ['Annotations'],
   summary: 'Bulk add specimens as empty annotations to a task',
-  description: 'Creates PENDING annotations for the given specimens under an annotation task (requires admin token)',
+  description: 'Creates PENDING annotations for the given specimens under an annotation task (requires annotation:manage)',
   params: {
     type: 'object',
     required: ['taskId'],
@@ -105,7 +106,7 @@ export default async function bulkAddAnnotations(
     }
 
     const task = await AnnotationTask.findByPk(taskId, { transaction });
-    if (!task) {
+    if (!task || !canAccessTaskOwner(await managedTaskOwnerIds(request), task.userId)) {
       await transaction.rollback();
       return reply.code(404).send({ error: 'Annotation task not found' });
     }

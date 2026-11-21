@@ -203,6 +203,11 @@ export default async function getAnnotationSummary(
     }
     whereClauses.push('s.has_data = 1');
 
+    if (!request.access.allPrograms) {
+      replacements.accessProgramId = request.access.programId ?? 0;
+      whereClauses.push('s.program_id = :accessProgramId');
+    }
+
     if (district) {
       replacements.district = district;
       whereClauses.push('s.district = :district');

@@ -283,15 +283,10 @@ export async function resolveConflict(
     const month = referenceDate.getMonth() + 1;
     const year = referenceDate.getFullYear();
 
-    // Check if user has access to this site
-    const siteAccess = request.siteAccess;
-    if (siteAccess && siteAccess.userSites.length > 0) {
-      // If userSites is not empty, check if user has access to this specific site
-      if (!siteAccess.userSites.includes(siteId)) {
-        return reply.code(403).send({
-          error: 'Forbidden: You do not have access to resolve conflicts for this site',
-        });
-      }
+    if (!(await request.access.canAccessSite('session:write', siteId))) {
+      return reply.code(403).send({
+        error: 'Forbidden: You do not have access to resolve conflicts for this site',
+      });
     }
 
     const targetAnswerScope = hasSessionUnitIds ? 'SESSION_UNIT' : 'SESSION';

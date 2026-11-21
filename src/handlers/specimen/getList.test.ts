@@ -1,7 +1,7 @@
 import { Op } from 'sequelize';
 import { getSpecimenList } from './getList';
 import { Specimen, Site } from '../../db/models';
-import { expandSiteIdsWithDescendants } from '../site/common';
+import { assignedSitesAccess, unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db/models', () => ({
   Specimen: {
@@ -16,7 +16,6 @@ jest.mock('../../db/models', () => ({
 }));
 
 jest.mock('../site/common', () => ({
-  expandSiteIdsWithDescendants: jest.fn(),
   buildSiteSubtreeWhere: jest.fn(() => ({ __subtree: true })),
 }));
 
@@ -38,19 +37,16 @@ describe('getSpecimenList hierarchy filtering', () => {
     (Specimen.findAll as jest.Mock).mockResolvedValue([]);
   });
 
-  it('expands accessible site ids for restricted users', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([1, 2]);
-
+  it('restricts specimens to accessible site ids', async () => {
     const request: any = {
       query: {},
-      siteAccess: { userSites: [1] },
+      access: assignedSitesAccess([1, 2]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
 
     await getSpecimenList(request, reply as any);
 
-    expect(expandSiteIdsWithDescendants).toHaveBeenCalledWith([1]);
     const countInclude = (Specimen.count as jest.Mock).mock.calls[0][0].include;
     const sessionInclude = countInclude.find((entry: any) => entry.as === 'session');
     const siteWhere = sessionInclude.include[0].where;
@@ -58,12 +54,11 @@ describe('getSpecimenList hierarchy filtering', () => {
   });
 
   it('pushes district hasData filter into site query', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([1, 2]);
     (Site.findAll as jest.Mock).mockResolvedValue([{ id: 2 }]);
 
     const request: any = {
       query: { district: 'Kampala' },
-      siteAccess: { userSites: [1] },
+      access: assignedSitesAccess([1, 2]),
       log: { error: jest.fn() },
     };
     const reply = createReply();
@@ -81,11 +76,9 @@ describe('getSpecimenList hierarchy filtering', () => {
   });
 
   it('filters by sessionUnitId and collectionCycleId', async () => {
-    (expandSiteIdsWithDescendants as jest.Mock).mockResolvedValue([]);
-
     const request: any = {
       query: { sessionUnitId: 42, collectionCycleId: 7 },
-      siteAccess: { userSites: [] },
+      access: unrestrictedAccess(),
       log: { error: jest.fn() },
     };
     const reply = createReply();

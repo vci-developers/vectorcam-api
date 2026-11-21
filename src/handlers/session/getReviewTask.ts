@@ -88,12 +88,11 @@ export async function getSessionReviewTask(
 
     // Build site where clause for access control
     const siteWhereClause: any = {};
-    const siteAccess = request.siteAccess;
-    
-    if (siteAccess && siteAccess.userSites.length > 0) {
-      // User has limited site access, restrict to their sites
+    const accessibleSiteIds = await request.access.siteIdsFor('session:read');
+
+    if (accessibleSiteIds !== null) {
       siteWhereClause.id = {
-        [Op.in]: siteAccess.userSites
+        [Op.in]: accessibleSiteIds
       };
     }
 

@@ -13,7 +13,7 @@ import {
   SurveillanceForm,
 } from '../../db/models';
 import { handleError } from './common';
-import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere } from '../site/common';
 
 interface ReportQuery {
   startDate?: string;
@@ -347,16 +347,12 @@ export async function exportSessionReport(
       return reply.code(400).send({ error: 'programId must be a positive integer' });
     }
 
-    const siteAccess = request.siteAccess;
-    if (!request.isSignedUrl && !siteAccess?.canRead) {
-      return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to read site data' });
-    }
-
     const requestedDistricts = parseCommaSeparated(districts);
     const requestedSiteIds = parseSiteIds(siteIds);
+    // Signed URLs carry their access restrictions in the signed query (see restrictResourceQuery)
     const accessibleSiteIds = request.isSignedUrl
-      ? []
-      : await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
+      ? null
+      : await request.access.siteIdsFor('session:read');
 
     const siteWhere: any = {};
     if (requestedDistricts.length > 0) {
@@ -366,7 +362,7 @@ export async function exportSessionReport(
       siteWhere.programId = parsedProgramId;
     }
 
-    if (accessibleSiteIds.length > 0) {
+    if (accessibleSiteIds !== null) {
       siteWhere.id = { [Op.in]: accessibleSiteIds };
     }
 

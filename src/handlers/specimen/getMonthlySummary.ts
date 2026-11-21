@@ -2,7 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { Op, QueryTypes } from 'sequelize';
 import sequelize from '../../db/index';
 import { Site } from '../../db/models';
-import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants } from '../site/common';
+import { buildSiteSubtreeWhere } from '../site/common';
 
 interface QueryParams {
   startDate?: string;
@@ -170,14 +170,9 @@ export async function getSpecimenMonthlySummary(
       return reply.code(400).send({ error: 'Start date must be before or equal to end date' });
     }
 
-    const siteAccess = request.siteAccess;
-    if (!siteAccess?.canRead) {
-      return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to access specimen data' });
-    }
-
     const requestedDistricts = parseCommaSeparated(districts);
     const requestedSiteIds = parseSiteIds(siteIds);
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
+    const accessibleSiteIds = await request.access.siteIdsFor('specimen:read');
 
     const siteWhere: any = {
       hasData: true,
@@ -196,7 +191,7 @@ export async function getSpecimenMonthlySummary(
       }
     }
 
-    if (accessibleSiteIds.length > 0) {
+    if (accessibleSiteIds !== null) {
       siteWhere.id = { [Op.in]: accessibleSiteIds };
     }
 

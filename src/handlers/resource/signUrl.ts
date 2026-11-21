@@ -1,13 +1,14 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import {
   buildAbsoluteSignedUrl,
-  getResourcePathAuthRequirement,
+  getResourcePathPermission,
   isSignedUrlConfigured,
   parseResourcePath,
   parseSpecimenImagePath,
   signResourceUrl,
 } from '../../services/signedUrl.service';
-import { checkSpecimenReadAccessById } from '../../middleware/specimenAccess.middleware';
+import { findSpecimenSiteId } from '../../middleware/permission.middleware';
+import { restrictResourceQuery } from '../../middleware/signedUrl.middleware';
 
 export const schema = {
   tags: ['Resources'],
@@ -63,30 +64,6 @@ export interface SignResourceUrlRequest {
   };
 }
 
-function hasAdminOrDeveloperAccess(request: FastifyRequest): boolean {
-  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-
-  return Boolean(request.isAdminToken || isDeveloperUser);
-}
-
-function hasAdminOrSuperAdminAccess(request: FastifyRequest): boolean {
-  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-  const isProgramWideUser = request.authType === 'user' && !!request.user && request.user.privilege >= 3;
-
-  return Boolean(request.isAdminToken || isDeveloperUser || isProgramWideUser);
-}
-
-function hasAnnotationAccess(request: FastifyRequest): boolean {
-  const isDeveloperUser = request.authType === 'user' && !!request.user?.isDeveloper;
-  const isAnnotationUser = request.authType === 'user' && !!request.user && request.user.privilege >= 4;
-
-  return Boolean(request.isAdminToken || isDeveloperUser || isAnnotationUser);
-}
-
-function hasSiteReadAccess(request: FastifyRequest): boolean {
-  return Boolean(request.siteAccess?.canRead);
-}
-
 export async function signResourceUrlHandler(
   request: FastifyRequest<SignResourceUrlRequest>,
   reply: FastifyReply
@@ -111,37 +88,32 @@ export async function signResourceUrlHandler(
     return reply.code(400).send({ error: 'Invalid path format' });
   }
 
-  const authRequirement = getResourcePathAuthRequirement(parsedPath.pathname);
-  if (!authRequirement) {
+  const permission = getResourcePathPermission(parsedPath.pathname);
+  if (!permission) {
     return reply.code(400).send({ error: 'Path is not an allowed signable resource endpoint' });
   }
 
-  if (authRequirement === 'adminOrDeveloper' && !hasAdminOrDeveloperAccess(request)) {
-    return reply.code(403).send({ error: 'Forbidden: Admin token or developer user authentication required' });
+  if (!request.access.has(permission)) {
+    return reply.code(403).send({ error: `Forbidden: Requires ${permission} permission` });
   }
 
-  if (authRequirement === 'adminOrSuperAdmin' && !hasAdminOrSuperAdminAccess(request)) {
-    return reply.code(403).send({ error: 'Forbidden: Admin, developer, or program-wide user authentication required' });
-  }
-
-  if (authRequirement === 'annotation' && !hasAnnotationAccess(request)) {
-    return reply.code(403).send({ error: 'Forbidden: Annotation privileges required' });
-  }
-
-  if (authRequirement === 'siteRead' && !hasSiteReadAccess(request)) {
-    return reply.code(403).send({ error: 'Forbidden: Insufficient permissions to read site data' });
-  }
-
-  if (authRequirement === 'specimenRead') {
-    const specimenImagePath = parseSpecimenImagePath(parsedPath.pathname);
-    if (!specimenImagePath) {
-      return reply.code(400).send({ error: 'Invalid specimen image path' });
+  const specimenImagePath = parseSpecimenImagePath(parsedPath.pathname);
+  if (specimenImagePath) {
+    const siteId = await findSpecimenSiteId(specimenImagePath.specimenId);
+    if (siteId === undefined) {
+      return reply.code(404).send({ error: 'Specimen not found' });
     }
-
-    const hasAccess = await checkSpecimenReadAccessById(request, reply, specimenImagePath.specimenId);
-    if (!hasAccess) {
-      return;
+    if (siteId === null) {
+      return reply.code(500).send({ error: 'Internal server error: Could not determine specimen site' });
     }
+    if (!(await request.access.canAccessSite(permission, siteId))) {
+      return reply.code(403).send({ error: 'Forbidden: No access to this site' });
+    }
+  }
+
+  const restrictionError = await restrictResourceQuery(parsedPath.pathname, parsedPath.query, request.access);
+  if (restrictionError) {
+    return reply.code(403).send({ error: restrictionError });
   }
 
   try {

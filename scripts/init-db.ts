@@ -2,6 +2,7 @@
 
 import { testConnection } from '../src/db';
 import syncDatabase from '../src/db/sync';
+import { syncBuiltInRoles } from '../src/services/roles.service';
 import pino from 'pino';
 
 const logger = pino();
@@ -31,6 +32,10 @@ async function initializeDatabase() {
     // 3. Sync database
     logger.info(`Syncing database with options: ${JSON.stringify(syncOptions)}`);
     await syncDatabase(syncOptions);
+
+    // 4. Built-in roles must exist before users can be created
+    logger.info('Syncing built-in roles...');
+    await syncBuiltInRoles();
     
     logger.info('Database initialization completed successfully');
     process.exit(0);

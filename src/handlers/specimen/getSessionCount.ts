@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Site } from '../../db/models';
 import { Op, QueryTypes, fn, col, where, literal } from 'sequelize';
 import sequelize from '../../db/index';
-import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants, parseSiteIds } from '../site/common';
+import { buildSiteSubtreeWhere, parseSiteIds } from '../site/common';
 
 interface QueryParams {
   programId?: number;
@@ -182,17 +182,10 @@ export async function getSpecimenSessionCount(
       return reply.code(400).send({ error: 'Start date must be before or equal to end date' });
     }
 
-    const siteAccess = request.siteAccess;
-    if (!siteAccess?.canRead) {
-      return reply.code(403).send({
-        error: 'Forbidden: Insufficient permissions to access specimen data',
-      });
-    }
-
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess.userSites ?? []);
+    const accessibleSiteIds = await request.access.siteIdsFor('specimen:read');
 
     const siteWhere: any = { programId };
-    if (accessibleSiteIds.length > 0) {
+    if (accessibleSiteIds !== null) {
       siteWhere.id = { [Op.in]: accessibleSiteIds };
     }
 

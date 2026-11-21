@@ -1,7 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { ReviewActionLog, Site, User } from '../../db/models';
-import { buildSiteSubtreeWhere, expandSiteIdsWithDescendants, siteIdInSubtreeOfLiteral } from '../site/common';
+import { buildSiteSubtreeWhere, siteIdInSubtreeOfLiteral } from '../site/common';
 import { formatPerformedBy, performedByResponseSchema } from './common';
 
 interface GetReviewActionLogsQuery {
@@ -101,10 +101,9 @@ export async function getReviewActionLogs(
     } = request.query;
 
     const whereClause: any = {};
-    const siteAccess = request.siteAccess;
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(siteAccess?.userSites ?? []);
+    const accessibleSiteIds = await request.access.siteIdsFor('session:read');
 
-    if (accessibleSiteIds.length > 0) {
+    if (accessibleSiteIds !== null) {
       if (siteId !== undefined) {
         const subtreeWhere = buildSiteSubtreeWhere([siteId]);
         const accessibleInSubtree = subtreeWhere

@@ -17,6 +17,11 @@ export {
   getPermissionsHandler, getPermissionsSchema
 } from './permissions';
 
+export {
+  getUserRolesHandler, getUserRolesSchema,
+  updateUserRolesHandler, updateUserRolesSchema,
+} from './roles';
+
 export { 
   resetPasswordHandler, resetPasswordSchema
 } from './resetPassword';

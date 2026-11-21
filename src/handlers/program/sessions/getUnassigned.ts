@@ -2,7 +2,6 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { Op } from 'sequelize';
 import { Session, Site } from '../../../db/models';
 import { certifierInclude, certifiedByResponseSchema, formatSessionResponse } from '../../session/common';
-import { expandSiteIdsWithDescendants } from '../../site/common';
 
 interface QueryParams {
   limit?: number;
@@ -61,10 +60,10 @@ export async function getUnassignedProgramSessions(
   try {
     const { program_id } = request.params;
     const { limit = 20, offset = 0 } = request.query;
-    const accessibleSiteIds = await expandSiteIdsWithDescendants(request.siteAccess?.userSites ?? []);
+    const accessibleSiteIds = await request.access.siteIdsFor('session:read');
 
     const siteWhere: any = { programId: program_id };
-    if (accessibleSiteIds.length > 0) {
+    if (accessibleSiteIds !== null) {
       siteWhere.id = { [Op.in]: accessibleSiteIds };
     }
 

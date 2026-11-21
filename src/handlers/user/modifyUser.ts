@@ -1,8 +1,18 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
+import sequelize from '../../db';
 import { User, Program, Site, SiteUser } from '../../db/models';
+import {
+  getUserRoleAssignments,
+  legacyPrivilegeAssignment,
+  RoleAssignmentInput,
+  RoleValidationError,
+  setUserRoleAssignments,
+} from '../../services/roles.service';
+import { roleAssignmentInputSchema, roleAssignmentSchema } from '../role/common';
 
 interface ModifyUserBody {
   privilege?: number;
+  roles?: RoleAssignmentInput[];
   isDeveloper?: boolean;
   programId?: number;
   name?: string | null;
@@ -35,12 +45,17 @@ export const modifyUserSchema: any = {
     properties: {
       privilege: { 
         type: 'number',
-        description: 'Privilege level: 0=view selected sites, 1=view all in program, 2=write/push selected sites, 3=write/push all in program, 4=write/push all in program + annotate',
+        description: 'Deprecated, use roles. Replaces the user\'s roles with the matching built-in role: 0=Viewer on assigned sites, 1=Viewer for the program, 2=Editor on assigned sites, 3=Program Manager, 4=Program Admin',
         enum: [0, 1, 2, 3, 4]
+      },
+      roles: {
+        type: 'array',
+        items: roleAssignmentInputSchema,
+        description: 'Role assignments that replace the user\'s current roles. Cannot be combined with privilege.'
       },
       isDeveloper: {
         type: 'boolean',
-        description: 'Developer flag: allows access to routes guarded by admin token middleware.'
+        description: 'Developer flag: grants every permission in every program, like the admin token.'
       },
       programId: {
         type: 'number',
@@ -63,9 +78,10 @@ export const modifyUserSchema: any = {
             id: { type: 'number' },
             email: { type: 'string' },
             name: { type: ['string', 'null'] },
-            privilege: { type: 'number' },
+            privilege: { type: 'number', description: 'Deprecated: legacy level derived from roles' },
             isDeveloper: { type: 'boolean' },
             programId: { type: 'number', nullable: true },
+            roles: { type: 'array', items: roleAssignmentSchema },
             isActive: { type: 'boolean' },
             updatedAt: { type: 'string' },
           },
@@ -103,7 +119,7 @@ export async function modifyUserHandler(
 ): Promise<void> {
   try {
     const { id } = request.params;
-    const { privilege, isDeveloper, programId, name } = request.body;
+    const { privilege, roles, isDeveloper, programId, name } = request.body;
 
     // Validate input
     if (!id || isNaN(parseInt(id))) {
@@ -112,6 +128,9 @@ export async function modifyUserHandler(
 
     if (privilege !== undefined && ![0, 1, 2, 3, 4].includes(privilege)) {
       return reply.code(400).send({ error: 'Invalid privilege level. Must be 0, 1, 2, 3, or 4' });
+    }
+    if (privilege !== undefined && roles !== undefined) {
+      return reply.code(400).send({ error: 'Provide either roles or privilege, not both' });
     }
 
     // Validate programId if provided
@@ -158,9 +177,6 @@ export async function modifyUserHandler(
 
     // Update only fields provided in request body
     const updateData: any = {};
-    if (privilege !== undefined) {
-      updateData.privilege = privilege;
-    }
     if (isDeveloper !== undefined) {
       updateData.isDeveloper = isDeveloper;
     }
@@ -170,7 +186,32 @@ export async function modifyUserHandler(
     if (name !== undefined) {
       updateData.name = name === null ? null : name.trim();
     }
-    await user.update(updateData);
+
+    try {
+      await sequelize.transaction(async (transaction) => {
+        await user.update(updateData, { transaction });
+
+        const assignments = roles
+          ?? (privilege !== undefined ? [await legacyPrivilegeAssignment(privilege, transaction)] : undefined);
+        if (assignments) {
+          await setUserRoleAssignments(user, assignments, transaction);
+          return;
+        }
+
+        const otherProgramRoles = (await getUserRoleAssignments(user.id, transaction))
+          .filter((assignment) => assignment.programId !== null && assignment.programId !== user.programId);
+        if (otherProgramRoles.length > 0) {
+          throw new RoleValidationError(
+            `Cannot change program. User holds roles of another program: ${otherProgramRoles.map((role) => role.key).join(', ')}. Replace the user's roles in the same request.`
+          );
+        }
+      });
+    } catch (error) {
+      if (error instanceof RoleValidationError) {
+        return reply.code(400).send({ error: error.message });
+      }
+      throw error;
+    }
 
     return reply.code(200).send({
       message: 'User updated successfully',
@@ -181,6 +222,7 @@ export async function modifyUserHandler(
         privilege: user.privilege,
         isDeveloper: user.isDeveloper,
         programId: user.programId,
+        roles: await getUserRoleAssignments(user.id),
         isActive: user.isActive,
         updatedAt: user.updatedAt,
       },

@@ -7,8 +7,9 @@ import {
   CollectionCycle,
   Program,
   Specimen,
-  User,
 } from '../../db/models';
+import { findActiveUsersWithProgramPermission } from '../../services/roles.service';
+import { assignedSitesAccess, unrestrictedAccess } from '../../test/access';
 
 jest.mock('../../db', () => ({
   __esModule: true,
@@ -21,7 +22,7 @@ jest.mock('../../db', () => ({
 jest.mock('../../db/models', () => ({
   Program: { findByPk: jest.fn() },
   CollectionCycle: { findByPk: jest.fn() },
-  User: { findAll: jest.fn() },
+  User: {},
   Specimen: { findAll: jest.fn() },
   AnnotationTask: {
     create: jest.fn(),
@@ -30,6 +31,10 @@ jest.mock('../../db/models', () => ({
   Annotation: { bulkCreate: jest.fn() },
   Session: {},
   Site: {},
+}));
+
+jest.mock('../../services/roles.service', () => ({
+  findActiveUsersWithProgramPermission: jest.fn(),
 }));
 
 jest.mock('./common', () => ({
@@ -57,9 +62,10 @@ function createReply() {
   };
 }
 
-function createRequest(body: Record<string, unknown>) {
+function createRequest(body: Record<string, unknown>, access = unrestrictedAccess()) {
   return {
     body,
+    access,
     log: {
       info: jest.fn(),
       warn: jest.fn(),
@@ -196,9 +202,32 @@ describe('createAnnotationTasks', () => {
     });
   });
 
-  it('rejects when no active superadmins exist', async () => {
+  it('rejects programs outside the caller\'s own program', async () => {
     setupSuccessfulLookup();
-    (User.findAll as jest.Mock).mockResolvedValue([]);
+
+    const reply = createReply();
+    await createAnnotationTasks(
+      createRequest({ programId: 1, collectionCycleId: 7 }, assignedSitesAccess([5], 2)) as any,
+      reply as any
+    );
+
+    expect(reply.code).toHaveBeenCalledWith(403);
+    expect(mockTransaction.rollback).toHaveBeenCalled();
+    expect(findActiveUsersWithProgramPermission).not.toHaveBeenCalled();
+  });
+
+  it('assigns tasks to active users who can annotate in the program', async () => {
+    setupSuccessfulLookup();
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue([]);
+
+    await createAnnotationTasks(createRequest({ programId: 1, collectionCycleId: 7 }) as any, createReply() as any);
+
+    expect(findActiveUsersWithProgramPermission).toHaveBeenCalledWith(1, 'annotation:annotate', mockTransaction);
+  });
+
+  it('rejects when no active annotators exist', async () => {
+    setupSuccessfulLookup();
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue([]);
 
     const reply = createReply();
     await createAnnotationTasks(createRequest({ programId: 1, collectionCycleId: 7 }) as any, reply as any);
@@ -211,7 +240,7 @@ describe('createAnnotationTasks', () => {
 
   it('rejects when no eligible specimens exist', async () => {
     setupSuccessfulLookup();
-    (User.findAll as jest.Mock).mockResolvedValue([makeUser(1)]);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue([makeUser(1)]);
     (Specimen.findAll as jest.Mock).mockResolvedValue([]);
 
     const reply = createReply();
@@ -225,7 +254,7 @@ describe('createAnnotationTasks', () => {
 
   it('excludes specimens already annotated in the collection cycle', async () => {
     setupSuccessfulLookup();
-    (User.findAll as jest.Mock).mockResolvedValue([makeUser(1)]);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue([makeUser(1)]);
     (Specimen.findAll as jest.Mock).mockResolvedValue([]);
 
     const reply = createReply();
@@ -238,10 +267,10 @@ describe('createAnnotationTasks', () => {
     expect(findOptions.include[0].where.collectionCycleId).toBe(7);
   });
 
-  it('assigns duplicate specimens to sliding windows of three superadmins', async () => {
+  it('assigns duplicate specimens to sliding windows of three annotators', async () => {
     setupSuccessfulLookup();
     const users = [makeUser(1), makeUser(2), makeUser(3)];
-    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue([
       makeSpecimen(101),
       makeSpecimen(102),
@@ -273,7 +302,7 @@ describe('createAnnotationTasks', () => {
     expect(mockTransaction.commit).toHaveBeenCalled();
   });
 
-  it('assigns duplicates and base correctly with many superadmins and specimens', async () => {
+  it('assigns duplicates and base correctly with many annotators and specimens', async () => {
     setupSuccessfulLookup();
     const users = Array.from({ length: 6 }, (_, index) => makeUser(index + 1));
     const specimenCount = 100;
@@ -281,7 +310,7 @@ describe('createAnnotationTasks', () => {
     const basePerAnnotator = 50;
     const baseSpecimensAssigned = specimenCount - duplicateCount;
 
-    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue(
       Array.from({ length: specimenCount }, (_, index) => makeSpecimen(index + 1))
     );
@@ -352,7 +381,7 @@ describe('createAnnotationTasks', () => {
   it('assigns base per annotator when enough specimens remain after duplicates', async () => {
     setupSuccessfulLookup();
     const users = [makeUser(1), makeUser(2)];
-    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue(
       Array.from({ length: 10 }, (_, index) => makeSpecimen(index + 1))
     );
@@ -381,7 +410,7 @@ describe('createAnnotationTasks', () => {
   it('uses all available specimens as duplicates first when not enough for duplicates and base', async () => {
     setupSuccessfulLookup();
     const users = [makeUser(1), makeUser(2), makeUser(3)];
-    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue([
       makeSpecimen(1),
       makeSpecimen(2),
@@ -416,7 +445,7 @@ describe('createAnnotationTasks', () => {
   it('assigns remaining specimens to base equally when partially sufficient', async () => {
     setupSuccessfulLookup();
     const users = [makeUser(1), makeUser(2), makeUser(3)];
-    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue(
       Array.from({ length: 25 }, (_, index) => makeSpecimen(index + 1))
     );
@@ -445,10 +474,10 @@ describe('createAnnotationTasks', () => {
     expect(baseCounts.sort()).toEqual([1, 2, 2]);
   });
 
-  it('creates one task per superadmin and bulk creates annotations', async () => {
+  it('creates one task per annotator and bulk creates annotations', async () => {
     setupSuccessfulLookup();
     const users = [makeUser(1), makeUser(2)];
-    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue([makeSpecimen(1), makeSpecimen(2), makeSpecimen(3)]);
     mockTaskCreation(users);
     (Annotation.bulkCreate as jest.Mock).mockResolvedValue([]);
@@ -485,7 +514,7 @@ describe('createAnnotationTasks', () => {
   it('defaults duplicates to 20 and base to 50', async () => {
     setupSuccessfulLookup();
     const users = [makeUser(1)];
-    (User.findAll as jest.Mock).mockResolvedValue(users);
+    (findActiveUsersWithProgramPermission as jest.Mock).mockResolvedValue(users);
     (Specimen.findAll as jest.Mock).mockResolvedValue(
       Array.from({ length: 70 }, (_, index) => makeSpecimen(index + 1))
     );
