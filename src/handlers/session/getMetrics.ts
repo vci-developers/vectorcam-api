@@ -141,7 +141,18 @@ function emptyMetricsResponse(options: {
 }
 
 function hasIrsQuestionMappings(mappings: SurveillanceQuestionMappings | undefined): boolean {
-  return Boolean(mappings?.wasIrsConducted && mappings?.monthsSinceIrs);
+  return Boolean(mappings?.wasIrsConducted);
+}
+
+/** Months filter applies only when the program asks how long ago IRS happened. */
+export function housesSprayedPredicateSql(includeMonthsSinceIrs: boolean): string {
+  if (!includeMonthsSinceIrs) {
+    return 'was_irs_conducted = 1';
+  }
+
+  return `was_irs_conducted = 1
+      AND months_since_irs IS NOT NULL
+      AND months_since_irs <= 12`;
 }
 
 let questionKeyParamCounter = 0;
@@ -534,11 +545,10 @@ async function loadFormHousesSprayedInLast12Months(
     'was_irs_conducted',
     keyReplacements
   );
-  const monthsExpr = buildNumericExpression(
-    mappings.monthsSinceIrs!,
-    'months_since_irs',
-    keyReplacements
-  );
+  const monthsMapping = mappings.monthsSinceIrs;
+  const monthsExpr = monthsMapping
+    ? buildNumericExpression(monthsMapping, 'months_since_irs', keyReplacements)
+    : null;
 
   const queryReplacements = {
     siteIds,
@@ -554,8 +564,8 @@ async function loadFormHousesSprayedInLast12Months(
     FROM (
       SELECT
         sess.site_id,
-        ${wasIrsExpr},
-        ${monthsExpr}
+        ${wasIrsExpr}${monthsExpr ? `,
+        ${monthsExpr}` : ''}
       FROM sessions sess
       INNER JOIN sites s ON sess.site_id = s.id
       ${joins}
@@ -565,9 +575,7 @@ async function loadFormHousesSprayedInLast12Months(
         AND sess.type = 'SURVEILLANCE'
       GROUP BY sess.site_id, sess.id
     ) AS per_session
-    WHERE was_irs_conducted = 1
-      AND months_since_irs IS NOT NULL
-      AND months_since_irs <= 12
+    WHERE ${housesSprayedPredicateSql(Boolean(monthsMapping))}
   `;
 
   const result = await sequelize.query(query, {

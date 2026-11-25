@@ -1,5 +1,6 @@
 import {
   formAnswerJoins,
+  housesSprayedPredicateSql,
   legacySurveillanceFormsInRangeSql,
   numericAnswerSqlByKeys,
 } from './getMetrics';
@@ -28,6 +29,12 @@ describe('household metric answer pick', () => {
     expect(sql).toContain('sess.collection_date < :endDate');
     expect(sql).toContain("sess.type = 'SURVEILLANCE'");
     expect(sql).toContain('LIMIT 1');
+  });
+
+  it('counts an IRS yes without a months filter when the form has no months-since question', () => {
+    expect(housesSprayedPredicateSql(false)).toBe('was_irs_conducted = 1');
+    expect(housesSprayedPredicateSql(true)).toContain('months_since_irs IS NOT NULL');
+    expect(housesSprayedPredicateSql(true)).toContain('months_since_irs <= 12');
   });
 
   it('joins every form in the program and only questions on that form', () => {

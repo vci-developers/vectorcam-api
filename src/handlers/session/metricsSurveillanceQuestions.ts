@@ -49,6 +49,7 @@ export const PRESET_SURVEILLANCE_QUESTION_KEYS: Record<
     single: [
       ['number_of_llins_available'],
       ['number_of_mosquito_nets_in_the_house'],
+      ['number_of_bednets_available_in_the_room'],
     ],
   },
   numPeopleSleptUnderLlin: {
@@ -61,7 +62,10 @@ export const PRESET_SURVEILLANCE_QUESTION_KEYS: Record<
     ],
   },
   wasIrsConducted: {
-    single: [['was_irs_conducted']],
+    single: [
+      ['was_irs_conducted_in_this_room'],
+      ['was_irs_conducted'],
+    ],
   },
   monthsSinceIrs: {
     single: [['months_since_irs']],

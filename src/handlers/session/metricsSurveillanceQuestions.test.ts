@@ -143,6 +143,33 @@ describe('resolveSurveillanceQuestionMappings', () => {
     });
   });
 
+  it('resolves room-level IRS and bednet keys when the program has no months-since question', () => {
+    const mappings = resolveSurveillanceQuestionMappings([
+      {
+        id: 301,
+        label: 'Was IRS conducted in this room?',
+        type: 'boolean',
+        questionKey: 'was_irs_conducted_in_this_room',
+      },
+      {
+        id: 302,
+        label: 'Number of bednets available in the room.',
+        type: 'number',
+        questionKey: 'number_of_bednets_available_in_the_room',
+      },
+    ]);
+
+    expect(mappings.wasIrsConducted).toEqual({
+      kind: 'single',
+      questionKeys: ['was_irs_conducted_in_this_room'],
+    });
+    expect(mappings.monthsSinceIrs).toBeUndefined();
+    expect(mappings.numLlinsAvailable).toEqual({
+      kind: 'single',
+      questionKeys: ['number_of_bednets_available_in_the_room'],
+    });
+  });
+
   it('prefers single people-in-house when present and accepts nets alias keys', () => {
     const mappings = resolveSurveillanceQuestionMappings(program9NetsKeys);
 
